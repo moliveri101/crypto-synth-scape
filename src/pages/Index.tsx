@@ -177,6 +177,14 @@ const Index = () => {
           targetAudioNode = targetData.channelGains[channelIndex];
         }
       } else if (targetData.type === "output-speakers" || targetData.type === "output-headphones") {
+        // Create output gain node if it doesn't exist
+        if (!targetData.outputGain && audioEngine.getContext()) {
+          const ctx = audioEngine.getContext()!;
+          targetData.outputGain = ctx.createGain();
+          targetData.outputGain.gain.value = targetData.volume || 1.0;
+          targetData.outputGain.connect(ctx.destination);
+        }
+        
         if (targetData.outputGain) {
           targetAudioNode = targetData.outputGain;
           targetData.isActive = true;
@@ -653,24 +661,16 @@ const Index = () => {
         },
       };
     } else if (type === "output-speakers" || type === "output-headphones") {
-      const ctx = audioEngine.getContext();
-      let outputGain: GainNode | null = null;
-      
-      if (ctx) {
-        outputGain = ctx.createGain();
-        outputGain.gain.value = 0.8;
-        outputGain.connect(ctx.destination);
-      }
-      
+      // Output modules will create their gain node when first connected
       newNode = {
         id,
         type,
         position: { x: 100 + nodes.length * 50, y: 100 + nodes.length * 50 },
         data: {
           type,
-          volume: 0.8,
+          volume: 1.0,
           isActive: false,
-          outputGain,
+          outputGain: null, // Will be created on first connection
           collapsed: false,
         },
       };
