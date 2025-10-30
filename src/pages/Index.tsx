@@ -279,6 +279,13 @@ const Index = () => {
         return valid;
       }
 
+      // Sequencer can connect to: crypto, sampler (to trigger them)
+      if (sourceType === "sequencer") {
+        const valid = targetType === "crypto" || targetType === "sampler";
+        console.log("Sequencer connection valid:", valid);
+        return valid;
+      }
+
       // Effects can connect to: mixers, other effects, visualizer
       if (EFFECT_TYPES.includes(sourceType)) {
         const isMixer = targetType === "mixer" || (typeof targetType === "string" && targetType.startsWith("mixer-"));
