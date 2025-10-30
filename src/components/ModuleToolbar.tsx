@@ -37,7 +37,6 @@ const PLUGIN_CATEGORIES = {
   ],
   "Audio Sources": [
     { type: "sampler" as ModuleType, label: "Sampler" },
-    { type: "tone-selector" as ModuleType, label: "Tone Selector" },
   ],
   "Time Effects": [
     { type: "reverb" as ModuleType, label: "Reverb" },

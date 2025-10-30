@@ -21,15 +21,13 @@ import MixerModuleNode from "@/components/modules/MixerModuleNode";
 import MultiTrackMixerNode from "@/components/modules/MultiTrackMixerNode";
 import VisualizerModuleNode from "@/components/modules/VisualizerModuleNode";
 import SamplerModuleNode from "@/components/modules/SamplerModuleNode";
-import ToneSelectorModuleNode from "@/components/modules/ToneSelectorModuleNode";
 import EffectModuleNode from "@/components/modules/EffectModuleNode";
+import OutputModuleNode from "@/components/modules/OutputModuleNode";
 import ModuleToolbar from "@/components/ModuleToolbar";
 import { useToast } from "@/hooks/use-toast";
 import { ModuleType } from "@/types/modules";
 import CustomEdge from "@/components/modules/CustomEdge";
 import InteractiveEdge from "@/components/modules/InteractiveEdge";
-
-import OutputModuleNode from "@/components/modules/OutputModuleNode";
 
 const nodeTypes = {
   crypto: CryptoModuleNode,
@@ -42,7 +40,6 @@ const nodeTypes = {
   "output-headphones": OutputModuleNode,
   visualizer: VisualizerModuleNode,
   sampler: SamplerModuleNode,
-  "tone-selector": ToneSelectorModuleNode,
   reverb: EffectModuleNode,
   delay: EffectModuleNode,
   chorus: EffectModuleNode,
@@ -140,7 +137,17 @@ const Index = () => {
       } else if (targetData.type === "mixer" || targetData.type.startsWith("mixer-")) {
         targetAudioNode = audioEngine.getMasterGain();
       } else if (targetData.type === "output-speakers" || targetData.type === "output-headphones") {
-        targetAudioNode = audioEngine.getMasterGain();
+        // Initialize output gain if needed
+        if (!targetData.outputGain) {
+          const ctx = audioEngine.getContext();
+          if (ctx) {
+            targetData.outputGain = ctx.createGain();
+            targetData.outputGain.gain.value = targetData.volume || 0.8;
+            targetData.outputGain.connect(ctx.destination);
+            targetData.isActive = true;
+          }
+        }
+        targetAudioNode = targetData.outputGain;
       }
 
       // Connect
@@ -221,14 +228,6 @@ const Index = () => {
         const isMixer = targetType === "mixer" || (typeof targetType === "string" && targetType.startsWith("mixer-"));
         const valid = isMixer || EFFECT_TYPES.includes(targetType);
         console.log("Sampler connection valid:", valid);
-        return valid;
-      }
-
-      // Tone selector can connect to: crypto, mixers, effects
-      if (sourceType === "tone-selector") {
-        const isMixer = targetType === "mixer" || (typeof targetType === "string" && targetType.startsWith("mixer-"));
-        const valid = targetType === "crypto" || isMixer || EFFECT_TYPES.includes(targetType);
-        console.log("Tone selector connection valid:", valid);
         return valid;
       }
 
@@ -326,6 +325,9 @@ const Index = () => {
         isPlaying: false,
         collapsed: false,
         connectedTo: null,
+        scale: "major",
+        rootNote: "C",
+        octave: 4,
       },
     };
 
@@ -534,20 +536,6 @@ const Index = () => {
           collapsed: false,
         },
       };
-    } else if (type === "tone-selector") {
-      newNode = {
-        id,
-        type,
-        position: { x: 100 + nodes.length * 50, y: 100 + nodes.length * 50 },
-        data: {
-          type,
-          scale: "major",
-          rootNote: "C",
-          octave: 4,
-          isActive: true,
-          collapsed: false,
-        },
-      };
     } else if (type.startsWith("mixer-")) {
       const trackCount = parseInt(type.split("-")[1]);
       newNode = {
@@ -601,9 +589,14 @@ const Index = () => {
     setNodes((nds) =>
       nds.map((node) => {
         if (node.id === nodeId) {
-          if (node.data.type === "sampler") {
+          // If updating output volume, also update the output gain node
+          if ((node.data.type === "output-speakers" || node.data.type === "output-headphones") && param === "volume" && node.data.outputGain) {
+            node.data.outputGain.gain.value = value;
+          }
+          
+          if (node.data.type === "crypto") {
             return { ...node, data: { ...node.data, [param]: value } };
-          } else if (node.data.type === "tone-selector") {
+          } else if (node.data.type === "sampler") {
             return { ...node, data: { ...node.data, [param]: value } };
           } else {
             // Effect modules
@@ -652,6 +645,9 @@ const Index = () => {
                   onVolumeChange: updateVolume,
                   onWaveformChange: updateWaveform,
                   onToggleCollapse: toggleCollapse,
+                  onScaleChange: (id: string, scale: string) => updatePluginParameter(id, "scale", scale),
+                  onRootNoteChange: (id: string, note: string) => updatePluginParameter(id, "rootNote", note),
+                  onOctaveChange: (id: string, octave: number) => updatePluginParameter(id, "octave", octave),
                 }
               : node.data.type === "mixer"
               ? {
@@ -680,16 +676,7 @@ const Index = () => {
                   onToggleCollapse: toggleCollapse,
                   onRemove: removeNode,
                 }
-              : node.data.type === "tone-selector"
-              ? {
-                  ...node.data,
-                  onScaleChange: (scale: string) => updatePluginParameter(node.id, "scale", scale),
-                  onRootNoteChange: (note: string) => updatePluginParameter(node.id, "rootNote", note),
-                  onOctaveChange: (octave: number) => updatePluginParameter(node.id, "octave", octave),
-                  onToggleCollapse: toggleCollapse,
-                  onRemove: removeNode,
-                }
-              : node.data.type && ["reverb", "delay", "chorus", "flanger", "phaser", "pingpong-delay", 
+              : node.data.type && ["reverb", "delay", "chorus", "flanger", "phaser", "pingpong-delay",
                   "compressor", "limiter", "gate", "de-esser", "eq", "lpf", "hpf", "bandpass", 
                   "resonant-filter", "overdrive", "distortion", "fuzz", "bitcrusher", "tape-saturation",
                   "vibrato", "tremolo", "ring-mod", "pitch-shifter", "octaver", "granular", "vocoder",

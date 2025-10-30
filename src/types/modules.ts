@@ -1,7 +1,7 @@
 import { Node, Edge } from "reactflow";
 import { CryptoData } from "./crypto";
 
-export type ModuleType = "crypto" | "mixer" | "mixer-4" | "mixer-8" | "mixer-16" | "mixer-32" | "visualizer" | "sampler" | "tone-selector" | 
+export type ModuleType = "crypto" | "mixer" | "mixer-4" | "mixer-8" | "mixer-16" | "mixer-32" | "visualizer" | "sampler" | 
   "reverb" | "delay" | "chorus" | "flanger" | "phaser" | "pingpong-delay" |
   "compressor" | "limiter" | "gate" | "de-esser" |
   "eq" | "lpf" | "hpf" | "bandpass" | "resonant-filter" |
@@ -20,6 +20,9 @@ export interface CryptoModuleData {
   isPlaying: boolean;
   collapsed: boolean;
   connectedTo: string | null; // Track if connected
+  scale: string;
+  rootNote: string;
+  octave: number;
 }
 
 export interface MixerModuleData {
@@ -47,15 +50,6 @@ export interface SamplerModuleData {
   decay: number;
   isActive: boolean;
   audioNode: GainNode | null;
-  collapsed: boolean;
-}
-
-export interface ToneSelectorModuleData {
-  type: "tone-selector";
-  scale: string;
-  rootNote: string;
-  octave: number;
-  isActive: boolean;
   collapsed: boolean;
 }
 
@@ -91,7 +85,6 @@ export type ModuleData =
   | MixerModuleData 
   | VisualizerModuleData 
   | SamplerModuleData 
-  | ToneSelectorModuleData 
   | EffectModuleData
   | OutputModuleData;
 

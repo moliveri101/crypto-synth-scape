@@ -2,17 +2,31 @@ import { Handle, Position, NodeProps } from "reactflow";
 import { CryptoModuleData } from "@/types/modules";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { X, TrendingUp, TrendingDown, ChevronDown, ChevronUp } from "lucide-react";
 
 const waveforms: OscillatorType[] = ["sine", "square", "sawtooth", "triangle"];
+
+const SCALES = [
+  { value: "major", label: "Major" },
+  { value: "minor", label: "Minor" },
+  { value: "pentatonic", label: "Pentatonic" },
+  { value: "blues", label: "Blues" },
+];
+
+const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
 const CryptoModuleNode = ({ data, id }: NodeProps<CryptoModuleData & {
   onRemove: (id: string) => void;
   onVolumeChange: (id: string, volume: number) => void;
   onWaveformChange: (id: string, waveform: OscillatorType) => void;
   onToggleCollapse: (id: string) => void;
+  onScaleChange?: (id: string, scale: string) => void;
+  onRootNoteChange?: (id: string, note: string) => void;
+  onOctaveChange?: (id: string, octave: number) => void;
 }>) => {
-  const { crypto, volume, waveform, isPlaying, collapsed, onRemove, onVolumeChange, onWaveformChange, onToggleCollapse } = data;
+  const { crypto, volume, waveform, isPlaying, collapsed, scale, rootNote, octave, onRemove, onVolumeChange, onWaveformChange, onToggleCollapse, onScaleChange, onRootNoteChange, onOctaveChange } = data;
   const priceChange = crypto.price_change_percentage_24h;
   const isPositive = priceChange >= 0;
 
@@ -135,6 +149,60 @@ const CryptoModuleNode = ({ data, id }: NodeProps<CryptoModuleData & {
             max={100}
             step={1}
           />
+        </div>
+
+        {/* Tone Settings */}
+        <div className="space-y-2 pt-2 border-t border-border">
+          <p className="text-xs font-medium text-muted-foreground">Tone Settings</p>
+          
+          <div>
+            <Label className="text-xs text-muted-foreground">Scale</Label>
+            <Select value={scale} onValueChange={(v) => onScaleChange?.(id, v)}>
+              <SelectTrigger className="h-7 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SCALES.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label className="text-xs text-muted-foreground">Root</Label>
+              <Select value={rootNote} onValueChange={(v) => onRootNoteChange?.(id, v)}>
+                <SelectTrigger className="h-7 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {NOTES.map((note) => (
+                    <SelectItem key={note} value={note}>
+                      {note}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Octave</Label>
+              <Select value={octave.toString()} onValueChange={(v) => onOctaveChange?.(id, parseInt(v))}>
+                <SelectTrigger className="h-7 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[2, 3, 4, 5, 6].map((oct) => (
+                    <SelectItem key={oct} value={oct.toString()}>
+                      {oct}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </div>
           </>
         )}
