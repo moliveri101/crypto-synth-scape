@@ -1,103 +1,264 @@
-import { useState, useEffect } from "react";
-import { CryptoData, CryptoSound } from "@/types/crypto";
+import { useState, useEffect, useCallback } from "react";
+import ReactFlow, {
+  Background,
+  Controls,
+  MiniMap,
+  addEdge,
+  Connection,
+  Edge,
+  useNodesState,
+  useEdgesState,
+  BackgroundVariant,
+  Node,
+} from "reactflow";
+import "reactflow/dist/style.css";
+import { CryptoData } from "@/types/crypto";
+import { ModuleData, CryptoModuleData, MixerModuleData, VisualizerModuleData } from "@/types/modules";
 import { audioEngine } from "@/utils/audioEngine";
-import CryptoSearch from "@/components/CryptoSearch";
-import CryptoSoundCard from "@/components/CryptoSoundCard";
-import AudioVisualizer from "@/components/AudioVisualizer";
-import MasterControls from "@/components/MasterControls";
+import CryptoModuleNode from "@/components/modules/CryptoModuleNode";
+import MixerModuleNode from "@/components/modules/MixerModuleNode";
+import VisualizerModuleNode from "@/components/modules/VisualizerModuleNode";
+import ModuleToolbar from "@/components/ModuleToolbar";
 import { useToast } from "@/hooks/use-toast";
 
+const nodeTypes = {
+  crypto: CryptoModuleNode,
+  mixer: MixerModuleNode,
+  visualizer: VisualizerModuleNode,
+};
+
 const Index = () => {
-  const [cryptoSounds, setCryptoSounds] = useState<CryptoSound[]>([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<any>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [masterVolume, setMasterVolume] = useState(0.5);
   const { toast } = useToast();
 
+  // Initialize audio engine and default modules
   useEffect(() => {
     audioEngine.initialize();
+
+    // Add default mixer module
+    const mixerNode: any = {
+      id: "mixer",
+      type: "mixer",
+      position: { x: 600, y: 250 },
+      data: {
+        type: "mixer",
+        masterVolume: 0.5,
+        isPlaying: false,
+        inputCount: 0,
+      },
+    };
+
+    // Add default visualizer module
+    const visualizerNode: any = {
+      id: "visualizer",
+      type: "visualizer",
+      position: { x: 1000, y: 250 },
+      data: {
+        type: "visualizer",
+        isActive: false,
+      },
+    };
+
+    // Connect mixer to visualizer
+    const defaultEdge: Edge = {
+      id: "mixer-visualizer",
+      source: "mixer",
+      target: "visualizer",
+      animated: true,
+      style: { stroke: "hsl(188, 95%, 58%)", strokeWidth: 2 },
+    };
+
+    setNodes([mixerNode, visualizerNode]);
+    setEdges([defaultEdge]);
+
     return () => {
       audioEngine.close();
     };
   }, []);
 
+  // Update master volume
   useEffect(() => {
     audioEngine.setMasterVolume(masterVolume);
   }, [masterVolume]);
 
-  const addCrypto = (crypto: CryptoData) => {
-    const newCryptoSound: CryptoSound = {
-      id: crypto.id,
-      crypto,
-      oscillator: null,
-      gainNode: null,
-      volume: 0.7,
-      waveform: "sine",
-      isPlaying: false,
+  // Update mixer input count
+  useEffect(() => {
+    const cryptoCount = nodes.filter((n) => n.type === "crypto").length;
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === "mixer" && node.data.type === "mixer") {
+          return {
+            ...node,
+            data: { ...node.data, inputCount: cryptoCount },
+          };
+        }
+        return node;
+      })
+    );
+  }, [nodes.length]);
+
+  const onConnect = useCallback(
+    (params: Connection | Edge) => {
+      const edge = {
+        ...params,
+        animated: true,
+        style: { stroke: "hsl(188, 95%, 58%)", strokeWidth: 2 },
+      };
+      setEdges((eds) => addEdge(edge, eds));
+    },
+    [setEdges]
+  );
+
+  const addCryptoModule = (crypto: CryptoData) => {
+    const id = `crypto-${crypto.id}`;
+
+    // Check if already exists
+    if (nodes.find((n) => n.id === id)) {
+      toast({
+        title: "Already added",
+        description: `${crypto.name} module is already on the canvas`,
+      });
+      return;
+    }
+
+    // Create new crypto module
+    const newNode: any = {
+      id,
+      type: "crypto",
+      position: { x: 100 + nodes.length * 50, y: 100 + nodes.length * 50 },
+      data: {
+        type: "crypto",
+        crypto,
+        volume: 0.7,
+        waveform: "sine",
+        oscillator: null,
+        gainNode: null,
+        isPlaying: false,
+      },
     };
 
-    setCryptoSounds((prev) => [...prev, newCryptoSound]);
+    setNodes((nds) => [...nds, newNode]);
 
+    // Auto-connect to mixer
+    const newEdge: Edge = {
+      id: `${id}-mixer`,
+      source: id,
+      target: "mixer",
+      animated: true,
+      style: { stroke: "hsl(188, 95%, 58%)", strokeWidth: 2 },
+    };
+    setEdges((eds) => [...eds, newEdge]);
+
+    // Start sound if playing
     if (isPlaying) {
-      startSound(newCryptoSound);
+      setTimeout(() => startSound(id), 100);
     }
   };
 
-  const removeCrypto = (id: string) => {
-    const cryptoSound = cryptoSounds.find((cs) => cs.id === id);
-    if (cryptoSound?.oscillator) {
-      cryptoSound.oscillator.stop();
-      cryptoSound.oscillator.disconnect();
+  const removeCryptoModule = (id: string) => {
+    // Stop sound
+    const node = nodes.find((n) => n.id === id);
+    if (node && node.data.type === "crypto") {
+      const data = node.data;
+      if (data.oscillator) {
+        data.oscillator.stop();
+        data.oscillator.disconnect();
+      }
     }
-    setCryptoSounds((prev) => prev.filter((cs) => cs.id !== id));
+
+    // Remove node and connected edges
+    setNodes((nds) => nds.filter((n) => n.id !== id));
+    setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
   };
 
-  const startSound = (cryptoSound: CryptoSound) => {
-    if (cryptoSound.oscillator) return;
+  const startSound = (nodeId: string) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId && node.data.type === "crypto") {
+          const data = node.data;
+          if (data.oscillator) return node;
 
-    const nodes = audioEngine.createOscillator(
-      cryptoSound.crypto,
-      cryptoSound.waveform
+          const audioNodes = audioEngine.createOscillator(data.crypto, data.waveform);
+          if (audioNodes) {
+            const { oscillator, gainNode } = audioNodes;
+            gainNode.gain.value *= data.volume;
+            oscillator.start();
+
+            return {
+              ...node,
+              data: {
+                ...data,
+                oscillator,
+                gainNode,
+                isPlaying: true,
+              },
+            };
+          }
+        }
+        return node;
+      })
     );
-
-    if (nodes) {
-      const { oscillator, gainNode } = nodes;
-      gainNode.gain.value *= cryptoSound.volume;
-      oscillator.start();
-
-      setCryptoSounds((prev) =>
-        prev.map((cs) =>
-          cs.id === cryptoSound.id
-            ? { ...cs, oscillator, gainNode, isPlaying: true }
-            : cs
-        )
-      );
-    }
   };
 
-  const stopSound = (cryptoSound: CryptoSound) => {
-    if (cryptoSound.oscillator) {
-      cryptoSound.oscillator.stop();
-      cryptoSound.oscillator.disconnect();
+  const stopSound = (nodeId: string) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId && node.data.type === "crypto") {
+          const data = node.data;
+          if (data.oscillator) {
+            data.oscillator.stop();
+            data.oscillator.disconnect();
+          }
 
-      setCryptoSounds((prev) =>
-        prev.map((cs) =>
-          cs.id === cryptoSound.id
-            ? { ...cs, oscillator: null, gainNode: null, isPlaying: false }
-            : cs
-        )
-      );
-    }
+          return {
+            ...node,
+            data: {
+              ...data,
+              oscillator: null,
+              gainNode: null,
+              isPlaying: false,
+            },
+          };
+        }
+        return node;
+      })
+    );
   };
 
   const togglePlay = () => {
     if (isPlaying) {
-      cryptoSounds.forEach(stopSound);
+      nodes.forEach((node) => {
+        if (node.data.type === "crypto") {
+          stopSound(node.id);
+        }
+      });
       audioEngine.suspend();
       setIsPlaying(false);
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === "mixer" && n.data.type === "mixer"
+            ? { ...n, data: { ...n.data, isPlaying: false } }
+            : n
+        )
+      );
     } else {
       audioEngine.resume();
-      cryptoSounds.forEach(startSound);
+      nodes.forEach((node) => {
+        if (node.data.type === "crypto") {
+          startSound(node.id);
+        }
+      });
       setIsPlaying(true);
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === "mixer" && n.data.type === "mixer"
+            ? { ...n, data: { ...n.data, isPlaying: true } }
+            : n
+        )
+      );
       toast({
         title: "Playing",
         description: "Your crypto symphony is now playing",
@@ -105,94 +266,110 @@ const Index = () => {
     }
   };
 
-  const updateVolume = (id: string, volume: number) => {
-    setCryptoSounds((prev) =>
-      prev.map((cs) => {
-        if (cs.id === id) {
-          if (cs.gainNode) {
-            cs.gainNode.gain.value = volume * 0.5;
+  const updateVolume = (nodeId: string, volume: number) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId && node.data.type === "crypto") {
+          const data = node.data;
+          if (data.gainNode) {
+            data.gainNode.gain.value = volume * 0.5;
           }
-          return { ...cs, volume };
+          return {
+            ...node,
+            data: { ...data, volume },
+          };
         }
-        return cs;
+        return node;
       })
     );
   };
 
-  const updateWaveform = (id: string, waveform: OscillatorType) => {
-    setCryptoSounds((prev) =>
-      prev.map((cs) => {
-        if (cs.id === id) {
-          const wasPlaying = cs.isPlaying;
-          if (wasPlaying) {
-            stopSound(cs);
-          }
-          const updated = { ...cs, waveform };
-          if (wasPlaying) {
-            setTimeout(() => startSound(updated), 10);
-          }
-          return updated;
+  const updateWaveform = (nodeId: string, waveform: OscillatorType) => {
+    const node = nodes.find((n) => n.id === nodeId);
+    const wasPlaying = node && node.data.type === "crypto" ? node.data.isPlaying : false;
+
+    if (wasPlaying) {
+      stopSound(nodeId);
+    }
+
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId && node.data.type === "crypto") {
+          return {
+            ...node,
+            data: { ...node.data, waveform },
+          };
         }
-        return cs;
+        return node;
       })
     );
+
+    if (wasPlaying) {
+      setTimeout(() => startSound(nodeId), 50);
+    }
   };
+
+  const handleMasterVolumeChange = (volume: number) => {
+    setMasterVolume(volume);
+    setNodes((nds) =>
+      nds.map((n) =>
+        n.id === "mixer" && n.data.type === "mixer"
+          ? { ...n, data: { ...n.data, masterVolume: volume } }
+          : n
+      )
+    );
+  };
+
+  const cryptoCount = nodes.filter((n) => n.data.type === "crypto").length;
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-glow opacity-30" />
-      
-      <div className="relative max-w-7xl mx-auto px-4 py-8 space-y-8">
-        <header className="text-center space-y-2">
-          <h1 className="text-5xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-            CryptoSound
-          </h1>
-          <p className="text-lg text-muted-foreground">
-            Transform cryptocurrency data into generative music
-          </p>
-        </header>
+    <div className="w-full h-screen bg-background">
+      <ModuleToolbar onAddCrypto={addCryptoModule} />
 
-        <div className="grid lg:grid-cols-2 gap-8">
-          <div className="space-y-6">
-            <MasterControls
-              isPlaying={isPlaying}
-              onTogglePlay={togglePlay}
-              masterVolume={masterVolume}
-              onMasterVolumeChange={setMasterVolume}
-              activeCryptos={cryptoSounds.length}
-            />
-
-            <CryptoSearch
-              onAddCrypto={addCrypto}
-              selectedCryptos={cryptoSounds.map((cs) => cs.crypto)}
-            />
-          </div>
-
-          <AudioVisualizer
-            isPlaying={isPlaying}
-            activeCryptos={cryptoSounds.length}
-          />
-        </div>
-
-        {cryptoSounds.length > 0 && (
-          <div>
-            <h2 className="text-2xl font-bold text-foreground mb-4">
-              Active Sound Layers
-            </h2>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {cryptoSounds.map((cs) => (
-                <CryptoSoundCard
-                  key={cs.id}
-                  cryptoSound={cs}
-                  onRemove={() => removeCrypto(cs.id)}
-                  onVolumeChange={(vol) => updateVolume(cs.id, vol)}
-                  onWaveformChange={(wf) => updateWaveform(cs.id, wf)}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+      <ReactFlow
+        nodes={nodes.map((node) => ({
+          ...node,
+          data:
+            node.data.type === "crypto"
+              ? {
+                  ...node.data,
+                  onRemove: removeCryptoModule,
+                  onVolumeChange: updateVolume,
+                  onWaveformChange: updateWaveform,
+                }
+              : node.data.type === "mixer"
+              ? {
+                  ...node.data,
+                  onTogglePlay: togglePlay,
+                  onMasterVolumeChange: handleMasterVolumeChange,
+                }
+              : node.data.type === "visualizer"
+              ? { ...node.data, isPlaying, activeCryptos: cryptoCount }
+              : node.data,
+        }))}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        nodeTypes={nodeTypes}
+        fitView
+      >
+        <Background
+          variant={BackgroundVariant.Dots}
+          gap={20}
+          size={1}
+          color="hsl(188, 95%, 58%, 0.2)"
+        />
+        <Controls className="!bg-card !border-border !shadow-card" />
+        <MiniMap
+          className="!bg-card !border-border"
+          nodeColor={(node: any) => {
+            if (node.data?.type === "mixer") return "hsl(188, 95%, 58%)";
+            if (node.data?.type === "visualizer") return "hsl(268, 85%, 66%)";
+            return "hsl(220, 20%, 12%)";
+          }}
+        />
+      </ReactFlow>
     </div>
   );
 };
