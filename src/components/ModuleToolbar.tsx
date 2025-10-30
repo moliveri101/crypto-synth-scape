@@ -25,6 +25,10 @@ interface ModuleToolbarProps {
 }
 
 const PLUGIN_CATEGORIES = {
+  "Outputs": [
+    { type: "output-speakers" as ModuleType, label: "Speakers" },
+    { type: "output-headphones" as ModuleType, label: "Headphones" },
+  ],
   "Mixers": [
     { type: "mixer-4" as ModuleType, label: "4-Track Mixer" },
     { type: "mixer-8" as ModuleType, label: "8-Track Mixer" },

@@ -10,7 +10,7 @@ const MixerModuleNode = ({ data, id }: NodeProps<MixerModuleData & {
   onToggleCollapse: (id: string) => void;
   onRemove: (id: string) => void;
 }>) => {
-  const { masterVolume, isPlaying, inputCount, collapsed, onTogglePlay, onMasterVolumeChange, onToggleCollapse } = data;
+  const { masterVolume, isPlaying, inputCount, collapsed, onTogglePlay, onMasterVolumeChange, onToggleCollapse, onRemove } = data;
 
   return (
     <div className="bg-gradient-card backdrop-blur-sm border-2 border-primary/50 rounded-lg shadow-glow w-[280px]">

@@ -29,6 +29,8 @@ import { ModuleType } from "@/types/modules";
 import CustomEdge from "@/components/modules/CustomEdge";
 import InteractiveEdge from "@/components/modules/InteractiveEdge";
 
+import OutputModuleNode from "@/components/modules/OutputModuleNode";
+
 const nodeTypes = {
   crypto: CryptoModuleNode,
   mixer: MixerModuleNode,
@@ -36,6 +38,8 @@ const nodeTypes = {
   "mixer-8": MultiTrackMixerNode,
   "mixer-16": MultiTrackMixerNode,
   "mixer-32": MultiTrackMixerNode,
+  "output-speakers": OutputModuleNode,
+  "output-headphones": OutputModuleNode,
   visualizer: VisualizerModuleNode,
   sampler: SamplerModuleNode,
   "tone-selector": ToneSelectorModuleNode,
@@ -81,49 +85,9 @@ const Index = () => {
   const [masterVolume, setMasterVolume] = useState(0.5);
   const { toast } = useToast();
 
-  // Initialize audio engine and default modules
+  // Initialize audio engine (no default modules)
   useEffect(() => {
     audioEngine.initialize();
-
-    // Add default mixer module
-    const mixerNode: any = {
-      id: "mixer",
-      type: "mixer",
-      position: { x: 600, y: 250 },
-      data: {
-        type: "mixer",
-        masterVolume: 0.5,
-        isPlaying: false,
-        inputCount: 0,
-        collapsed: false,
-      },
-    };
-
-    // Add default visualizer module
-    const visualizerNode: any = {
-      id: "visualizer",
-      type: "visualizer",
-      position: { x: 1000, y: 250 },
-      data: {
-        type: "visualizer",
-        isActive: false,
-        collapsed: false,
-      },
-    };
-
-    // Connect mixer to visualizer
-    const defaultEdge: Edge = {
-      id: "e-mixer-visualizer",
-      source: "mixer",
-      target: "visualizer",
-      type: "custom",
-      animated: true,
-      style: { stroke: "hsl(188, 95%, 58%)", strokeWidth: 2 },
-      data: {},
-    };
-
-    setNodes([mixerNode, visualizerNode]);
-    setEdges([defaultEdge]);
 
     return () => {
       audioEngine.close();
@@ -174,6 +138,8 @@ const Index = () => {
       if (targetData.inputNode) {
         targetAudioNode = targetData.inputNode;
       } else if (targetData.type === "mixer" || targetData.type.startsWith("mixer-")) {
+        targetAudioNode = audioEngine.getMasterGain();
+      } else if (targetData.type === "output-speakers" || targetData.type === "output-headphones") {
         targetAudioNode = audioEngine.getMasterGain();
       }
 
@@ -274,9 +240,10 @@ const Index = () => {
         return valid;
       }
 
-      // Mixers can connect to: visualizer, effects
+      // Mixers can connect to: visualizer, effects, outputs
       if (sourceType === "mixer" || (typeof sourceType === "string" && sourceType.startsWith("mixer-"))) {
-        const valid = targetType === "visualizer" || EFFECT_TYPES.includes(targetType);
+        const isOutput = targetType === "output-speakers" || targetType === "output-headphones";
+        const valid = targetType === "visualizer" || EFFECT_TYPES.includes(targetType) || isOutput;
         console.log("Mixer connection valid:", valid);
         return valid;
       }
@@ -581,6 +548,34 @@ const Index = () => {
           collapsed: false,
         },
       };
+    } else if (type.startsWith("mixer-")) {
+      const trackCount = parseInt(type.split("-")[1]);
+      newNode = {
+        id,
+        type,
+        position: { x: 100 + nodes.length * 50, y: 100 + nodes.length * 50 },
+        data: {
+          type,
+          masterVolume: 0.7,
+          isPlaying: false,
+          inputCount: 0,
+          collapsed: false,
+          channels: Array.from({ length: trackCount }, () => ({ volume: 0.8, pan: 0, muted: false })),
+        },
+      };
+    } else if (type === "output-speakers" || type === "output-headphones") {
+      newNode = {
+        id,
+        type,
+        position: { x: 100 + nodes.length * 50, y: 100 + nodes.length * 50 },
+        data: {
+          type,
+          volume: 0.8,
+          isActive: false,
+          outputGain: null,
+          collapsed: false,
+        },
+      };
     } else {
       // Effect modules
       newNode = {
@@ -706,6 +701,12 @@ const Index = () => {
                   onToggleActive: () => updatePluginParameter(node.id, "isActive", !node.data.isActive),
                   onParameterChange: (param: string, value: number) => updatePluginParameter(node.id, param, value),
                   onToggleCollapse: toggleCollapse,
+                  onRemove: removeNode,
+                }
+              : (node.data.type === "output-speakers" || node.data.type === "output-headphones")
+              ? {
+                  ...node.data,
+                  onVolumeChange: (volume: number) => updatePluginParameter(node.id, "volume", volume),
                   onRemove: removeNode,
                 }
               : node.data,

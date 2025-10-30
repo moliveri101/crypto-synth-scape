@@ -26,7 +26,8 @@ const MultiTrackMixerNode = ({ data, id }: NodeProps<MixerModuleData & {
     onToggleCollapse,
     onChannelVolumeChange,
     onChannelPanChange,
-    onChannelMuteToggle
+    onChannelMuteToggle,
+    onRemove
   } = data;
 
   const trackCount = type === "mixer-4" ? 4 : 

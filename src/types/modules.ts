@@ -7,7 +7,8 @@ export type ModuleType = "crypto" | "mixer" | "mixer-4" | "mixer-8" | "mixer-16"
   "eq" | "lpf" | "hpf" | "bandpass" | "resonant-filter" |
   "overdrive" | "distortion" | "fuzz" | "bitcrusher" | "tape-saturation" |
   "vibrato" | "tremolo" | "ring-mod" | "pitch-shifter" | "octaver" |
-  "granular" | "vocoder" | "auto-pan" | "stereo-widener";
+  "granular" | "vocoder" | "auto-pan" | "stereo-widener" |
+  "output-speakers" | "output-headphones";
 
 export interface CryptoModuleData {
   type: "crypto";
@@ -77,13 +78,22 @@ export interface EffectModuleData {
   dryNode: GainNode | null; // Dry signal
 }
 
+export interface OutputModuleData {
+  type: "output-speakers" | "output-headphones";
+  volume: number;
+  isActive: boolean;
+  outputGain: GainNode | null;
+  collapsed: boolean;
+}
+
 export type ModuleData = 
   | CryptoModuleData 
   | MixerModuleData 
   | VisualizerModuleData 
   | SamplerModuleData 
   | ToneSelectorModuleData 
-  | EffectModuleData;
+  | EffectModuleData
+  | OutputModuleData;
 
 export type CryptoNode = Node<CryptoModuleData>;
 export type MixerNode = Node<MixerModuleData>;
