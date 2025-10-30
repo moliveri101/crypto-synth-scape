@@ -64,17 +64,31 @@ export class AudioEngine {
       "tom" | "low-tom" | "mid-tom" | "high-tom" |
       "cowbell" | "ride" | "crash" | "shaker" |
       "clave" | "rim" | "rimshot" | "bongo" | "conga",
-    outputNode: GainNode,
+    outputNode: GainNode | null,
     volume: number = 0.8,
     pitchOffset: number = 0
   ) {
-    if (!this.audioContext) return;
+    if (!this.audioContext || !this.masterGain) return;
+
+    // Use masterGain if outputNode is null or from wrong context
+    let targetNode: AudioNode = this.masterGain;
+    if (outputNode) {
+      try {
+        // Check if outputNode belongs to the same context
+        if (outputNode.context === this.audioContext) {
+          targetNode = outputNode;
+        }
+      } catch (e) {
+        // If checking fails, just use masterGain
+        console.warn("OutputNode context mismatch, using masterGain");
+      }
+    }
 
     const now = this.audioContext.currentTime;
     const pitchMultiplier = Math.pow(2, pitchOffset / 12);
 
     const env = this.audioContext.createGain();
-    env.connect(outputNode);
+    env.connect(targetNode);
 
     const startOsc = (type: OscillatorType, freq: number, decay: number) => {
       const osc = this.audioContext!.createOscillator();
@@ -119,7 +133,7 @@ export class AudioEngine {
           g.gain.setValueAtTime(volume, now);
           g.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
           osc.connect(g);
-          g.connect(outputNode);
+          g.connect(targetNode);
           osc.start(now);
           osc.stop(now + 0.5);
         }
@@ -164,7 +178,7 @@ export class AudioEngine {
           g.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
           o1.connect(g);
           o2.connect(g);
-          g.connect(outputNode);
+          g.connect(targetNode);
           o1.start(now);
           o2.start(now);
           o1.stop(now + 0.25);
