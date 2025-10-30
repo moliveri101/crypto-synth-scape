@@ -88,7 +88,7 @@ export interface SequencerModuleData {
 
 export interface DrumsModuleData {
   type: "drums";
-  selectedDrum: "kick" | "snare" | "hihat" | "clap";
+  selectedDrum: "kick" | "snare" | "hihat" | "clap" | "tom" | "low-tom" | "mid-tom" | "high-tom" | "cowbell" | "ride" | "crash" | "shaker" | "clave" | "rim" | "rimshot" | "bongo" | "conga";
   volume: number;
   pitch: number;
   collapsed: boolean;

@@ -68,34 +68,8 @@ const DrumsModuleNode = ({ data, id }: NodeProps<DrumsModuleData & {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Volume</span>
-              <span className="text-xs font-mono text-foreground">{Math.round(data.volume * 100)}%</span>
-            </div>
-            <Slider
-              value={[data.volume * 100]}
-              onValueChange={([value]) => data.onParameterChange(id, "volume", value / 100)}
-              min={0}
-              max={100}
-              step={1}
-              className="w-full"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Pitch</span>
-              <span className="text-xs font-mono text-foreground">{data.pitch > 0 ? '+' : ''}{data.pitch}</span>
-            </div>
-            <Slider
-              value={[data.pitch]}
-              onValueChange={([value]) => data.onParameterChange(id, "pitch", value)}
-              min={-12}
-              max={12}
-              step={1}
-              className="w-full"
-            />
+          <div className="rounded-md bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            Volume and pitch are controlled by connected crypto data in real time.
           </div>
 
           <Button

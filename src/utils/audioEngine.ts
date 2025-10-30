@@ -60,7 +60,10 @@ export class AudioEngine {
 
   // Trigger a drum sound (for drum machine)
   triggerDrum(
-    drumType: "kick" | "snare" | "hihat" | "clap",
+    drumType: "kick" | "snare" | "hihat" | "clap" |
+      "tom" | "low-tom" | "mid-tom" | "high-tom" |
+      "cowbell" | "ride" | "crash" | "shaker" |
+      "clave" | "rim" | "rimshot" | "bongo" | "conga",
     outputNode: GainNode,
     volume: number = 0.8,
     pitchOffset: number = 0
@@ -68,69 +71,130 @@ export class AudioEngine {
     if (!this.audioContext) return;
 
     const now = this.audioContext.currentTime;
-    const oscillator = this.audioContext.createOscillator();
-    const gainEnvelope = this.audioContext.createGain();
-    
-    gainEnvelope.connect(outputNode);
-    
     const pitchMultiplier = Math.pow(2, pitchOffset / 12);
-    
+
+    const env = this.audioContext.createGain();
+    env.connect(outputNode);
+
+    const startOsc = (type: OscillatorType, freq: number, decay: number) => {
+      const osc = this.audioContext!.createOscillator();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq * pitchMultiplier, now);
+      osc.connect(env);
+      env.gain.setValueAtTime(volume, now);
+      env.gain.exponentialRampToValueAtTime(0.001, now + decay);
+      osc.start(now);
+      osc.stop(now + decay);
+    };
+
+    const startNoise = (decay: number, filterType?: BiquadFilterType, freq?: number, q: number = 1) => {
+      const noiseBuf = this.createNoiseBuffer();
+      if (!noiseBuf) return;
+      const src = this.audioContext!.createBufferSource();
+      src.buffer = noiseBuf;
+      let node: AudioNode = src;
+      if (filterType) {
+        const filt = this.audioContext!.createBiquadFilter();
+        filt.type = filterType;
+        if (freq) filt.frequency.value = freq;
+        filt.Q.value = q;
+        src.connect(filt);
+        node = filt;
+      }
+      node.connect(env);
+      env.gain.setValueAtTime(volume, now);
+      env.gain.exponentialRampToValueAtTime(0.001, now + decay);
+      src.start(now);
+      src.stop(now + decay);
+    };
+
     switch (drumType) {
       case "kick":
-        oscillator.type = "sine";
-        oscillator.frequency.setValueAtTime(150 * pitchMultiplier, now);
-        oscillator.frequency.exponentialRampToValueAtTime(40 * pitchMultiplier, now + 0.5);
-        gainEnvelope.gain.setValueAtTime(volume, now);
-        gainEnvelope.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
-        oscillator.connect(gainEnvelope);
-        oscillator.start(now);
-        oscillator.stop(now + 0.5);
+        {
+          const osc = this.audioContext.createOscillator();
+          const g = this.audioContext.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(150 * pitchMultiplier, now);
+          osc.frequency.exponentialRampToValueAtTime(40 * pitchMultiplier, now + 0.5);
+          g.gain.setValueAtTime(volume, now);
+          g.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+          osc.connect(g);
+          g.connect(outputNode);
+          osc.start(now);
+          osc.stop(now + 0.5);
+        }
         break;
-        
+
       case "snare":
-        oscillator.type = "triangle";
-        oscillator.frequency.value = 200 * pitchMultiplier;
-        // Add noise
-        const snareNoise = this.createNoiseBuffer();
-        if (snareNoise) {
-          const noiseSource = this.audioContext.createBufferSource();
-          const noiseGain = this.audioContext.createGain();
-          noiseSource.buffer = snareNoise;
-          noiseSource.connect(noiseGain);
-          noiseGain.connect(outputNode);
-          noiseGain.gain.setValueAtTime(volume * 0.3, now);
-          noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-          noiseSource.start(now);
-          noiseSource.stop(now + 0.2);
-        }
-        gainEnvelope.gain.setValueAtTime(volume * 0.4, now);
-        gainEnvelope.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-        oscillator.connect(gainEnvelope);
-        oscillator.start(now);
-        oscillator.stop(now + 0.2);
+        startOsc("triangle", 200, 0.2);
+        startNoise(0.2, "highpass", 1000, 0.7);
         break;
-        
+
       case "hihat":
-        oscillator.type = "square";
-        oscillator.frequency.value = 10000 * pitchMultiplier;
-        gainEnvelope.gain.setValueAtTime(volume * 0.3, now);
-        gainEnvelope.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-        oscillator.connect(gainEnvelope);
-        oscillator.start(now);
-        oscillator.stop(now + 0.1);
+        startNoise(0.1, "highpass", 8000, 0.8);
         break;
-        
+
       case "clap":
-        const clapNoise = this.createNoiseBuffer();
-        if (clapNoise) {
-          const clapSource = this.audioContext.createBufferSource();
-          clapSource.buffer = clapNoise;
-          clapSource.connect(gainEnvelope);
-          gainEnvelope.gain.setValueAtTime(volume * 0.5, now);
-          gainEnvelope.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-          clapSource.start(now);
-          clapSource.stop(now + 0.15);
+        startNoise(0.15, "bandpass", 2000, 0.5);
+        break;
+
+      case "low-tom":
+        startOsc("sine", 120, 0.35);
+        break;
+      case "mid-tom":
+        startOsc("sine", 180, 0.3);
+        break;
+      case "high-tom":
+        startOsc("sine", 260, 0.25);
+        break;
+      case "tom":
+        startOsc("sine", 200, 0.3);
+        break;
+
+      case "cowbell":
+        {
+          const o1 = this.audioContext.createOscillator();
+          const o2 = this.audioContext.createOscillator();
+          const g = this.audioContext.createGain();
+          o1.type = "square";
+          o2.type = "square";
+          o1.frequency.value = 540 * pitchMultiplier;
+          o2.frequency.value = 800 * pitchMultiplier;
+          g.gain.setValueAtTime(volume, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+          o1.connect(g);
+          o2.connect(g);
+          g.connect(outputNode);
+          o1.start(now);
+          o2.start(now);
+          o1.stop(now + 0.25);
+          o2.stop(now + 0.25);
         }
+        break;
+
+      case "ride":
+        startNoise(0.8, "highpass", 6000, 0.7);
+        break;
+
+      case "crash":
+        startNoise(1.2, "highpass", 5000, 0.7);
+        break;
+
+      case "shaker":
+        startNoise(0.2, "bandpass", 4000, 1);
+        break;
+
+      case "clave":
+      case "rim":
+      case "rimshot":
+        startOsc("square", 2000, 0.08);
+        break;
+
+      case "bongo":
+        startOsc("sine", 300, 0.18);
+        break;
+      case "conga":
+        startOsc("sine", 240, 0.25);
         break;
     }
   }

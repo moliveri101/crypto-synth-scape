@@ -127,10 +127,13 @@ const Index = () => {
       
       if (sourceNode?.data.type === "crypto" && targetNode?.data.type === "sequencer") {
         const cryptoData = sourceNode.data;
-        // Map crypto volume (0-1) and price change to sequencer parameters
-        const normalizedVolume = cryptoData.volume;
-        const priceChange = cryptoData.crypto.price_change_percentage_24h;
-        const normalizedPitch = Math.round(Math.max(-12, Math.min(12, priceChange / 2))); // Map -24% to +24% to -12 to +12 semitones
+        // Map crypto total trading volume (log scaled) and price change to sequencer parameters
+        const tv = cryptoData.crypto.total_volume || 0;
+        // Normalize trading volume using log scale between ~1e6 and ~1e10
+        const lv = Math.max(0, Math.min(1, (Math.log10(tv + 1) - 6) / 4));
+        const normalizedVolume = 0.2 + lv * 0.8;
+        const priceChange = cryptoData.crypto.price_change_percentage_24h || 0;
+        const normalizedPitch = Math.round(Math.max(-12, Math.min(12, priceChange / 2))); // Map -24%..+24% => -12..+12
         
         setNodes((nds) =>
           nds.map((node) => {
@@ -435,6 +438,27 @@ const Index = () => {
                           isPlaying: false,
                         },
                       }
+                    : n
+                )
+              );
+            }
+          } else if (sourceData.type === "sequencer") {
+            // If sequencer loses its last output, stop it
+            const remainingOutputs = edges.filter(
+              (e) => e.source === edge.source && e.id !== edge.id
+            );
+            if (remainingOutputs.length === 0 && sourceData.isPlaying) {
+              console.log(`Stopping sequencer ${edge.source} - no more output connections`);
+              if (sourceData.intervalId) {
+                clearInterval(sourceData.intervalId);
+              }
+              if (sourceData.outputNode) {
+                sourceData.outputNode.gain.value = 0;
+              }
+              setNodes((nds) =>
+                nds.map((n) =>
+                  n.id === edge.source && n.data.type === "sequencer"
+                    ? { ...n, data: { ...n.data, isPlaying: false, intervalId: null, currentStep: 0 } }
                     : n
                 )
               );
@@ -927,12 +951,30 @@ const Index = () => {
                 connectedEdges.forEach((edge) => {
                   const targetNode = nds.find((n) => n.id === edge.target);
                   if (targetNode?.data.type === "drums" && targetNode.data.outputNode) {
-                    // Use sequencer's volume and pitch (modulated by crypto data)
+                    const drumId = targetNode.id;
+                    // If there is a crypto connected directly to this drum, use its live data to drive volume/pitch
+                    const cryptoInputs = edges
+                      .filter((e) => e.target === drumId)
+                      .map((e) => nds.find((n) => n.id === e.source))
+                      .filter((n): n is any => !!n && n.data.type === "crypto");
+
+                    let vol = sequencerNode.data.volume;
+                    let pitch = sequencerNode.data.pitch;
+
+                    if (cryptoInputs.length > 0) {
+                      const c = cryptoInputs[0].data.crypto;
+                      const tv = c.total_volume || 0;
+                      const lv = Math.max(0, Math.min(1, (Math.log10(tv + 1) - 6) / 4));
+                      vol = 0.2 + lv * 0.8;
+                      const pc = c.price_change_percentage_24h || 0;
+                      pitch = Math.round(Math.max(-12, Math.min(12, pc / 2)));
+                    }
+
                     audioEngine.triggerDrum(
                       targetNode.data.selectedDrum,
                       targetNode.data.outputNode,
-                      sequencerNode.data.volume,
-                      sequencerNode.data.pitch
+                      vol,
+                      pitch
                     );
                   }
                 });
