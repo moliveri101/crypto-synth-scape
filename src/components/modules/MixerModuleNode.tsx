@@ -2,13 +2,14 @@ import { Handle, Position, NodeProps } from "reactflow";
 import { MixerModuleData } from "@/types/modules";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Play, Pause, Volume2 } from "lucide-react";
+import { Play, Pause, Volume2, ChevronDown, ChevronUp } from "lucide-react";
 
-const MixerModuleNode = ({ data }: NodeProps<MixerModuleData & {
+const MixerModuleNode = ({ data, id }: NodeProps<MixerModuleData & {
   onTogglePlay: () => void;
   onMasterVolumeChange: (volume: number) => void;
+  onToggleCollapse: (id: string) => void;
 }>) => {
-  const { masterVolume, isPlaying, inputCount, onTogglePlay, onMasterVolumeChange } = data;
+  const { masterVolume, isPlaying, inputCount, collapsed, onTogglePlay, onMasterVolumeChange, onToggleCollapse } = data;
 
   return (
     <div className="bg-gradient-card backdrop-blur-sm border-2 border-primary/50 rounded-lg shadow-glow w-[280px]">
@@ -26,26 +27,38 @@ const MixerModuleNode = ({ data }: NodeProps<MixerModuleData & {
       <div className="p-4 space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
+          <div className="flex-1">
             <h3 className="font-bold text-foreground">Master Mixer</h3>
             <p className="text-xs text-muted-foreground">
               {inputCount} {inputCount === 1 ? "input" : "inputs"}
             </p>
           </div>
-          <Button
-            size="lg"
-            onClick={onTogglePlay}
-            disabled={inputCount === 0}
-            className="w-12 h-12 rounded-full shadow-glow"
-          >
-            {isPlaying ? (
-              <Pause className="w-6 h-6" />
-            ) : (
-              <Play className="w-6 h-6 ml-0.5" />
-            )}
-          </Button>
+          <div className="flex gap-2 items-center">
+            <Button
+              size="lg"
+              onClick={onTogglePlay}
+              disabled={inputCount === 0}
+              className="w-12 h-12 rounded-full shadow-glow"
+            >
+              {isPlaying ? (
+                <Pause className="w-6 h-6" />
+              ) : (
+                <Play className="w-6 h-6 ml-0.5" />
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 hover:bg-accent"
+              onClick={() => onToggleCollapse(id)}
+            >
+              {collapsed ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+            </Button>
+          </div>
         </div>
 
+        {!collapsed && (
+          <>
         {/* VU Meter */}
         {isPlaying && (
           <div className="space-y-1">
@@ -87,6 +100,8 @@ const MixerModuleNode = ({ data }: NodeProps<MixerModuleData & {
             step={1}
           />
         </div>
+          </>
+        )}
       </div>
     </div>
   );

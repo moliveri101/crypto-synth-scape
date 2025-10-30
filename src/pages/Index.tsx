@@ -24,6 +24,8 @@ import EffectModuleNode from "@/components/modules/EffectModuleNode";
 import ModuleToolbar from "@/components/ModuleToolbar";
 import { useToast } from "@/hooks/use-toast";
 import { ModuleType } from "@/types/modules";
+import CustomEdge from "@/components/modules/CustomEdge";
+import InteractiveEdge from "@/components/modules/InteractiveEdge";
 
 const nodeTypes = {
   crypto: CryptoModuleNode,
@@ -62,6 +64,10 @@ const nodeTypes = {
   "stereo-widener": EffectModuleNode,
 };
 
+const edgeTypes = {
+  custom: InteractiveEdge,
+};
+
 const Index = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState<any>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -83,6 +89,7 @@ const Index = () => {
         masterVolume: 0.5,
         isPlaying: false,
         inputCount: 0,
+        collapsed: false,
       },
     };
 
@@ -94,6 +101,7 @@ const Index = () => {
       data: {
         type: "visualizer",
         isActive: false,
+        collapsed: false,
       },
     };
 
@@ -102,6 +110,7 @@ const Index = () => {
       id: "mixer-visualizer",
       source: "mixer",
       target: "visualizer",
+      type: "custom",
       animated: true,
       style: { stroke: "hsl(188, 95%, 58%)", strokeWidth: 2 },
     };
@@ -196,8 +205,10 @@ const Index = () => {
     (params: Connection | Edge) => {
       const edge = {
         ...params,
+        type: "custom",
         animated: true,
         style: { stroke: "hsl(188, 95%, 58%)", strokeWidth: 2 },
+        data: { onDelete: (id: string) => setEdges((eds) => eds.filter((e) => e.id !== id)) },
       };
       setEdges((eds) => addEdge(edge, eds));
       
@@ -244,6 +255,7 @@ const Index = () => {
         oscillator: null,
         gainNode: null,
         isPlaying: false,
+        collapsed: false,
       },
     };
 
@@ -434,6 +446,7 @@ const Index = () => {
           decay: 1,
           isActive: true,
           audioNode: null,
+          collapsed: false,
         },
       };
     } else if (type === "tone-selector") {
@@ -447,6 +460,7 @@ const Index = () => {
           rootNote: "C",
           octave: 4,
           isActive: true,
+          collapsed: false,
         },
       };
     } else {
@@ -462,6 +476,7 @@ const Index = () => {
           isActive: true,
           parameters: {},
           audioNode: null,
+          collapsed: false,
         },
       };
     }
@@ -497,6 +512,16 @@ const Index = () => {
     );
   };
 
+  const toggleCollapse = (nodeId: string) => {
+    setNodes((nds) =>
+      nds.map((node) =>
+        node.id === nodeId
+          ? { ...node, data: { ...node.data, collapsed: !node.data.collapsed } }
+          : node
+      )
+    );
+  };
+
   const cryptoCount = nodes.filter((n) => n.data.type === "crypto").length;
 
   return (
@@ -513,21 +538,24 @@ const Index = () => {
                   onRemove: removeCryptoModule,
                   onVolumeChange: updateVolume,
                   onWaveformChange: updateWaveform,
+                  onToggleCollapse: toggleCollapse,
                 }
               : node.data.type === "mixer"
               ? {
                   ...node.data,
                   onTogglePlay: togglePlay,
                   onMasterVolumeChange: handleMasterVolumeChange,
+                  onToggleCollapse: toggleCollapse,
                 }
               : node.data.type === "visualizer"
-              ? { ...node.data, isPlaying, activeCryptos: cryptoCount }
+              ? { ...node.data, isPlaying, activeCryptos: cryptoCount, onToggleCollapse: toggleCollapse }
               : node.data.type === "sampler"
               ? {
                   ...node.data,
                   onSampleChange: (sample: string) => updatePluginParameter(node.id, "sample", sample),
                   onPitchChange: (pitch: number) => updatePluginParameter(node.id, "pitch", pitch),
                   onDecayChange: (decay: number) => updatePluginParameter(node.id, "decay", decay),
+                  onToggleCollapse: toggleCollapse,
                 }
               : node.data.type === "tone-selector"
               ? {
@@ -535,6 +563,7 @@ const Index = () => {
                   onScaleChange: (scale: string) => updatePluginParameter(node.id, "scale", scale),
                   onRootNoteChange: (note: string) => updatePluginParameter(node.id, "rootNote", note),
                   onOctaveChange: (octave: number) => updatePluginParameter(node.id, "octave", octave),
+                  onToggleCollapse: toggleCollapse,
                 }
               : node.data.type && ["reverb", "delay", "chorus", "flanger", "phaser", "pingpong-delay", 
                   "compressor", "limiter", "gate", "de-esser", "eq", "lpf", "hpf", "bandpass", 
@@ -547,11 +576,14 @@ const Index = () => {
                   onMixChange: (mix: number) => updatePluginParameter(node.id, "mix", mix),
                   onToggleActive: () => updatePluginParameter(node.id, "isActive", !node.data.isActive),
                   onParameterChange: (param: string, value: number) => updatePluginParameter(node.id, param, value),
+                  onToggleCollapse: toggleCollapse,
                 }
               : node.data,
         }))}
         edges={edges.map((edge) => ({
           ...edge,
+          type: "custom",
+          data: { onDelete: (id: string) => setEdges((eds) => eds.filter((e) => e.id !== id)) },
           style: {
             ...edge.style,
             stroke: edge.selected ? "hsl(268, 85%, 66%)" : "hsl(188, 95%, 58%)",
@@ -564,12 +596,14 @@ const Index = () => {
         onConnect={onConnect}
         isValidConnection={isValidConnection}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         fitView
         deleteKeyCode={["Delete", "Backspace"]}
         multiSelectionKeyCode="Control"
         connectionLineStyle={{ stroke: "hsl(188, 95%, 58%)", strokeWidth: 3 }}
         defaultEdgeOptions={{
           animated: true,
+          type: "custom",
           style: { stroke: "hsl(188, 95%, 58%)", strokeWidth: 2 },
         }}
         snapToGrid={true}

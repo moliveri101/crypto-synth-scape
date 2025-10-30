@@ -17,6 +17,7 @@ export interface CryptoModuleData {
   oscillator: OscillatorNode | null;
   gainNode: GainNode | null;
   isPlaying: boolean;
+  collapsed: boolean;
 }
 
 export interface MixerModuleData {
@@ -24,11 +25,13 @@ export interface MixerModuleData {
   masterVolume: number;
   isPlaying: boolean;
   inputCount: number;
+  collapsed: boolean;
 }
 
 export interface VisualizerModuleData {
   type: "visualizer";
   isActive: boolean;
+  collapsed: boolean;
 }
 
 export interface SamplerModuleData {
@@ -38,6 +41,7 @@ export interface SamplerModuleData {
   decay: number;
   isActive: boolean;
   audioNode: GainNode | null;
+  collapsed: boolean;
 }
 
 export interface ToneSelectorModuleData {
@@ -46,6 +50,7 @@ export interface ToneSelectorModuleData {
   rootNote: string;
   octave: number;
   isActive: boolean;
+  collapsed: boolean;
 }
 
 export interface EffectModuleData {
@@ -60,6 +65,7 @@ export interface EffectModuleData {
   isActive: boolean;
   parameters: Record<string, number>;
   audioNode: AudioNode | null;
+  collapsed: boolean;
 }
 
 export type ModuleData = 

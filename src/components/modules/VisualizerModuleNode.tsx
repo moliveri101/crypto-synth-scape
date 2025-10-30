@@ -1,13 +1,16 @@
 import { useEffect, useRef } from "react";
 import { Handle, Position, NodeProps } from "reactflow";
 import { VisualizerModuleData } from "@/types/modules";
+import { Button } from "@/components/ui/button";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
-const VisualizerModuleNode = ({ data }: NodeProps<VisualizerModuleData & {
+const VisualizerModuleNode = ({ data, id }: NodeProps<VisualizerModuleData & {
   isPlaying: boolean;
   activeCryptos: number;
+  onToggleCollapse: (id: string) => void;
 }>) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { isPlaying, activeCryptos } = data;
+  const { isPlaying, activeCryptos, collapsed, onToggleCollapse } = data;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -76,13 +79,25 @@ const VisualizerModuleNode = ({ data }: NodeProps<VisualizerModuleData & {
       />
       
       <div className="p-3">
-        <h3 className="font-bold text-sm text-foreground mb-2">Audio Visualizer</h3>
-        <canvas
-          ref={canvasRef}
-          width={320}
-          height={120}
-          className="w-full h-[120px] rounded"
-        />
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-bold text-sm text-foreground">Audio Visualizer</h3>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 hover:bg-accent"
+            onClick={() => onToggleCollapse(id)}
+          >
+            {collapsed ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+          </Button>
+        </div>
+        {!collapsed && (
+          <canvas
+            ref={canvasRef}
+            width={320}
+            height={120}
+            className="w-full h-[120px] rounded"
+          />
+        )}
       </div>
     </div>
   );

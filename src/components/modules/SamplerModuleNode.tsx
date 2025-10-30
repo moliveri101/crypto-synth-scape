@@ -3,16 +3,20 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Music2 } from "lucide-react";
+import { Music2, ChevronDown, ChevronUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface SamplerModuleNodeProps {
+  id: string;
   data: {
     sample: string;
     pitch: number;
     decay: number;
+    collapsed: boolean;
     onSampleChange?: (sample: string) => void;
     onPitchChange?: (pitch: number) => void;
     onDecayChange?: (decay: number) => void;
+    onToggleCollapse?: (id: string) => void;
   };
 }
 
@@ -24,18 +28,29 @@ const SAMPLES = [
   { value: "strings", label: "Strings" },
 ];
 
-const SamplerModuleNode = ({ data }: SamplerModuleNodeProps) => {
+const SamplerModuleNode = ({ data, id }: SamplerModuleNodeProps) => {
   return (
     <Card className="min-w-[280px] bg-card/95 backdrop-blur-sm border-primary/20 shadow-glow">
       <Handle type="target" position={Position.Left} className="!bg-primary" />
       
       <div className="p-4 space-y-4">
-        <div className="flex items-center gap-2 border-b border-border pb-2">
-          <Music2 className="w-5 h-5 text-primary" />
-          <h3 className="font-semibold text-foreground">Sampler</h3>
+        <div className="flex items-center justify-between border-b border-border pb-2">
+          <div className="flex items-center gap-2">
+            <Music2 className="w-5 h-5 text-primary" />
+            <h3 className="font-semibold text-foreground">Sampler</h3>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 hover:bg-accent"
+            onClick={() => data.onToggleCollapse?.(id)}
+          >
+            {data.collapsed ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+          </Button>
         </div>
 
-        <div className="space-y-3">
+        {!data.collapsed && (
+          <div className="space-y-3">
           <div>
             <Label className="text-sm text-muted-foreground">Sample</Label>
             <Select value={data.sample} onValueChange={data.onSampleChange}>
@@ -80,6 +95,7 @@ const SamplerModuleNode = ({ data }: SamplerModuleNodeProps) => {
             />
           </div>
         </div>
+        )}
       </div>
 
       <Handle type="source" position={Position.Right} className="!bg-primary" />

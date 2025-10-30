@@ -3,25 +3,29 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import { 
   Waves, Clock, Wind, Zap, CircleDot, Layers,
   Gauge, Shrink, DoorClosed, Mic,
   Sliders, Filter, TrendingUp, TrendingDown,
   Disc, Hash, Sparkles, Radio, Volume2,
-  BarChart3, Music4, Move, Maximize2
+  BarChart3, Music4, Move, Maximize2, ChevronDown, ChevronUp
 } from "lucide-react";
 
 interface EffectModuleNodeProps {
+  id: string;
   data: {
     type: string;
     intensity: number;
     mix: number;
     isActive: boolean;
+    collapsed: boolean;
     parameters: Record<string, number>;
     onIntensityChange?: (intensity: number) => void;
     onMixChange?: (mix: number) => void;
     onToggleActive?: () => void;
     onParameterChange?: (param: string, value: number) => void;
+    onToggleCollapse?: (id: string) => void;
   };
 }
 
@@ -68,7 +72,7 @@ const EFFECT_INFO: Record<string, { label: string; icon: any; color: string; par
   "stereo-widener": { label: "Stereo Widener", icon: Maximize2, color: "text-emerald-500", params: [{ name: "width", min: 0, max: 2, step: 0.01 }] },
 };
 
-const EffectModuleNode = ({ data }: EffectModuleNodeProps) => {
+const EffectModuleNode = ({ data, id }: EffectModuleNodeProps) => {
   const info = EFFECT_INFO[data.type] || { label: data.type, icon: Sliders, color: "text-primary" };
   const Icon = info.icon;
 
@@ -82,10 +86,21 @@ const EffectModuleNode = ({ data }: EffectModuleNodeProps) => {
             <Icon className={`w-5 h-5 ${info.color}`} />
             <h3 className="font-semibold text-foreground text-sm">{info.label}</h3>
           </div>
-          <Switch checked={data.isActive} onCheckedChange={data.onToggleActive} />
+          <div className="flex gap-1 items-center">
+            <Switch checked={data.isActive} onCheckedChange={data.onToggleActive} />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 hover:bg-accent"
+              onClick={() => data.onToggleCollapse?.(id)}
+            >
+              {data.collapsed ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+            </Button>
+          </div>
         </div>
 
-        <div className="space-y-3">
+        {!data.collapsed && (
+          <div className="space-y-3">
           <div>
             <Label className="text-sm text-muted-foreground">
               Intensity: {(data.intensity * 100).toFixed(0)}%
@@ -133,6 +148,7 @@ const EffectModuleNode = ({ data }: EffectModuleNodeProps) => {
             </div>
           ))}
         </div>
+        )}
       </div>
 
       <Handle type="source" position={Position.Right} className="!bg-primary" />
