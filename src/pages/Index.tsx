@@ -195,26 +195,26 @@ const Index = () => {
     });
   }, [edges, nodes, isPlaying]);
 
-  // Update master volume
+  // Keep mixer inputCount in sync with current connections so play button enables
   useEffect(() => {
-    audioEngine.setMasterVolume(masterVolume);
-  }, [masterVolume]);
+    const counts: Record<string, number> = {};
+    edges.forEach((e) => {
+      counts[e.target] = (counts[e.target] || 0) + 1;
+    });
 
-  // Update mixer input count
-  useEffect(() => {
-    const cryptoCount = nodes.filter((n) => n.type === "crypto").length;
     setNodes((nds) =>
       nds.map((node) => {
-        if (node.id === "mixer" && node.data.type === "mixer") {
-          return {
-            ...node,
-            data: { ...node.data, inputCount: cryptoCount },
-          };
+        const t = node.data.type;
+        if (t === "mixer" || (typeof t === "string" && t.startsWith("mixer-"))) {
+          const inputCount = counts[node.id] || 0;
+          if (node.data.inputCount !== inputCount) {
+            return { ...node, data: { ...node.data, inputCount } };
+          }
         }
         return node;
       })
     );
-  }, [nodes.length]);
+  }, [edges]);
 
   const EFFECT_TYPES = [
     "reverb", "delay", "chorus", "flanger", "phaser", "pingpong-delay",
