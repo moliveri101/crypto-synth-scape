@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, Sparkles } from "lucide-react";
 import { CryptoData } from "@/types/crypto";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -9,16 +9,69 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { ModuleType } from "@/types/modules";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 
 interface ModuleToolbarProps {
   onAddCrypto: (crypto: CryptoData) => void;
+  onAddPlugin: (type: ModuleType) => void;
 }
 
-const ModuleToolbar = ({ onAddCrypto }: ModuleToolbarProps) => {
+const PLUGIN_CATEGORIES = {
+  "Audio Sources": [
+    { type: "sampler" as ModuleType, label: "Sampler" },
+    { type: "tone-selector" as ModuleType, label: "Tone Selector" },
+  ],
+  "Time Effects": [
+    { type: "reverb" as ModuleType, label: "Reverb" },
+    { type: "delay" as ModuleType, label: "Delay" },
+    { type: "chorus" as ModuleType, label: "Chorus" },
+    { type: "flanger" as ModuleType, label: "Flanger" },
+    { type: "phaser" as ModuleType, label: "Phaser" },
+    { type: "pingpong-delay" as ModuleType, label: "Ping-Pong Delay" },
+  ],
+  "Dynamics": [
+    { type: "compressor" as ModuleType, label: "Compressor" },
+    { type: "limiter" as ModuleType, label: "Limiter" },
+    { type: "gate" as ModuleType, label: "Gate" },
+    { type: "de-esser" as ModuleType, label: "De-esser" },
+  ],
+  "Filters & EQ": [
+    { type: "eq" as ModuleType, label: "EQ" },
+    { type: "lpf" as ModuleType, label: "Low-Pass Filter" },
+    { type: "hpf" as ModuleType, label: "High-Pass Filter" },
+    { type: "bandpass" as ModuleType, label: "Band-Pass" },
+    { type: "resonant-filter" as ModuleType, label: "Resonant Filter" },
+  ],
+  "Distortion": [
+    { type: "overdrive" as ModuleType, label: "Overdrive" },
+    { type: "distortion" as ModuleType, label: "Distortion" },
+    { type: "fuzz" as ModuleType, label: "Fuzz" },
+    { type: "bitcrusher" as ModuleType, label: "Bitcrusher" },
+    { type: "tape-saturation" as ModuleType, label: "Tape Saturation" },
+  ],
+  "Modulation": [
+    { type: "vibrato" as ModuleType, label: "Vibrato" },
+    { type: "tremolo" as ModuleType, label: "Tremolo" },
+    { type: "ring-mod" as ModuleType, label: "Ring Modulator" },
+    { type: "pitch-shifter" as ModuleType, label: "Pitch Shifter" },
+    { type: "octaver" as ModuleType, label: "Octaver" },
+  ],
+  "Advanced": [
+    { type: "granular" as ModuleType, label: "Granular" },
+    { type: "vocoder" as ModuleType, label: "Vocoder" },
+    { type: "auto-pan" as ModuleType, label: "Auto-Pan" },
+    { type: "stereo-widener" as ModuleType, label: "Stereo Widener" },
+  ],
+};
+
+const ModuleToolbar = ({ onAddCrypto, onAddPlugin }: ModuleToolbarProps) => {
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<CryptoData[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
+  const [isCryptoOpen, setIsCryptoOpen] = useState(false);
+  const [isPluginOpen, setIsPluginOpen] = useState(false);
   const { toast } = useToast();
 
   const searchCrypto = async () => {
@@ -60,16 +113,25 @@ const ModuleToolbar = ({ onAddCrypto }: ModuleToolbarProps) => {
     onAddCrypto(crypto);
     setSearch("");
     setResults([]);
-    setIsOpen(false);
+    setIsCryptoOpen(false);
     toast({
       title: "Module added",
       description: `${crypto.name} module added to canvas`,
     });
   };
 
+  const handleAddPlugin = (type: ModuleType, label: string) => {
+    onAddPlugin(type);
+    setIsPluginOpen(false);
+    toast({
+      title: "Plugin added",
+      description: `${label} added to canvas`,
+    });
+  };
+
   return (
     <div className="fixed top-4 left-4 z-10 flex gap-2">
-      <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <Popover open={isCryptoOpen} onOpenChange={setIsCryptoOpen}>
         <PopoverTrigger asChild>
           <Button size="lg" className="shadow-glow gap-2">
             <Plus className="w-5 h-5" />
@@ -124,6 +186,41 @@ const ModuleToolbar = ({ onAddCrypto }: ModuleToolbarProps) => {
               </div>
             )}
           </div>
+        </PopoverContent>
+      </Popover>
+
+      <Popover open={isPluginOpen} onOpenChange={setIsPluginOpen}>
+        <PopoverTrigger asChild>
+          <Button size="lg" variant="secondary" className="shadow-glow gap-2">
+            <Sparkles className="w-5 h-5" />
+            Add Effect
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-96 bg-card border-border" align="start">
+          <ScrollArea className="h-[500px] pr-4">
+            <div className="space-y-4">
+              {Object.entries(PLUGIN_CATEGORIES).map(([category, plugins]) => (
+                <div key={category}>
+                  <h4 className="text-sm font-semibold text-muted-foreground mb-2">
+                    {category}
+                  </h4>
+                  <div className="space-y-1">
+                    {plugins.map((plugin) => (
+                      <Button
+                        key={plugin.type}
+                        variant="ghost"
+                        className="w-full justify-start text-left"
+                        onClick={() => handleAddPlugin(plugin.type, plugin.label)}
+                      >
+                        {plugin.label}
+                      </Button>
+                    ))}
+                  </div>
+                  <Separator className="mt-3" />
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
         </PopoverContent>
       </Popover>
     </div>

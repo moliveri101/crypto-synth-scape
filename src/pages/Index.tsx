@@ -18,13 +18,48 @@ import { audioEngine } from "@/utils/audioEngine";
 import CryptoModuleNode from "@/components/modules/CryptoModuleNode";
 import MixerModuleNode from "@/components/modules/MixerModuleNode";
 import VisualizerModuleNode from "@/components/modules/VisualizerModuleNode";
+import SamplerModuleNode from "@/components/modules/SamplerModuleNode";
+import ToneSelectorModuleNode from "@/components/modules/ToneSelectorModuleNode";
+import EffectModuleNode from "@/components/modules/EffectModuleNode";
 import ModuleToolbar from "@/components/ModuleToolbar";
 import { useToast } from "@/hooks/use-toast";
+import { ModuleType } from "@/types/modules";
 
 const nodeTypes = {
   crypto: CryptoModuleNode,
   mixer: MixerModuleNode,
   visualizer: VisualizerModuleNode,
+  sampler: SamplerModuleNode,
+  "tone-selector": ToneSelectorModuleNode,
+  reverb: EffectModuleNode,
+  delay: EffectModuleNode,
+  chorus: EffectModuleNode,
+  flanger: EffectModuleNode,
+  phaser: EffectModuleNode,
+  "pingpong-delay": EffectModuleNode,
+  compressor: EffectModuleNode,
+  limiter: EffectModuleNode,
+  gate: EffectModuleNode,
+  "de-esser": EffectModuleNode,
+  eq: EffectModuleNode,
+  lpf: EffectModuleNode,
+  hpf: EffectModuleNode,
+  bandpass: EffectModuleNode,
+  "resonant-filter": EffectModuleNode,
+  overdrive: EffectModuleNode,
+  distortion: EffectModuleNode,
+  fuzz: EffectModuleNode,
+  bitcrusher: EffectModuleNode,
+  "tape-saturation": EffectModuleNode,
+  vibrato: EffectModuleNode,
+  tremolo: EffectModuleNode,
+  "ring-mod": EffectModuleNode,
+  "pitch-shifter": EffectModuleNode,
+  octaver: EffectModuleNode,
+  granular: EffectModuleNode,
+  vocoder: EffectModuleNode,
+  "auto-pan": EffectModuleNode,
+  "stereo-widener": EffectModuleNode,
 };
 
 const Index = () => {
@@ -320,11 +355,91 @@ const Index = () => {
     );
   };
 
+  const addPluginModule = (type: ModuleType) => {
+    const id = `${type}-${Date.now()}`;
+    
+    let newNode: any;
+    
+    if (type === "sampler") {
+      newNode = {
+        id,
+        type,
+        position: { x: 100 + nodes.length * 50, y: 100 + nodes.length * 50 },
+        data: {
+          type,
+          sample: "sine",
+          pitch: 0,
+          decay: 1,
+          isActive: true,
+          audioNode: null,
+        },
+      };
+    } else if (type === "tone-selector") {
+      newNode = {
+        id,
+        type,
+        position: { x: 100 + nodes.length * 50, y: 100 + nodes.length * 50 },
+        data: {
+          type,
+          scale: "major",
+          rootNote: "C",
+          octave: 4,
+          isActive: true,
+        },
+      };
+    } else {
+      // Effect modules
+      newNode = {
+        id,
+        type,
+        position: { x: 100 + nodes.length * 50, y: 100 + nodes.length * 50 },
+        data: {
+          type,
+          intensity: 0.5,
+          mix: 0.5,
+          isActive: true,
+          parameters: {},
+          audioNode: null,
+        },
+      };
+    }
+    
+    setNodes((nds) => [...nds, newNode]);
+  };
+
+  const updatePluginParameter = (nodeId: string, param: string, value: any) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          if (node.data.type === "sampler") {
+            return { ...node, data: { ...node.data, [param]: value } };
+          } else if (node.data.type === "tone-selector") {
+            return { ...node, data: { ...node.data, [param]: value } };
+          } else {
+            // Effect modules
+            if (param === "intensity" || param === "mix" || param === "isActive") {
+              return { ...node, data: { ...node.data, [param]: value } };
+            } else {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  parameters: { ...node.data.parameters, [param]: value },
+                },
+              };
+            }
+          }
+        }
+        return node;
+      })
+    );
+  };
+
   const cryptoCount = nodes.filter((n) => n.data.type === "crypto").length;
 
   return (
     <div className="w-full h-screen bg-background">
-      <ModuleToolbar onAddCrypto={addCryptoModule} />
+      <ModuleToolbar onAddCrypto={addCryptoModule} onAddPlugin={addPluginModule} />
 
       <ReactFlow
         nodes={nodes.map((node) => ({
@@ -345,6 +460,32 @@ const Index = () => {
                 }
               : node.data.type === "visualizer"
               ? { ...node.data, isPlaying, activeCryptos: cryptoCount }
+              : node.data.type === "sampler"
+              ? {
+                  ...node.data,
+                  onSampleChange: (sample: string) => updatePluginParameter(node.id, "sample", sample),
+                  onPitchChange: (pitch: number) => updatePluginParameter(node.id, "pitch", pitch),
+                  onDecayChange: (decay: number) => updatePluginParameter(node.id, "decay", decay),
+                }
+              : node.data.type === "tone-selector"
+              ? {
+                  ...node.data,
+                  onScaleChange: (scale: string) => updatePluginParameter(node.id, "scale", scale),
+                  onRootNoteChange: (note: string) => updatePluginParameter(node.id, "rootNote", note),
+                  onOctaveChange: (octave: number) => updatePluginParameter(node.id, "octave", octave),
+                }
+              : node.data.type && ["reverb", "delay", "chorus", "flanger", "phaser", "pingpong-delay", 
+                  "compressor", "limiter", "gate", "de-esser", "eq", "lpf", "hpf", "bandpass", 
+                  "resonant-filter", "overdrive", "distortion", "fuzz", "bitcrusher", "tape-saturation",
+                  "vibrato", "tremolo", "ring-mod", "pitch-shifter", "octaver", "granular", "vocoder",
+                  "auto-pan", "stereo-widener"].includes(node.data.type)
+              ? {
+                  ...node.data,
+                  onIntensityChange: (intensity: number) => updatePluginParameter(node.id, "intensity", intensity),
+                  onMixChange: (mix: number) => updatePluginParameter(node.id, "mix", mix),
+                  onToggleActive: () => updatePluginParameter(node.id, "isActive", !node.data.isActive),
+                  onParameterChange: (param: string, value: number) => updatePluginParameter(node.id, param, value),
+                }
               : node.data,
         }))}
         edges={edges}
