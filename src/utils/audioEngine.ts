@@ -23,20 +23,23 @@ export class AudioEngine {
   }
 
   // Create oscillator without connecting it
-  createOscillator(crypto: CryptoData, waveform: OscillatorType = "sine") {
+  createOscillator(
+    crypto: CryptoData, 
+    waveform: OscillatorType = "sine",
+    scale: string = "major",
+    rootNote: string = "C",
+    octave: number = 4
+  ) {
     if (!this.audioContext || !this.masterGain) return null;
 
     const oscillator = this.audioContext.createOscillator();
     const gainNode = this.audioContext.createGain();
 
-    // Map price to frequency (logarithmic scale for better audible range)
-    const minFreq = 200;
-    const maxFreq = 800;
-    const logPrice = Math.log(crypto.current_price + 1);
-    const frequency = minFreq + (logPrice / 15) * (maxFreq - minFreq);
+    // Calculate frequency based on tone settings
+    const frequency = this.calculateFrequency(crypto, scale, rootNote, octave);
 
     oscillator.type = waveform;
-    oscillator.frequency.value = Math.min(Math.max(frequency, minFreq), maxFreq);
+    oscillator.frequency.value = frequency;
 
     // Map volume (normalized) to gain
     const normalizedVolume = Math.min(crypto.total_volume / 1e10, 1);
@@ -46,6 +49,45 @@ export class AudioEngine {
     oscillator.connect(gainNode);
 
     return { oscillator, gainNode };
+  }
+
+  private calculateFrequency(
+    crypto: CryptoData,
+    scale: string,
+    rootNote: string,
+    octave: number
+  ): number {
+    // Define note frequencies (A4 = 440Hz)
+    const noteFreqs: Record<string, number> = {
+      "C": 261.63, "C#": 277.18, "D": 293.66, "D#": 311.13,
+      "E": 329.63, "F": 349.23, "F#": 369.99, "G": 392.00,
+      "G#": 415.30, "A": 440.00, "A#": 466.16, "B": 493.88
+    };
+
+    // Scale intervals (semitones from root)
+    const scaleIntervals: Record<string, number[]> = {
+      "major": [0, 2, 4, 5, 7, 9, 11],
+      "minor": [0, 2, 3, 5, 7, 8, 10],
+      "pentatonic": [0, 2, 4, 7, 9],
+      "blues": [0, 3, 5, 6, 7, 10]
+    };
+
+    // Get base frequency for root note
+    const baseFreq = noteFreqs[rootNote] || 261.63;
+    
+    // Adjust for octave (each octave doubles/halves frequency)
+    const octaveMultiplier = Math.pow(2, octave - 4);
+    
+    // Use price change to select note from scale
+    const priceChange = Math.abs(crypto.price_change_percentage_24h);
+    const intervals = scaleIntervals[scale] || scaleIntervals["major"];
+    const noteIndex = Math.floor((priceChange / 10) * intervals.length) % intervals.length;
+    const semitoneOffset = intervals[noteIndex];
+    
+    // Calculate final frequency
+    const frequency = baseFreq * octaveMultiplier * Math.pow(2, semitoneOffset / 12);
+    
+    return Math.min(Math.max(frequency, 100), 2000);
   }
 
   // Create effect nodes with wet/dry mix

@@ -60,25 +60,6 @@ const OutputModuleNode = ({ data, id }: NodeProps<OutputModuleData>) => {
           </Button>
         </div>
 
-        {/* Volume Control */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Volume2 className="w-4 h-4 text-muted-foreground" />
-              <p className="text-sm font-medium text-foreground">Volume</p>
-            </div>
-            <p className="text-sm font-medium text-foreground">
-              {Math.round(volume * 100)}%
-            </p>
-          </div>
-          <Slider
-            value={[volume * 100]}
-            onValueChange={(values) => onVolumeChange(values[0] / 100)}
-            max={100}
-            step={1}
-          />
-        </div>
-
         {/* Status Indicator */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`} />

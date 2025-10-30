@@ -409,7 +409,13 @@ const Index = () => {
           const data = node.data;
           if (data.oscillator) return node;
 
-          const audioNodes = audioEngine.createOscillator(data.crypto, data.waveform);
+          const audioNodes = audioEngine.createOscillator(
+            data.crypto, 
+            data.waveform,
+            data.scale,
+            data.rootNote,
+            data.octave
+          );
           if (audioNodes) {
             const { oscillator, gainNode } = audioNodes;
             gainNode.gain.value *= data.volume;
@@ -690,6 +696,16 @@ const Index = () => {
   };
 
   const updatePluginParameter = (nodeId: string, param: string, value: any) => {
+    // If changing tone parameters on a crypto module, restart oscillator
+    const node = nodes.find((n) => n.id === nodeId);
+    const isCryptoToneChange = node && node.data.type === "crypto" && 
+      (param === "scale" || param === "rootNote" || param === "octave");
+    const wasPlaying = isCryptoToneChange && node.data.isPlaying;
+
+    if (wasPlaying) {
+      stopSound(nodeId);
+    }
+
     setNodes((nds) =>
       nds.map((node) => {
         if (node.id === nodeId) {
@@ -720,6 +736,10 @@ const Index = () => {
         return node;
       })
     );
+
+    if (wasPlaying) {
+      setTimeout(() => startSound(nodeId), 50);
+    }
   };
 
   const toggleCollapse = (nodeId: string) => {
