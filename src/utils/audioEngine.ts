@@ -22,33 +22,103 @@ export class AudioEngine {
     return this.masterGain;
   }
 
-  // Create oscillator without connecting it
+  // Create oscillator or drum sound without connecting it
   createOscillator(
     crypto: CryptoData, 
-    waveform: OscillatorType = "sine",
+    waveform: OscillatorType | string = "sine",
     scale: string = "major",
     rootNote: string = "C",
     octave: number = 4
   ) {
     if (!this.audioContext || !this.masterGain) return null;
 
-    const oscillator = this.audioContext.createOscillator();
     const gainNode = this.audioContext.createGain();
-
-    // Calculate frequency based on tone settings
-    const frequency = this.calculateFrequency(crypto, scale, rootNote, octave);
-
-    oscillator.type = waveform;
-    oscillator.frequency.value = frequency;
-
-    // Map volume (normalized) to gain
     const normalizedVolume = Math.min(crypto.total_volume / 1e10, 1);
     gainNode.gain.value = 0.1 + normalizedVolume * 0.4;
 
-    // Connect oscillator to its gain node (but not to destination yet)
+    // Check if it's a drum sound
+    if (["kick", "snare", "hihat", "clap"].includes(waveform)) {
+      return this.createDrumSound(waveform as "kick" | "snare" | "hihat" | "clap", gainNode);
+    }
+
+    // Standard oscillator
+    const oscillator = this.audioContext.createOscillator();
+    const frequency = this.calculateFrequency(crypto, scale, rootNote, octave);
+    oscillator.type = waveform as OscillatorType;
+    oscillator.frequency.value = frequency;
     oscillator.connect(gainNode);
 
     return { oscillator, gainNode };
+  }
+
+  // Create synthetic drum sounds
+  private createDrumSound(type: "kick" | "snare" | "hihat" | "clap", gainNode: GainNode) {
+    if (!this.audioContext) return null;
+
+    const now = this.audioContext.currentTime;
+    const oscillator = this.audioContext.createOscillator();
+    const noiseGain = this.audioContext.createGain();
+    
+    switch (type) {
+      case "kick":
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(150, now);
+        oscillator.frequency.exponentialRampToValueAtTime(40, now + 0.5);
+        gainNode.gain.setValueAtTime(1, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+        break;
+        
+      case "snare":
+        oscillator.type = "triangle";
+        oscillator.frequency.value = 200;
+        // Add noise
+        const snareNoise = this.createNoiseBuffer();
+        const noiseSource = this.audioContext.createBufferSource();
+        noiseSource.buffer = snareNoise;
+        noiseSource.connect(noiseGain);
+        noiseGain.gain.setValueAtTime(0.3, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+        noiseGain.connect(gainNode);
+        noiseSource.start(now);
+        noiseSource.stop(now + 0.2);
+        gainNode.gain.setValueAtTime(0.4, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+        break;
+        
+      case "hihat":
+        oscillator.type = "square";
+        oscillator.frequency.value = 10000;
+        gainNode.gain.setValueAtTime(0.3, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        break;
+        
+      case "clap":
+        const clapNoise = this.createNoiseBuffer();
+        const clapSource = this.audioContext.createBufferSource();
+        clapSource.buffer = clapNoise;
+        clapSource.connect(gainNode);
+        gainNode.gain.setValueAtTime(0.5, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+        clapSource.start(now);
+        clapSource.stop(now + 0.15);
+        oscillator.connect(gainNode);
+        break;
+    }
+
+    oscillator.connect(gainNode);
+    return { oscillator, gainNode };
+  }
+
+  // Create noise buffer for snare/clap
+  private createNoiseBuffer() {
+    if (!this.audioContext) return null;
+    const bufferSize = this.audioContext.sampleRate * 0.5;
+    const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+    const output = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      output[i] = Math.random() * 2 - 1;
+    }
+    return buffer;
   }
 
   private calculateFrequency(

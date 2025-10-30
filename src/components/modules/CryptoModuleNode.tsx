@@ -8,6 +8,13 @@ import { X, TrendingUp, TrendingDown, ChevronDown, ChevronUp } from "lucide-reac
 
 const waveforms: OscillatorType[] = ["sine", "square", "sawtooth", "triangle"];
 
+const DRUM_SOUNDS = [
+  { value: "kick", label: "Kick" },
+  { value: "snare", label: "Snare" },
+  { value: "hihat", label: "Hi-Hat" },
+  { value: "clap", label: "Clap" },
+];
+
 const SCALES = [
   { value: "major", label: "Major" },
   { value: "minor", label: "Minor" },
@@ -132,6 +139,24 @@ const CryptoModuleNode = ({ data, id }: NodeProps<CryptoModuleData & {
                 className="h-7 text-xs px-1"
               >
                 {w[0].toUpperCase()}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {/* Drum Sounds */}
+        <div>
+          <p className="text-xs text-muted-foreground mb-1">Drums</p>
+          <div className="grid grid-cols-2 gap-1">
+            {DRUM_SOUNDS.map((drum) => (
+              <Button
+                key={drum.value}
+                size="sm"
+                variant={waveform === drum.value as any ? "default" : "outline"}
+                onClick={() => onWaveformChange(id, drum.value as any)}
+                className="h-7 text-xs"
+              >
+                {drum.label}
               </Button>
             ))}
           </div>

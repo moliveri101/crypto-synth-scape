@@ -364,6 +364,41 @@ const Index = () => {
           let sourceAudioNode: AudioNode | null = null;
           if (sourceData.type === "crypto" && sourceData.gainNode) {
             sourceAudioNode = sourceData.gainNode;
+            
+            // Check if crypto has any remaining output connections
+            const remainingOutputs = edges.filter(
+              (e) => e.source === edge.source && e.id !== edge.id
+            );
+            
+            // If no more outputs and it's playing, stop it
+            if (remainingOutputs.length === 0 && sourceData.isPlaying) {
+              console.log(`Stopping ${edge.source} - no more output connections`);
+              // Stop the oscillator directly
+              if (sourceData.oscillator) {
+                try {
+                  sourceData.oscillator.stop();
+                  sourceData.oscillator.disconnect();
+                } catch (e) {
+                  console.error("Error stopping oscillator:", e);
+                }
+              }
+              // Update the node state
+              setNodes((nds) =>
+                nds.map((n) =>
+                  n.id === edge.source && n.data.type === "crypto"
+                    ? {
+                        ...n,
+                        data: {
+                          ...n.data,
+                          oscillator: null,
+                          gainNode: null,
+                          isPlaying: false,
+                        },
+                      }
+                    : n
+                )
+              );
+            }
           } else if (sourceData.outputNode) {
             sourceAudioNode = sourceData.outputNode;
           } else if (sourceData.type && sourceData.type.startsWith("mixer-") && sourceData.mergerNode) {
@@ -400,7 +435,7 @@ const Index = () => {
         description: `${deletedEdges.length} connection(s) removed`,
       });
     },
-    [toast, nodes]
+    [toast, nodes, edges]
   );
 
   const addCryptoModule = (crypto: CryptoData) => {
