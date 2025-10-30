@@ -972,6 +972,8 @@ const Index = () => {
               ? {
                   ...node.data,
                   onParameterChange: updatePluginParameter,
+                  onToggleCollapse: toggleCollapse,
+                  onRemove: removeNode,
                 }
               : node.data.type && ["reverb", "delay", "chorus", "flanger", "phaser", "pingpong-delay",
                   "compressor", "limiter", "gate", "de-esser", "eq", "lpf", "hpf", "bandpass", 

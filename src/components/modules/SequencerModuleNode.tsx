@@ -2,11 +2,13 @@ import { Handle, Position, NodeProps } from "reactflow";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Play, Pause, ChevronDown, ChevronUp } from "lucide-react";
+import { Play, Pause, ChevronDown, ChevronUp, X } from "lucide-react";
 import { SequencerModuleData } from "@/types/modules";
 
 const SequencerModuleNode = ({ data, id }: NodeProps<SequencerModuleData & { 
-  onParameterChange: (nodeId: string, param: string, value: any) => void 
+  onParameterChange: (nodeId: string, param: string, value: any) => void,
+  onToggleCollapse?: (id: string) => void,
+  onRemove?: (id: string) => void,
 }>) => {
   const toggleStep = (index: number) => {
     const newSteps = [...data.steps];
@@ -23,14 +25,24 @@ const SequencerModuleNode = ({ data, id }: NodeProps<SequencerModuleData & {
           <CardTitle className="text-sm font-bold text-primary flex items-center gap-2">
             SEQUENCER
           </CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => data.onParameterChange(id, "collapsed", !data.collapsed)}
-            className="h-6 w-6 p-0"
-          >
-            {data.collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-          </Button>
+          <div className="flex gap-1 items-center">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => data.onRemove?.(id)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 hover:bg-accent"
+              onClick={() => data.onToggleCollapse?.(id)}
+            >
+              {data.collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
       </CardHeader>
 
