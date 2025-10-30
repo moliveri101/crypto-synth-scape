@@ -21,6 +21,7 @@ import MixerModuleNode from "@/components/modules/MixerModuleNode";
 import MultiTrackMixerNode from "@/components/modules/MultiTrackMixerNode";
 import VisualizerModuleNode from "@/components/modules/VisualizerModuleNode";
 import SequencerModuleNode from "@/components/modules/SequencerModuleNode";
+import DrumsModuleNode from "@/components/modules/DrumsModuleNode";
 import SamplerModuleNode from "@/components/modules/SamplerModuleNode";
 import EffectModuleNode from "@/components/modules/EffectModuleNode";
 import OutputModuleNode from "@/components/modules/OutputModuleNode";
@@ -42,6 +43,7 @@ const nodeTypes = {
   visualizer: VisualizerModuleNode,
   sampler: SamplerModuleNode,
   sequencer: SequencerModuleNode,
+  drums: DrumsModuleNode,
   reverb: EffectModuleNode,
   delay: EffectModuleNode,
   chorus: EffectModuleNode,
@@ -285,11 +287,19 @@ const Index = () => {
         return valid;
       }
 
-      // Sequencer can connect to: crypto, sampler, mixers (for convenience)
+      // Sequencer can connect to: crypto, sampler, drums, mixers
       if (sourceType === "sequencer") {
         const isMixer = targetType === "mixer" || (typeof targetType === "string" && targetType.startsWith("mixer-"));
-        const valid = targetType === "crypto" || targetType === "sampler" || isMixer;
+        const valid = targetType === "crypto" || targetType === "sampler" || targetType === "drums" || isMixer;
         console.log("Sequencer connection valid:", valid);
+        return valid;
+      }
+
+      // Drums can connect to: mixers, effects
+      if (sourceType === "drums") {
+        const isMixer = targetType === "mixer" || (typeof targetType === "string" && targetType.startsWith("mixer-"));
+        const valid = isMixer || EFFECT_TYPES.includes(targetType);
+        console.log("Drums connection valid:", valid);
         return valid;
       }
 
@@ -733,6 +743,28 @@ const Index = () => {
           outputNode,
         },
       };
+    } else if (type === "drums") {
+      const ctx = audioEngine.getContext();
+      let outputNode: GainNode | null = null;
+      
+      if (ctx) {
+        outputNode = ctx.createGain();
+        outputNode.gain.value = 0.8;
+      }
+      
+      newNode = {
+        id,
+        type,
+        position: { x: 100 + nodes.length * 50, y: 100 + nodes.length * 50 },
+        data: {
+          type,
+          selectedDrum: "kick" as const,
+          volume: 0.8,
+          pitch: 0,
+          collapsed: false,
+          outputNode,
+        },
+      };
     } else if (type.startsWith("mixer-")) {
       const trackCount = parseInt(type.split("-")[1]);
       const ctx = audioEngine.getContext();
@@ -848,10 +880,31 @@ const Index = () => {
             const currentStep = sequencerNode.data.currentStep;
             const nextStep = (currentStep + 1) % sequencerNode.data.steps.length;
             
-            // Gate audio based on current step
-            if (sequencerNode.data.steps[currentStep] && sequencerNode.data.outputNode) {
-              console.log(`Sequencer step ${currentStep} is active, opening gate`);
-              sequencerNode.data.outputNode.gain.value = 1;
+            // Gate audio based on current step AND trigger drums
+            if (sequencerNode.data.steps[currentStep]) {
+              console.log(`Sequencer step ${currentStep} is active`);
+              
+              // Open gate for audio pass-through
+              if (sequencerNode.data.outputNode) {
+                sequencerNode.data.outputNode.gain.value = 1;
+              }
+              
+              // Trigger connected drum modules
+              setEdges((edges) => {
+                const connectedEdges = edges.filter((e) => e.source === nodeId);
+                connectedEdges.forEach((edge) => {
+                  const targetNode = nds.find((n) => n.id === edge.target);
+                  if (targetNode?.data.type === "drums" && targetNode.data.outputNode) {
+                    audioEngine.triggerDrum(
+                      targetNode.data.selectedDrum,
+                      targetNode.data.outputNode,
+                      targetNode.data.volume,
+                      targetNode.data.pitch
+                    );
+                  }
+                });
+                return edges;
+              });
             } else if (sequencerNode.data.outputNode) {
               sequencerNode.data.outputNode.gain.value = 0;
             }
@@ -1058,6 +1111,24 @@ const Index = () => {
                   onParameterChange: updatePluginParameter,
                   onToggleCollapse: toggleCollapse,
                   onRemove: removeNode,
+                }
+              : node.data.type === "drums"
+              ? {
+                  ...node.data,
+                  onParameterChange: updatePluginParameter,
+                  onToggleCollapse: toggleCollapse,
+                  onRemove: removeNode,
+                  onTrigger: (id: string) => {
+                    const drumNode = nodes.find((n) => n.id === id);
+                    if (drumNode?.data.type === "drums" && drumNode.data.outputNode) {
+                      audioEngine.triggerDrum(
+                        drumNode.data.selectedDrum,
+                        drumNode.data.outputNode,
+                        drumNode.data.volume,
+                        drumNode.data.pitch
+                      );
+                    }
+                  },
                 }
               : node.data.type && ["reverb", "delay", "chorus", "flanger", "phaser", "pingpong-delay",
                   "compressor", "limiter", "gate", "de-esser", "eq", "lpf", "hpf", "bandpass", 
