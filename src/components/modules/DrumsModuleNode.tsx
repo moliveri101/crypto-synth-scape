@@ -1,15 +1,29 @@
 import { Handle, Position, NodeProps } from "reactflow";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { Music, ChevronDown, ChevronUp, X } from "lucide-react";
 import { DrumsModuleData } from "@/types/modules";
 
 const DRUMS = [
-  { value: "kick", label: "Kick", icon: "🥁" },
-  { value: "snare", label: "Snare", icon: "🎵" },
-  { value: "hihat", label: "Hi-Hat", icon: "🎶" },
-  { value: "clap", label: "Clap", icon: "👏" },
+  { value: "kick", label: "Kick" },
+  { value: "snare", label: "Snare" },
+  { value: "hihat", label: "Hi-Hat" },
+  { value: "clap", label: "Clap" },
+  { value: "tom", label: "Tom" },
+  { value: "low-tom", label: "Low Tom" },
+  { value: "mid-tom", label: "Mid Tom" },
+  { value: "high-tom", label: "High Tom" },
+  { value: "cowbell", label: "Cowbell" },
+  { value: "ride", label: "Ride Cymbal" },
+  { value: "crash", label: "Crash Cymbal" },
+  { value: "shaker", label: "Shaker" },
+  { value: "clave", label: "Clave" },
+  { value: "rim", label: "Rim" },
+  { value: "rimshot", label: "Rimshot" },
+  { value: "bongo", label: "Bongo" },
+  { value: "conga", label: "Conga" },
 ] as const;
 
 const DrumsModuleNode = ({ data, id }: NodeProps<DrumsModuleData & { 
@@ -52,20 +66,22 @@ const DrumsModuleNode = ({ data, id }: NodeProps<DrumsModuleData & {
       {!data.collapsed && (
         <CardContent className="space-y-4 pt-0">
           <div className="space-y-2">
-            <span className="text-xs text-muted-foreground">Select Drum</span>
-            <div className="grid grid-cols-2 gap-2">
-              {DRUMS.map((drum) => (
-                <Button
-                  key={drum.value}
-                  variant={data.selectedDrum === drum.value ? "default" : "outline"}
-                  className="h-16 flex-col gap-1"
-                  onClick={() => data.onParameterChange(id, "selectedDrum", drum.value)}
-                >
-                  <span className="text-2xl">{drum.icon}</span>
-                  <span className="text-xs">{drum.label}</span>
-                </Button>
-              ))}
-            </div>
+            <Label className="text-xs text-muted-foreground">Percussion Sound</Label>
+            <Select 
+              value={data.selectedDrum} 
+              onValueChange={(value) => data.onParameterChange(id, "selectedDrum", value)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select drum sound" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[300px]">
+                {DRUMS.map((drum) => (
+                  <SelectItem key={drum.value} value={drum.value}>
+                    {drum.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="rounded-md bg-muted/30 px-3 py-2 text-xs text-muted-foreground">

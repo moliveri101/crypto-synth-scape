@@ -1037,6 +1037,10 @@ const Index = () => {
           }
           
           if (node.data.type === "crypto") {
+            // Clear oscillator/gain references for tone changes (will be recreated on restart)
+            if (isCryptoToneChange) {
+              return { ...node, data: { ...node.data, [param]: value, oscillator: null, gainNode: null, isPlaying: false } };
+            }
             return { ...node, data: { ...node.data, [param]: value } };
           } else if (node.data.type === "sampler") {
             return { ...node, data: { ...node.data, [param]: value } };
