@@ -532,6 +532,7 @@ const Index = () => {
         scale: "major",
         rootNote: "C",
         octave: 4,
+        pitch: 0,
       },
     };
 
@@ -589,11 +590,12 @@ const Index = () => {
             data.waveform,
             data.scale,
             data.rootNote,
-            data.octave
+            data.octave,
+            data.pitch
           );
           if (audioNodes) {
             const { oscillator, gainNode } = audioNodes;
-            gainNode.gain.value *= data.volume;
+            gainNode.gain.value = data.volume;
             oscillator.start();
 
             return {
@@ -707,7 +709,7 @@ const Index = () => {
             try {
               const ctx = audioEngine.getContext();
               if (ctx && data.gainNode.context === ctx) {
-                data.gainNode.gain.value = volume * 0.5;
+                data.gainNode.gain.value = volume;
               }
             } catch (e) {
               console.warn("Failed to update crypto volume:", e);
@@ -927,7 +929,7 @@ const Index = () => {
     // If changing tone parameters on a crypto module, restart oscillator
     const node = nodes.find((n) => n.id === nodeId);
     const isCryptoToneChange = node && node.data.type === "crypto" && 
-      (param === "scale" || param === "rootNote" || param === "octave");
+      (param === "scale" || param === "rootNote" || param === "octave" || param === "pitch");
     const wasPlaying = isCryptoToneChange && node.data.isPlaying;
 
     if (wasPlaying) {
@@ -1132,6 +1134,7 @@ const Index = () => {
                   onScaleChange: (id: string, scale: string) => updatePluginParameter(id, "scale", scale),
                   onRootNoteChange: (id: string, note: string) => updatePluginParameter(id, "rootNote", note),
                   onOctaveChange: (id: string, octave: number) => updatePluginParameter(id, "octave", octave),
+                  onPitchChange: (id: string, pitch: number) => updatePluginParameter(id, "pitch", pitch),
                 }
               : node.data.type === "mixer"
               ? {

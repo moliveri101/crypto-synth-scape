@@ -25,8 +25,9 @@ const CryptoModuleNode = ({ data, id }: NodeProps<CryptoModuleData & {
   onScaleChange?: (id: string, scale: string) => void;
   onRootNoteChange?: (id: string, note: string) => void;
   onOctaveChange?: (id: string, octave: number) => void;
+  onPitchChange?: (id: string, pitch: number) => void;
 }>) => {
-  const { crypto, volume, waveform, isPlaying, collapsed, scale, rootNote, octave, onRemove, onVolumeChange, onWaveformChange, onToggleCollapse, onScaleChange, onRootNoteChange, onOctaveChange } = data;
+  const { crypto, volume, waveform, isPlaying, collapsed, scale, rootNote, octave, pitch, onRemove, onVolumeChange, onWaveformChange, onToggleCollapse, onScaleChange, onRootNoteChange, onOctaveChange, onPitchChange } = data;
   const priceChange = crypto.price_change_percentage_24h;
   const isPositive = priceChange >= 0;
 
@@ -154,6 +155,20 @@ const CryptoModuleNode = ({ data, id }: NodeProps<CryptoModuleData & {
         {/* Tone Settings */}
         <div className="space-y-2 pt-2 border-t border-border">
           <p className="text-xs font-medium text-muted-foreground">Tone Settings</p>
+          
+          <div>
+            <div className="flex justify-between text-xs mb-1">
+              <p className="text-muted-foreground">Pitch</p>
+              <p className="text-foreground font-medium">{pitch >= 0 ? `+${pitch}` : pitch} st</p>
+            </div>
+            <Slider
+              value={[pitch]}
+              min={-12}
+              max={12}
+              step={1}
+              onValueChange={(values) => onPitchChange?.(id, values[0])}
+            />
+          </div>
           
           <div>
             <Label className="text-xs text-muted-foreground">Scale</Label>

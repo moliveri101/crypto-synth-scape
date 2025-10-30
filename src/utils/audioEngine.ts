@@ -28,17 +28,18 @@ export class AudioEngine {
     waveform: OscillatorType = "sine",
     scale: string = "major",
     rootNote: string = "C",
-    octave: number = 4
+    octave: number = 4,
+    pitchOffset: number = 0
   ) {
     if (!this.audioContext || !this.masterGain) return null;
 
     const gainNode = this.audioContext.createGain();
-    const normalizedVolume = Math.min(crypto.total_volume / 1e10, 1);
-    gainNode.gain.value = 0.1 + normalizedVolume * 0.4;
+    // Volume is controlled externally by module UI
+    gainNode.gain.value = 0;
 
     // Standard oscillator
     const oscillator = this.audioContext.createOscillator();
-    const frequency = this.calculateFrequency(crypto, scale, rootNote, octave);
+    const frequency = this.calculateFrequency(crypto, scale, rootNote, octave, pitchOffset);
     oscillator.type = waveform;
     oscillator.frequency.value = frequency;
     oscillator.connect(gainNode);
@@ -217,7 +218,8 @@ export class AudioEngine {
     crypto: CryptoData,
     scale: string,
     rootNote: string,
-    octave: number
+    octave: number,
+    pitchOffset: number = 0
   ): number {
     // Define note frequencies (A4 = 440Hz)
     const noteFreqs: Record<string, number> = {
@@ -244,7 +246,7 @@ export class AudioEngine {
     const priceChange = Math.abs(crypto.price_change_percentage_24h);
     const intervals = scaleIntervals[scale] || scaleIntervals["major"];
     const noteIndex = Math.floor((priceChange / 10) * intervals.length) % intervals.length;
-    const semitoneOffset = intervals[noteIndex];
+    const semitoneOffset = intervals[noteIndex] + pitchOffset;
     
     // Calculate final frequency
     const frequency = baseFreq * octaveMultiplier * Math.pow(2, semitoneOffset / 12);

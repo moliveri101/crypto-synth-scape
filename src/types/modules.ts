@@ -23,6 +23,7 @@ export interface CryptoModuleData {
   scale: string;
   rootNote: string;
   octave: number;
+  pitch: number; // semitone transpose
 }
 
 export interface MixerModuleData {
