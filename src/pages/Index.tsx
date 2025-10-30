@@ -1018,13 +1018,22 @@ const Index = () => {
       if (node.data.intervalId) {
         clearInterval(node.data.intervalId);
       }
+      // Stop first
       setNodes((nds) =>
         nds.map((n) =>
-          n.id === nodeId ? { ...n, data: { ...n.data, bpm: value, intervalId: null } } : n
+          n.id === nodeId ? { ...n, data: { ...n.data, isPlaying: false, intervalId: null, currentStep: 0 } } : n
         )
       );
-      // Restart with new BPM
-      setTimeout(() => updatePluginParameter(nodeId, "isPlaying", true), 10);
+      // Update BPM
+      setTimeout(() => {
+        setNodes((nds) =>
+          nds.map((n) =>
+            n.id === nodeId ? { ...n, data: { ...n.data, bpm: value } } : n
+          )
+        );
+        // Restart with new BPM
+        setTimeout(() => updatePluginParameter(nodeId, "isPlaying", true), 50);
+      }, 10);
       return;
     }
 
