@@ -1,25 +1,28 @@
+/**
+ * DEPRECATED: Use the new module architecture in src/audio/ instead.
+ * This file is kept for backward compatibility.
+ */
+
+import { audioContextManager } from "@/audio/AudioContextManager";
 import { CryptoData } from "@/types/crypto";
 
 export class AudioEngine {
   private audioContext: AudioContext | null = null;
   private masterGain: GainNode | null = null;
-  public nodeMap: Map<string, AudioNode> = new Map(); // Track all audio nodes by module ID
+  public nodeMap: Map<string, AudioNode> = new Map();
 
   initialize() {
-    if (!this.audioContext) {
-      this.audioContext = new AudioContext();
-      this.masterGain = this.audioContext.createGain();
-      this.masterGain.connect(this.audioContext.destination);
-      this.masterGain.gain.value = 0.5;
-    }
+    audioContextManager.initialize();
+    this.audioContext = audioContextManager.getContext();
+    this.masterGain = audioContextManager.getMasterGain();
   }
 
   getContext() {
-    return this.audioContext;
+    return audioContextManager.getContext();
   }
 
   getMasterGain() {
-    return this.masterGain;
+    return audioContextManager.getMasterGain();
   }
 
   // Create oscillator without connecting it
