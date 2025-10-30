@@ -26,8 +26,11 @@ const InteractiveEdge = ({
     targetPosition,
   });
 
-  const onEdgeClick = () => {
-    data?.onDelete?.(id);
+  const onEdgeClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (data?.onDelete) {
+      data.onDelete(id);
+    }
   };
 
   return (
@@ -45,7 +48,7 @@ const InteractiveEdge = ({
         strokeWidth={20}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className="pointer-events-stroke"
+        style={{ pointerEvents: 'stroke' }}
       />
       <EdgeLabelRenderer>
         {isHovered && (
@@ -56,6 +59,8 @@ const InteractiveEdge = ({
               pointerEvents: "all",
             }}
             className="nodrag nopan"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
           >
             <Button
               size="icon"

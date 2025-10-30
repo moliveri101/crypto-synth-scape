@@ -107,12 +107,13 @@ const Index = () => {
 
     // Connect mixer to visualizer
     const defaultEdge: Edge = {
-      id: "mixer-visualizer",
+      id: "e-mixer-visualizer",
       source: "mixer",
       target: "visualizer",
       type: "custom",
       animated: true,
       style: { stroke: "hsl(188, 95%, 58%)", strokeWidth: 2 },
+      data: {},
     };
 
     setNodes([mixerNode, visualizerNode]);
@@ -201,16 +202,29 @@ const Index = () => {
     [nodes]
   );
 
+  const deleteEdge = useCallback((edgeId: string) => {
+    setEdges((eds) => eds.filter((e) => e.id !== edgeId));
+    toast({
+      title: "Disconnected",
+      description: "Connection removed",
+    });
+  }, [setEdges, toast]);
+
   const onConnect = useCallback(
     (params: Connection | Edge) => {
-      const edge = {
-        ...params,
+      const newEdge: Edge = {
+        id: params.source && params.target ? `e-${params.source}-${params.target}-${Date.now()}` : `e-${Date.now()}`,
+        source: params.source || "",
+        target: params.target || "",
+        sourceHandle: params.sourceHandle || null,
+        targetHandle: params.targetHandle || null,
         type: "custom",
         animated: true,
         style: { stroke: "hsl(188, 95%, 58%)", strokeWidth: 2 },
-        data: { onDelete: (id: string) => setEdges((eds) => eds.filter((e) => e.id !== id)) },
+        data: {},
       };
-      setEdges((eds) => addEdge(edge, eds));
+      
+      setEdges((eds) => addEdge(newEdge, eds));
       
       toast({
         title: "Connected",
@@ -582,13 +596,13 @@ const Index = () => {
         }))}
         edges={edges.map((edge) => ({
           ...edge,
-          type: "custom",
-          data: { onDelete: (id: string) => setEdges((eds) => eds.filter((e) => e.id !== id)) },
+          type: edge.type || "custom",
+          data: { ...edge.data, onDelete: deleteEdge },
           style: {
-            ...edge.style,
             stroke: edge.selected ? "hsl(268, 85%, 66%)" : "hsl(188, 95%, 58%)",
             strokeWidth: edge.selected ? 3 : 2,
           },
+          animated: true,
         }))}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
