@@ -1,7 +1,7 @@
 import { Node, Edge } from "reactflow";
 import { CryptoData } from "./crypto";
 
-export type ModuleType = "crypto" | "mixer" | "visualizer" | "sampler" | "tone-selector" | 
+export type ModuleType = "crypto" | "mixer" | "mixer-4" | "mixer-8" | "mixer-16" | "mixer-32" | "visualizer" | "sampler" | "tone-selector" | 
   "reverb" | "delay" | "chorus" | "flanger" | "phaser" | "pingpong-delay" |
   "compressor" | "limiter" | "gate" | "de-esser" |
   "eq" | "lpf" | "hpf" | "bandpass" | "resonant-filter" |
@@ -18,14 +18,19 @@ export interface CryptoModuleData {
   gainNode: GainNode | null;
   isPlaying: boolean;
   collapsed: boolean;
+  connectedTo: string | null; // Track if connected
 }
 
 export interface MixerModuleData {
-  type: "mixer";
+  type: "mixer" | "mixer-4" | "mixer-8" | "mixer-16" | "mixer-32";
   masterVolume: number;
   isPlaying: boolean;
   inputCount: number;
   collapsed: boolean;
+  channels?: Array<{ volume: number; pan: number; muted: boolean }>;
+  channelGains?: GainNode[];
+  channelPanners?: StereoPannerNode[];
+  mergerNode?: ChannelMergerNode | null;
 }
 
 export interface VisualizerModuleData {
@@ -66,6 +71,10 @@ export interface EffectModuleData {
   parameters: Record<string, number>;
   audioNode: AudioNode | null;
   collapsed: boolean;
+  inputNode: GainNode | null; // Input for routing
+  outputNode: GainNode | null; // Output for routing
+  wetNode: GainNode | null; // Wet signal
+  dryNode: GainNode | null; // Dry signal
 }
 
 export type ModuleData = 

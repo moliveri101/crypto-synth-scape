@@ -25,6 +25,12 @@ interface ModuleToolbarProps {
 }
 
 const PLUGIN_CATEGORIES = {
+  "Mixers": [
+    { type: "mixer-4" as ModuleType, label: "4-Track Mixer" },
+    { type: "mixer-8" as ModuleType, label: "8-Track Mixer" },
+    { type: "mixer-16" as ModuleType, label: "16-Track Mixer" },
+    { type: "mixer-32" as ModuleType, label: "32-Track Mixer" },
+  ],
   "Audio Sources": [
     { type: "sampler" as ModuleType, label: "Sampler" },
     { type: "tone-selector" as ModuleType, label: "Tone Selector" },

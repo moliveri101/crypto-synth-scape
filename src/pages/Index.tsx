@@ -18,6 +18,7 @@ import { ModuleData, CryptoModuleData, MixerModuleData, VisualizerModuleData } f
 import { audioEngine } from "@/utils/audioEngine";
 import CryptoModuleNode from "@/components/modules/CryptoModuleNode";
 import MixerModuleNode from "@/components/modules/MixerModuleNode";
+import MultiTrackMixerNode from "@/components/modules/MultiTrackMixerNode";
 import VisualizerModuleNode from "@/components/modules/VisualizerModuleNode";
 import SamplerModuleNode from "@/components/modules/SamplerModuleNode";
 import ToneSelectorModuleNode from "@/components/modules/ToneSelectorModuleNode";
@@ -31,6 +32,10 @@ import InteractiveEdge from "@/components/modules/InteractiveEdge";
 const nodeTypes = {
   crypto: CryptoModuleNode,
   mixer: MixerModuleNode,
+  "mixer-4": MultiTrackMixerNode,
+  "mixer-8": MultiTrackMixerNode,
+  "mixer-16": MultiTrackMixerNode,
+  "mixer-32": MultiTrackMixerNode,
   visualizer: VisualizerModuleNode,
   sampler: SamplerModuleNode,
   "tone-selector": ToneSelectorModuleNode,
@@ -124,6 +129,66 @@ const Index = () => {
       audioEngine.close();
     };
   }, []);
+
+  // Build audio routing based on edges
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    // Rebuild all audio connections
+    nodes.forEach(node => {
+      const { data } = node;
+      
+      // Initialize effect nodes if needed
+      if (data.type && EFFECT_TYPES.includes(data.type) && !data.inputNode) {
+        const effectAudio = audioEngine.createEffect(data.type);
+        if (effectAudio) {
+          data.inputNode = effectAudio.inputNode;
+          data.outputNode = effectAudio.outputNode;
+          data.wetNode = effectAudio.wetNode;
+          data.dryNode = effectAudio.dryNode;
+          data.audioNode = effectAudio.effectNode;
+        }
+      }
+    });
+
+    // Build connections based on edges
+    edges.forEach(edge => {
+      const sourceNode = nodes.find(n => n.id === edge.source);
+      const targetNode = nodes.find(n => n.id === edge.target);
+
+      if (!sourceNode || !targetNode) return;
+
+      const sourceData = sourceNode.data;
+      const targetData = targetNode.data;
+
+      // Get source audio node
+      let sourceAudioNode: AudioNode | null = null;
+      if (sourceData.type === "crypto" && sourceData.gainNode) {
+        sourceAudioNode = sourceData.gainNode;
+      } else if (sourceData.outputNode) {
+        sourceAudioNode = sourceData.outputNode;
+      }
+
+      // Get target audio node
+      let targetAudioNode: AudioNode | null = null;
+      if (targetData.inputNode) {
+        targetAudioNode = targetData.inputNode;
+      } else if (targetData.type === "mixer" || targetData.type.startsWith("mixer-")) {
+        targetAudioNode = audioEngine.getMasterGain();
+      }
+
+      // Connect
+      if (sourceAudioNode && targetAudioNode) {
+        try {
+          sourceAudioNode.disconnect();
+          audioEngine.connectNodes(sourceAudioNode, targetAudioNode);
+          console.log(`Connected ${edge.source} to ${edge.target}`);
+        } catch (error) {
+          console.error("Connection error:", error);
+        }
+      }
+    });
+  }, [edges, nodes, isPlaying]);
 
   // Update master volume
   useEffect(() => {
@@ -289,15 +354,16 @@ const Index = () => {
         gainNode: null,
         isPlaying: false,
         collapsed: false,
+        connectedTo: null,
       },
     };
 
     setNodes((nds) => [...nds, newNode]);
 
-    // Start sound if playing
-    if (isPlaying) {
-      setTimeout(() => startSound(id), 100);
-    }
+    toast({
+      title: "Module added",
+      description: `${crypto.name} added to canvas. Connect it to hear sound.`,
+    });
   };
 
   const removeCryptoModule = (id: string) => {
