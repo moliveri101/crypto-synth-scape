@@ -285,9 +285,10 @@ const Index = () => {
         return valid;
       }
 
-      // Sequencer can connect to: crypto, sampler (to trigger them)
+      // Sequencer can connect to: crypto, sampler, mixers (for convenience)
       if (sourceType === "sequencer") {
-        const valid = targetType === "crypto" || targetType === "sampler";
+        const isMixer = targetType === "mixer" || (typeof targetType === "string" && targetType.startsWith("mixer-"));
+        const valid = targetType === "crypto" || targetType === "sampler" || isMixer;
         console.log("Sequencer connection valid:", valid);
         return valid;
       }
