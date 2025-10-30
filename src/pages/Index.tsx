@@ -186,7 +186,6 @@ const Index = () => {
       // Connect
       if (sourceAudioNode && targetAudioNode) {
         try {
-          sourceAudioNode.disconnect();
           audioEngine.connectNodes(sourceAudioNode, targetAudioNode);
           console.log(`Connected ${edge.source} to ${edge.target}`);
         } catch (error) {
@@ -576,7 +575,8 @@ const Index = () => {
       // Create Web Audio nodes for mixer
       let channelGains: GainNode[] = [];
       let channelPanners: StereoPannerNode[] = [];
-      let mergerNode: ChannelMergerNode | null = null;
+      let mergerNode: AudioNode | null = null;
+      let mixGain: GainNode | null = null;
       
       if (ctx) {
         // Create gain and pan nodes for each channel
@@ -592,14 +592,20 @@ const Index = () => {
           return panner;
         });
         
-        // Create merger node for combining channels
-        mergerNode = ctx.createChannelMerger(2); // Stereo output (L/R)
+        // Create a summing bus for stereo mix
+        mixGain = ctx.createGain();
+        mixGain.gain.value = 1;
         
-        // Connect each channel: gain -> panner -> merger
+        // Connect each channel: gain -> panner -> mix bus
         channelGains.forEach((gain, i) => {
-          channelPanners[i] && gain.connect(channelPanners[i]);
-          channelPanners[i] && channelPanners[i].connect(mergerNode!);
+          if (channelPanners[i]) {
+            gain.connect(channelPanners[i]);
+            channelPanners[i].connect(mixGain!);
+          }
         });
+        
+        // Use mixGain as the mixer output node
+        mergerNode = mixGain;
       }
       
       newNode = {
@@ -739,11 +745,19 @@ const Index = () => {
                   onTogglePlay: togglePlay,
                   onMasterVolumeChange: (volume: number) => {
                     setNodes((nds) =>
-                      nds.map((n) =>
-                        n.id === node.id
-                          ? { ...n, data: { ...n.data, masterVolume: volume } }
-                          : n
-                      )
+                      nds.map((n) => {
+                        if (n.id === node.id) {
+                          // Update state
+                          const updated = { ...n, data: { ...n.data, masterVolume: volume } };
+                          // Also apply to the mix output gain if available
+                          const out = (updated.data.mergerNode as any);
+                          if (out && typeof out.gain?.value === "number") {
+                            out.gain.value = volume;
+                          }
+                          return updated;
+                        }
+                        return n;
+                      })
                     );
                   },
                   onToggleCollapse: toggleCollapse,

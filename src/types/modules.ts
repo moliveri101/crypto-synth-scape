@@ -34,7 +34,7 @@ export interface MixerModuleData {
   channels?: Array<{ volume: number; pan: number; muted: boolean }>;
   channelGains?: GainNode[];
   channelPanners?: StereoPannerNode[];
-  mergerNode?: ChannelMergerNode | null;
+  mergerNode?: AudioNode | null;
 }
 
 export interface VisualizerModuleData {

@@ -35,6 +35,9 @@ const PLUGIN_CATEGORIES = {
     { type: "mixer-16" as ModuleType, label: "16-Track Mixer" },
     { type: "mixer-32" as ModuleType, label: "32-Track Mixer" },
   ],
+  "Visualization": [
+    { type: "visualizer" as ModuleType, label: "Visualizer" },
+  ],
   "Audio Sources": [
     { type: "sampler" as ModuleType, label: "Sampler" },
   ],
