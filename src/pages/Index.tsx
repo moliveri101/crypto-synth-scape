@@ -107,6 +107,7 @@ const Index = () => {
 
     // Update input counts and active status
     const mixerInputCounts: { [key: string]: number } = {};
+    const mixerChannelInputs: { [key: string]: Set<number> } = {};
     const outputActiveStatus: { [key: string]: boolean } = {};
     
     edges.forEach(edge => {
@@ -114,6 +115,12 @@ const Index = () => {
       if (targetNode) {
         if (targetNode.data.type && targetNode.data.type.startsWith("mixer-")) {
           mixerInputCounts[edge.target] = (mixerInputCounts[edge.target] || 0) + 1;
+          // Track which channels have inputs
+          const channelIndex = edge.targetHandle ? parseInt(edge.targetHandle.split("-")[1]) : 0;
+          if (!mixerChannelInputs[edge.target]) {
+            mixerChannelInputs[edge.target] = new Set();
+          }
+          mixerChannelInputs[edge.target].add(channelIndex);
         } else if (targetNode.data.type === "output-speakers" || targetNode.data.type === "output-headphones") {
           outputActiveStatus[edge.target] = true;
         }
@@ -171,20 +178,58 @@ const Index = () => {
       })
     );
 
-    // Rebuild all audio connections
+    // Rebuild all audio connections and apply parameters
     nodes.forEach(node => {
       const { data } = node;
       
       // Initialize effect nodes if needed
-      if (data.type && EFFECT_TYPES.includes(data.type) && !data.inputNode) {
-        const effectAudio = audioEngine.createEffect(data.type);
-        if (effectAudio) {
-          data.inputNode = effectAudio.inputNode;
-          data.outputNode = effectAudio.outputNode;
-          data.wetNode = effectAudio.wetNode;
-          data.dryNode = effectAudio.dryNode;
-          data.audioNode = effectAudio.effectNode;
+      if (data.type && EFFECT_TYPES.includes(data.type)) {
+        if (!data.inputNode) {
+          const effectAudio = audioEngine.createEffect(data.type);
+          if (effectAudio) {
+            data.inputNode = effectAudio.inputNode;
+            data.outputNode = effectAudio.outputNode;
+            data.wetNode = effectAudio.wetNode;
+            data.dryNode = effectAudio.dryNode;
+            data.audioNode = effectAudio.effectNode;
+          }
         }
+        
+        // Apply effect parameters
+        if (data.wetNode && data.dryNode && data.isActive) {
+          data.wetNode.gain.value = data.mix || 0.5;
+          data.dryNode.gain.value = 1 - (data.mix || 0.5);
+          
+          // Apply intensity to effect-specific parameters
+          if (data.audioNode) {
+            const intensity = data.intensity || 0.5;
+            if (data.audioNode.frequency) {
+              data.audioNode.frequency.value = (data.parameters?.cutoff || data.parameters?.frequency || 1000);
+            }
+            if (data.audioNode.Q) {
+              data.audioNode.Q.value = (data.parameters?.resonance || data.parameters?.Q || 1);
+            }
+          }
+        } else if (data.wetNode && data.dryNode) {
+          // Bypass effect when inactive
+          data.wetNode.gain.value = 0;
+          data.dryNode.gain.value = 1;
+        }
+      }
+      
+      // Mute mixer channels that have no inputs
+      if (data.type && data.type.startsWith("mixer-") && data.channelGains) {
+        const activeChannels = mixerChannelInputs[node.id] || new Set();
+        data.channelGains.forEach((gainNode: GainNode, index: number) => {
+          const channelData = data.channels[index];
+          if (!activeChannels.has(index)) {
+            // No input on this channel, mute it
+            gainNode.gain.value = 0;
+          } else if (!channelData.muted) {
+            // Has input and not muted, restore volume
+            gainNode.gain.value = channelData.volume;
+          }
+        });
       }
     });
 
@@ -1083,15 +1128,49 @@ const Index = () => {
           } else {
             // Effect modules
             if (param === "intensity" || param === "mix" || param === "isActive") {
+              // Apply wet/dry changes immediately
+              if (param === "mix" && node.data.wetNode && node.data.dryNode) {
+                node.data.wetNode.gain.value = value;
+                node.data.dryNode.gain.value = 1 - value;
+              } else if (param === "isActive") {
+                // Toggle bypass
+                if (node.data.wetNode && node.data.dryNode) {
+                  if (value) {
+                    node.data.wetNode.gain.value = node.data.mix || 0.5;
+                    node.data.dryNode.gain.value = 1 - (node.data.mix || 0.5);
+                  } else {
+                    node.data.wetNode.gain.value = 0;
+                    node.data.dryNode.gain.value = 1;
+                  }
+                }
+              }
               return { ...node, data: { ...node.data, [param]: value } };
             } else {
-              return {
+              // Other effect parameters
+              const updated = {
                 ...node,
                 data: {
                   ...node.data,
                   parameters: { ...node.data.parameters, [param]: value },
                 },
               };
+              // Apply parameter to audio node if it exists
+              if (node.data.audioNode) {
+                if (param === "cutoff" || param === "frequency") {
+                  if (node.data.audioNode.frequency) {
+                    node.data.audioNode.frequency.value = value;
+                  }
+                } else if (param === "resonance" || param === "Q") {
+                  if (node.data.audioNode.Q) {
+                    node.data.audioNode.Q.value = value;
+                  }
+                } else if (param === "threshold" && node.data.audioNode.threshold) {
+                  node.data.audioNode.threshold.value = value;
+                } else if (param === "ratio" && node.data.audioNode.ratio) {
+                  node.data.audioNode.ratio.value = value;
+                }
+              }
+              return updated;
             }
           }
         }
