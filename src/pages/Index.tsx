@@ -702,8 +702,16 @@ const Index = () => {
       nds.map((node) => {
         if (node.id === nodeId && node.data.type === "crypto") {
           const data = node.data;
+          // Update the gainNode if it exists and is from the current context
           if (data.gainNode) {
-            data.gainNode.gain.value = volume * 0.5;
+            try {
+              const ctx = audioEngine.getContext();
+              if (ctx && data.gainNode.context === ctx) {
+                data.gainNode.gain.value = volume * 0.5;
+              }
+            } catch (e) {
+              console.warn("Failed to update crypto volume:", e);
+            }
           }
           return {
             ...node,
@@ -1136,10 +1144,15 @@ const Index = () => {
                         if (n.id === node.id) {
                           // Update state
                           const updated = { ...n, data: { ...n.data, masterVolume: volume } };
-                          // Also apply to the mix output gain if available
-                          const out = (updated.data.mergerNode as any);
-                          if (out && typeof out.gain?.value === "number") {
-                            out.gain.value = volume;
+                          // Also apply to the mix output gain if available and from current context
+                          try {
+                            const ctx = audioEngine.getContext();
+                            const out = (updated.data.mergerNode as any);
+                            if (ctx && out && out.context === ctx && typeof out.gain?.value === "number") {
+                              out.gain.value = volume;
+                            }
+                          } catch (e) {
+                            console.warn("Failed to update master volume:", e);
                           }
                           return updated;
                         }
@@ -1154,7 +1167,15 @@ const Index = () => {
                         if (n.id === node.id && n.data.channelGains && n.data.channelGains[channel]) {
                           const newChannels = [...n.data.channels];
                           newChannels[channel] = { ...newChannels[channel], volume };
-                          n.data.channelGains[channel].gain.value = volume;
+                          // Verify context before updating
+                          try {
+                            const ctx = audioEngine.getContext();
+                            if (ctx && n.data.channelGains[channel].context === ctx && !newChannels[channel].muted) {
+                              n.data.channelGains[channel].gain.value = volume;
+                            }
+                          } catch (e) {
+                            console.warn("Failed to update channel volume:", e);
+                          }
                           return { ...n, data: { ...n.data, channels: newChannels } };
                         }
                         return n;
@@ -1181,7 +1202,15 @@ const Index = () => {
                           const newChannels = [...n.data.channels];
                           const wasMuted = newChannels[channel].muted;
                           newChannels[channel] = { ...newChannels[channel], muted: !wasMuted };
-                          n.data.channelGains[channel].gain.value = wasMuted ? newChannels[channel].volume : 0;
+                          // Verify context before updating
+                          try {
+                            const ctx = audioEngine.getContext();
+                            if (ctx && n.data.channelGains[channel].context === ctx) {
+                              n.data.channelGains[channel].gain.value = wasMuted ? newChannels[channel].volume : 0;
+                            }
+                          } catch (e) {
+                            console.warn("Failed to toggle channel mute:", e);
+                          }
                           return { ...n, data: { ...n.data, channels: newChannels } };
                         }
                         return n;
