@@ -575,6 +575,9 @@ const Index = () => {
     setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
   };
   const startSound = (nodeId: string) => {
+    // Resume audio context if suspended (browser autoplay policy)
+    audioEngine.resume();
+    
     setNodes((nds) =>
       nds.map((node) => {
         if (node.id === nodeId && node.data.type === "crypto") {
@@ -926,6 +929,9 @@ const Index = () => {
     // Handle sequencer play/stop
     if (node?.data.type === "sequencer" && param === "isPlaying") {
       if (value) {
+        // Resume audio context if suspended
+        audioEngine.resume();
+        
         // Start sequencer
         const intervalTime = (60000 / node.data.bpm) / 4; // 16th note timing
         const intervalId = window.setInterval(() => {
@@ -1211,6 +1217,9 @@ const Index = () => {
                   onTrigger: (id: string) => {
                     const drumNode = nodes.find((n) => n.id === id);
                     if (drumNode?.data.type === "drums" && drumNode.data.outputNode) {
+                      // Resume audio context if suspended
+                      audioEngine.resume();
+                      
                       audioEngine.triggerDrum(
                         drumNode.data.selectedDrum,
                         drumNode.data.outputNode,
