@@ -9,7 +9,7 @@ import {
   Gauge, Shrink, DoorClosed, Mic,
   Sliders, Filter, TrendingUp, TrendingDown,
   Disc, Hash, Sparkles, Radio, Volume2,
-  BarChart3, Music4, Move, Maximize2, ChevronDown, ChevronUp
+  BarChart3, Music4, Move, Maximize2, ChevronDown, ChevronUp, X
 } from "lucide-react";
 
 interface EffectModuleNodeProps {
@@ -26,6 +26,7 @@ interface EffectModuleNodeProps {
     onToggleActive?: () => void;
     onParameterChange?: (param: string, value: number) => void;
     onToggleCollapse?: (id: string) => void;
+    onRemove?: (id: string) => void;
   };
 }
 
@@ -88,6 +89,14 @@ const EffectModuleNode = ({ data, id }: EffectModuleNodeProps) => {
           </div>
           <div className="flex gap-1 items-center">
             <Switch checked={data.isActive} onCheckedChange={data.onToggleActive} />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => data.onRemove?.(id)}
+            >
+              <X className="w-3 h-3" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"

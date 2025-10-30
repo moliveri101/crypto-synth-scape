@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Music2, ChevronDown, ChevronUp } from "lucide-react";
+import { Music2, ChevronDown, ChevronUp, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface SamplerModuleNodeProps {
@@ -17,6 +17,7 @@ interface SamplerModuleNodeProps {
     onPitchChange?: (pitch: number) => void;
     onDecayChange?: (decay: number) => void;
     onToggleCollapse?: (id: string) => void;
+    onRemove?: (id: string) => void;
   };
 }
 
@@ -39,14 +40,24 @@ const SamplerModuleNode = ({ data, id }: SamplerModuleNodeProps) => {
             <Music2 className="w-5 h-5 text-primary" />
             <h3 className="font-semibold text-foreground">Sampler</h3>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 hover:bg-accent"
-            onClick={() => data.onToggleCollapse?.(id)}
-          >
-            {data.collapsed ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
-          </Button>
+          <div className="flex gap-1 items-center">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => data.onRemove?.(id)}
+            >
+              <X className="w-3 h-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 hover:bg-accent"
+              onClick={() => data.onToggleCollapse?.(id)}
+            >
+              {data.collapsed ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+            </Button>
+          </div>
         </div>
 
         {!data.collapsed && (

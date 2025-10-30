@@ -2,7 +2,7 @@ import { Handle, Position, NodeProps } from "reactflow";
 import { MixerModuleData } from "@/types/modules";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Play, Pause, Volume2, ChevronDown, ChevronUp, VolumeX } from "lucide-react";
+import { Play, Pause, Volume2, ChevronDown, ChevronUp, VolumeX, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
 
 const MultiTrackMixerNode = ({ data, id }: NodeProps<MixerModuleData & {
@@ -12,6 +12,7 @@ const MultiTrackMixerNode = ({ data, id }: NodeProps<MixerModuleData & {
   onChannelVolumeChange?: (channel: number, volume: number) => void;
   onChannelPanChange?: (channel: number, pan: number) => void;
   onChannelMuteToggle?: (channel: number) => void;
+  onRemove: (id: string) => void;
 }>) => {
   const { 
     type, 
@@ -95,6 +96,14 @@ const MultiTrackMixerNode = ({ data, id }: NodeProps<MixerModuleData & {
               onClick={() => onToggleCollapse(id)}
             >
               {collapsed ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => onRemove(id)}
+            >
+              <X className="w-3 h-3" />
             </Button>
           </div>
         </div>

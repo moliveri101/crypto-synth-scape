@@ -2,12 +2,13 @@ import { Handle, Position, NodeProps } from "reactflow";
 import { MixerModuleData } from "@/types/modules";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Play, Pause, Volume2, ChevronDown, ChevronUp } from "lucide-react";
+import { Play, Pause, Volume2, ChevronDown, ChevronUp, X } from "lucide-react";
 
 const MixerModuleNode = ({ data, id }: NodeProps<MixerModuleData & {
   onTogglePlay: () => void;
   onMasterVolumeChange: (volume: number) => void;
   onToggleCollapse: (id: string) => void;
+  onRemove: (id: string) => void;
 }>) => {
   const { masterVolume, isPlaying, inputCount, collapsed, onTogglePlay, onMasterVolumeChange, onToggleCollapse } = data;
 
@@ -55,6 +56,14 @@ const MixerModuleNode = ({ data, id }: NodeProps<MixerModuleData & {
               onClick={() => onToggleCollapse(id)}
             >
               {collapsed ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => onRemove(id)}
+            >
+              <X className="w-3 h-3" />
             </Button>
           </div>
         </div>

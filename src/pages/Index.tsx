@@ -242,36 +242,40 @@ const Index = () => {
 
       console.log("Validating connection:", { sourceType, targetType });
 
-      // Crypto can connect to: mixer, effects, sampler
+      // Crypto can connect to: mixers, effects, sampler
       if (sourceType === "crypto") {
-        const valid = targetType === "mixer" || targetType === "sampler" || EFFECT_TYPES.includes(targetType);
+        const isMixer = targetType === "mixer" || (typeof targetType === "string" && targetType.startsWith("mixer-"));
+        const valid = isMixer || targetType === "sampler" || EFFECT_TYPES.includes(targetType);
         console.log("Crypto connection valid:", valid);
         return valid;
       }
 
-      // Sampler can connect to: mixer, effects
+      // Sampler can connect to: mixers, effects
       if (sourceType === "sampler") {
-        const valid = targetType === "mixer" || EFFECT_TYPES.includes(targetType);
+        const isMixer = targetType === "mixer" || (typeof targetType === "string" && targetType.startsWith("mixer-"));
+        const valid = isMixer || EFFECT_TYPES.includes(targetType);
         console.log("Sampler connection valid:", valid);
         return valid;
       }
 
-      // Tone selector can connect to: crypto, mixer, effects
+      // Tone selector can connect to: crypto, mixers, effects
       if (sourceType === "tone-selector") {
-        const valid = targetType === "crypto" || targetType === "mixer" || EFFECT_TYPES.includes(targetType);
+        const isMixer = targetType === "mixer" || (typeof targetType === "string" && targetType.startsWith("mixer-"));
+        const valid = targetType === "crypto" || isMixer || EFFECT_TYPES.includes(targetType);
         console.log("Tone selector connection valid:", valid);
         return valid;
       }
 
-      // Effects can connect to: mixer, other effects, visualizer
+      // Effects can connect to: mixers, other effects, visualizer
       if (EFFECT_TYPES.includes(sourceType)) {
-        const valid = targetType === "mixer" || targetType === "visualizer" || EFFECT_TYPES.includes(targetType);
+        const isMixer = targetType === "mixer" || (typeof targetType === "string" && targetType.startsWith("mixer-"));
+        const valid = isMixer || targetType === "visualizer" || EFFECT_TYPES.includes(targetType);
         console.log("Effect connection valid:", valid);
         return valid;
       }
 
-      // Mixer can connect to: visualizer, effects
-      if (sourceType === "mixer") {
+      // Mixers can connect to: visualizer, effects
+      if (sourceType === "mixer" || (typeof sourceType === "string" && sourceType.startsWith("mixer-"))) {
         const valid = targetType === "visualizer" || EFFECT_TYPES.includes(targetType);
         console.log("Mixer connection valid:", valid);
         return valid;
@@ -382,6 +386,21 @@ const Index = () => {
     setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
   };
 
+  // Generic remove for any module
+  const removeNode = (id: string) => {
+    const node = nodes.find((n) => n.id === id);
+    // Stop crypto oscillators if needed
+    if (node && node.data.type === "crypto") {
+      const data = node.data;
+      if (data.oscillator) {
+        data.oscillator.stop();
+        data.oscillator.disconnect();
+      }
+    }
+
+    setNodes((nds) => nds.filter((n) => n.id !== id));
+    setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
+  };
   const startSound = (nodeId: string) => {
     setNodes((nds) =>
       nds.map((node) => {
@@ -645,9 +664,18 @@ const Index = () => {
                   onTogglePlay: togglePlay,
                   onMasterVolumeChange: handleMasterVolumeChange,
                   onToggleCollapse: toggleCollapse,
+                  onRemove: removeNode,
+                }
+              : (typeof node.data.type === "string" && node.data.type.startsWith("mixer-"))
+              ? {
+                  ...node.data,
+                  onTogglePlay: togglePlay,
+                  onMasterVolumeChange: handleMasterVolumeChange,
+                  onToggleCollapse: toggleCollapse,
+                  onRemove: removeNode,
                 }
               : node.data.type === "visualizer"
-              ? { ...node.data, isPlaying, activeCryptos: cryptoCount, onToggleCollapse: toggleCollapse }
+              ? { ...node.data, isPlaying, activeCryptos: cryptoCount, onToggleCollapse: toggleCollapse, onRemove: removeNode }
               : node.data.type === "sampler"
               ? {
                   ...node.data,
@@ -655,6 +683,7 @@ const Index = () => {
                   onPitchChange: (pitch: number) => updatePluginParameter(node.id, "pitch", pitch),
                   onDecayChange: (decay: number) => updatePluginParameter(node.id, "decay", decay),
                   onToggleCollapse: toggleCollapse,
+                  onRemove: removeNode,
                 }
               : node.data.type === "tone-selector"
               ? {
@@ -663,6 +692,7 @@ const Index = () => {
                   onRootNoteChange: (note: string) => updatePluginParameter(node.id, "rootNote", note),
                   onOctaveChange: (octave: number) => updatePluginParameter(node.id, "octave", octave),
                   onToggleCollapse: toggleCollapse,
+                  onRemove: removeNode,
                 }
               : node.data.type && ["reverb", "delay", "chorus", "flanger", "phaser", "pingpong-delay", 
                   "compressor", "limiter", "gate", "de-esser", "eq", "lpf", "hpf", "bandpass", 
@@ -676,6 +706,7 @@ const Index = () => {
                   onToggleActive: () => updatePluginParameter(node.id, "isActive", !node.data.isActive),
                   onParameterChange: (param: string, value: number) => updatePluginParameter(node.id, param, value),
                   onToggleCollapse: toggleCollapse,
+                  onRemove: removeNode,
                 }
               : node.data,
         }))}

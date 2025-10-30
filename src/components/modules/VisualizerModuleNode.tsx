@@ -2,12 +2,13 @@ import { useEffect, useRef } from "react";
 import { Handle, Position, NodeProps } from "reactflow";
 import { VisualizerModuleData } from "@/types/modules";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, X } from "lucide-react";
 
 const VisualizerModuleNode = ({ data, id }: NodeProps<VisualizerModuleData & {
   isPlaying: boolean;
   activeCryptos: number;
   onToggleCollapse: (id: string) => void;
+  onRemove: (id: string) => void;
 }>) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { isPlaying, activeCryptos, collapsed, onToggleCollapse } = data;
@@ -80,17 +81,27 @@ const VisualizerModuleNode = ({ data, id }: NodeProps<VisualizerModuleData & {
       />
       
       <div className="p-3">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="font-bold text-sm text-foreground">Audio Visualizer</h3>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 hover:bg-accent"
-            onClick={() => onToggleCollapse(id)}
-          >
-            {collapsed ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
-          </Button>
-        </div>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-bold text-sm text-foreground">Audio Visualizer</h3>
+            <div className="flex gap-1 items-center">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => data.onRemove(id)}
+              >
+                <X className="w-3 h-3" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 hover:bg-accent"
+                onClick={() => onToggleCollapse(id)}
+              >
+                {collapsed ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+              </Button>
+            </div>
+          </div>
         {!collapsed && (
           <canvas
             ref={canvasRef}
