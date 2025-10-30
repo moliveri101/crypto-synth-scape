@@ -82,6 +82,8 @@ export interface SequencerModuleData {
   intervalId: number | null;
   inputNode: GainNode | null;
   outputNode: GainNode | null;
+  volume: number; // Modulated by connected crypto
+  pitch: number; // Modulated by connected crypto
 }
 
 export interface DrumsModuleData {

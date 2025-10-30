@@ -120,6 +120,36 @@ const Index = () => {
       }
     });
     
+    // Pass crypto data to sequencers
+    edges.forEach(edge => {
+      const sourceNode = nodes.find(n => n.id === edge.source);
+      const targetNode = nodes.find(n => n.id === edge.target);
+      
+      if (sourceNode?.data.type === "crypto" && targetNode?.data.type === "sequencer") {
+        const cryptoData = sourceNode.data;
+        // Map crypto volume (0-1) and price change to sequencer parameters
+        const normalizedVolume = cryptoData.volume;
+        const priceChange = cryptoData.crypto.price_change_percentage_24h;
+        const normalizedPitch = Math.round(Math.max(-12, Math.min(12, priceChange / 2))); // Map -24% to +24% to -12 to +12 semitones
+        
+        setNodes((nds) =>
+          nds.map((node) => {
+            if (node.id === edge.target && node.data.type === "sequencer") {
+              return { 
+                ...node, 
+                data: { 
+                  ...node.data, 
+                  volume: normalizedVolume,
+                  pitch: normalizedPitch
+                } 
+              };
+            }
+            return node;
+          })
+        );
+      }
+    });
+    
     // Update node data with input counts and active status
     setNodes((nds) =>
       nds.map((node) => {
@@ -741,6 +771,8 @@ const Index = () => {
           intervalId: null,
           inputNode,
           outputNode,
+          volume: 0.8,
+          pitch: 0,
         },
       };
     } else if (type === "drums") {
@@ -889,17 +921,18 @@ const Index = () => {
                 sequencerNode.data.outputNode.gain.value = 1;
               }
               
-              // Trigger connected drum modules
+              // Trigger connected drum modules with sequencer's modulated volume/pitch
               setEdges((edges) => {
                 const connectedEdges = edges.filter((e) => e.source === nodeId);
                 connectedEdges.forEach((edge) => {
                   const targetNode = nds.find((n) => n.id === edge.target);
                   if (targetNode?.data.type === "drums" && targetNode.data.outputNode) {
+                    // Use sequencer's volume and pitch (modulated by crypto data)
                     audioEngine.triggerDrum(
                       targetNode.data.selectedDrum,
                       targetNode.data.outputNode,
-                      targetNode.data.volume,
-                      targetNode.data.pitch
+                      sequencerNode.data.volume,
+                      sequencerNode.data.pitch
                     );
                   }
                 });
@@ -966,6 +999,8 @@ const Index = () => {
           } else if (node.data.type === "sampler") {
             return { ...node, data: { ...node.data, [param]: value } };
           } else if (node.data.type === "sequencer") {
+            return { ...node, data: { ...node.data, [param]: value } };
+          } else if (node.data.type === "drums") {
             return { ...node, data: { ...node.data, [param]: value } };
           } else {
             // Effect modules
