@@ -456,40 +456,62 @@ const Index = () => {
     );
   };
 
-  const togglePlay = () => {
-    if (isPlaying) {
-      nodes.forEach((node) => {
-        if (node.data.type === "crypto") {
-          stopSound(node.id);
-        }
-      });
-      audioEngine.suspend();
-      setIsPlaying(false);
+  const togglePlay = (mixerId: string) => {
+    const mixerNode = nodes.find((n) => n.id === mixerId);
+    if (!mixerNode) return;
+
+    const mixerIsPlaying = mixerNode.data.isPlaying;
+
+    if (mixerIsPlaying) {
+      // Stop this mixer
       setNodes((nds) =>
         nds.map((n) =>
-          n.id === "mixer" && n.data.type === "mixer"
+          n.id === mixerId
             ? { ...n, data: { ...n.data, isPlaying: false } }
             : n
         )
       );
+      
+      // Check if any other mixers are still playing
+      const anyMixerPlaying = nodes.some(
+        (n) => n.id !== mixerId && 
+        (n.data.type === "mixer" || (typeof n.data.type === "string" && n.data.type.startsWith("mixer-"))) && 
+        n.data.isPlaying
+      );
+      
+      if (!anyMixerPlaying) {
+        // Stop all crypto sources and suspend audio context
+        nodes.forEach((node) => {
+          if (node.data.type === "crypto") {
+            stopSound(node.id);
+          }
+        });
+        audioEngine.suspend();
+        setIsPlaying(false);
+      }
     } else {
+      // Start this mixer
       audioEngine.resume();
+      
+      // Start all crypto sources if not already playing
       nodes.forEach((node) => {
-        if (node.data.type === "crypto") {
+        if (node.data.type === "crypto" && !node.data.isPlaying) {
           startSound(node.id);
         }
       });
+      
       setIsPlaying(true);
       setNodes((nds) =>
         nds.map((n) =>
-          n.id === "mixer" && n.data.type === "mixer"
+          n.id === mixerId
             ? { ...n, data: { ...n.data, isPlaying: true } }
             : n
         )
       );
+      
       toast({
         title: "Playing",
-        description: "Your crypto symphony is now playing",
+        description: "Mixer is now active",
       });
     }
   };
@@ -734,7 +756,7 @@ const Index = () => {
               : node.data.type === "mixer"
               ? {
                   ...node.data,
-                  onTogglePlay: togglePlay,
+                  onTogglePlay: () => togglePlay(node.id),
                   onMasterVolumeChange: handleMasterVolumeChange,
                   onToggleCollapse: toggleCollapse,
                   onRemove: removeNode,
@@ -742,7 +764,7 @@ const Index = () => {
               : (typeof node.data.type === "string" && node.data.type.startsWith("mixer-"))
               ? {
                   ...node.data,
-                  onTogglePlay: togglePlay,
+                  onTogglePlay: () => togglePlay(node.id),
                   onMasterVolumeChange: (volume: number) => {
                     setNodes((nds) =>
                       nds.map((n) => {
