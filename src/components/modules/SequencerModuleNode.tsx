@@ -16,7 +16,7 @@ const SequencerModuleNode = ({ data, id }: NodeProps<SequencerModuleData & {
 
   return (
     <Card className="w-[320px] border-2 border-primary/50 shadow-glow bg-card/95 backdrop-blur">
-      <Handle type="target" position={Position.Left} className="w-3 h-3 bg-primary" />
+      <Handle id="in" type="target" position={Position.Left} className="!bg-primary !w-3 !h-3" />
       
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
@@ -85,7 +85,7 @@ const SequencerModuleNode = ({ data, id }: NodeProps<SequencerModuleData & {
         </CardContent>
       )}
 
-      <Handle type="source" position={Position.Right} className="w-3 h-3 bg-primary" />
+      <Handle id="out" type="source" position={Position.Right} className="!bg-primary !w-3 !h-3" />
     </Card>
   );
 };
