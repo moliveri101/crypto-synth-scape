@@ -80,6 +80,8 @@ export interface SequencerModuleData {
   isPlaying: boolean;
   collapsed: boolean;
   intervalId: number | null;
+  inputNode: GainNode | null;
+  outputNode: GainNode | null;
 }
 
 export interface OutputModuleData {

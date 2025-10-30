@@ -627,6 +627,18 @@ const Index = () => {
         },
       };
     } else if (type === "sequencer") {
+      const ctx = audioEngine.getContext();
+      let inputNode: GainNode | null = null;
+      let outputNode: GainNode | null = null;
+      
+      if (ctx) {
+        // Create input and output nodes for audio pass-through
+        inputNode = ctx.createGain();
+        outputNode = ctx.createGain();
+        outputNode.gain.value = 0; // Start muted
+        inputNode.connect(outputNode);
+      }
+      
       newNode = {
         id,
         type,
@@ -639,6 +651,8 @@ const Index = () => {
           isPlaying: false,
           collapsed: false,
           intervalId: null,
+          inputNode,
+          outputNode,
         },
       };
     } else if (type.startsWith("mixer-")) {
@@ -756,25 +770,12 @@ const Index = () => {
             const currentStep = sequencerNode.data.currentStep;
             const nextStep = (currentStep + 1) % sequencerNode.data.steps.length;
             
-            // Trigger connected modules if current step is active
-            if (sequencerNode.data.steps[currentStep]) {
-              console.log(`Sequencer step ${currentStep} is active, triggering connected modules`);
-              setEdges((edges) => {
-                // Find all edges from this sequencer
-                const connectedEdges = edges.filter((e) => e.source === nodeId);
-                console.log(`Found ${connectedEdges.length} connected edges from sequencer`);
-                connectedEdges.forEach((edge) => {
-                  const targetNode = nds.find((n) => n.id === edge.target);
-                  console.log(`Target node:`, targetNode?.id, targetNode?.data.type, `isPlaying:`, targetNode?.data.isPlaying);
-                  if (targetNode?.data.type === "crypto") {
-                    console.log(`Triggering crypto module ${edge.target}`);
-                    startSound(edge.target);
-                    // Auto-stop after a short time
-                    setTimeout(() => stopSound(edge.target), intervalTime * 0.8);
-                  }
-                });
-                return edges;
-              });
+            // Gate audio based on current step
+            if (sequencerNode.data.steps[currentStep] && sequencerNode.data.outputNode) {
+              console.log(`Sequencer step ${currentStep} is active, opening gate`);
+              sequencerNode.data.outputNode.gain.value = 1;
+            } else if (sequencerNode.data.outputNode) {
+              sequencerNode.data.outputNode.gain.value = 0;
             }
             
             return nds.map((n) =>
