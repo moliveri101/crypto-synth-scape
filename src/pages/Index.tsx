@@ -95,6 +95,39 @@ const Index = () => {
   useEffect(() => {
     if (!isPlaying) return;
 
+    // Update input counts and active status
+    const mixerInputCounts: { [key: string]: number } = {};
+    const outputActiveStatus: { [key: string]: boolean } = {};
+    
+    edges.forEach(edge => {
+      const targetNode = nodes.find(n => n.id === edge.target);
+      if (targetNode) {
+        if (targetNode.data.type && targetNode.data.type.startsWith("mixer-")) {
+          mixerInputCounts[edge.target] = (mixerInputCounts[edge.target] || 0) + 1;
+        } else if (targetNode.data.type === "output-speakers" || targetNode.data.type === "output-headphones") {
+          outputActiveStatus[edge.target] = true;
+        }
+      }
+    });
+    
+    // Update node data with input counts and active status
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.data.type && node.data.type.startsWith("mixer-")) {
+          const inputCount = mixerInputCounts[node.id] || 0;
+          if (node.data.inputCount !== inputCount) {
+            return { ...node, data: { ...node.data, inputCount } };
+          }
+        } else if (node.data.type === "output-speakers" || node.data.type === "output-headphones") {
+          const isActive = outputActiveStatus[node.id] || false;
+          if (node.data.isActive !== isActive) {
+            return { ...node, data: { ...node.data, isActive } };
+          }
+        }
+        return node;
+      })
+    );
+
     // Rebuild all audio connections
     nodes.forEach(node => {
       const { data } = node;
@@ -128,26 +161,26 @@ const Index = () => {
         sourceAudioNode = sourceData.gainNode;
       } else if (sourceData.outputNode) {
         sourceAudioNode = sourceData.outputNode;
+      } else if (sourceData.type && sourceData.type.startsWith("mixer-") && sourceData.mergerNode) {
+        // Mixer outputs from its merger node
+        sourceAudioNode = sourceData.mergerNode;
       }
 
       // Get target audio node
       let targetAudioNode: AudioNode | null = null;
       if (targetData.inputNode) {
         targetAudioNode = targetData.inputNode;
-      } else if (targetData.type === "mixer" || targetData.type.startsWith("mixer-")) {
-        targetAudioNode = audioEngine.getMasterGain();
-      } else if (targetData.type === "output-speakers" || targetData.type === "output-headphones") {
-        // Initialize output gain if needed
-        if (!targetData.outputGain) {
-          const ctx = audioEngine.getContext();
-          if (ctx) {
-            targetData.outputGain = ctx.createGain();
-            targetData.outputGain.gain.value = targetData.volume || 0.8;
-            targetData.outputGain.connect(ctx.destination);
-            targetData.isActive = true;
-          }
+      } else if (targetData.type && targetData.type.startsWith("mixer-")) {
+        // Connect to specific mixer channel based on targetHandle
+        const channelIndex = edge.targetHandle ? parseInt(edge.targetHandle.split("-")[1]) : 0;
+        if (targetData.channelGains && targetData.channelGains[channelIndex]) {
+          targetAudioNode = targetData.channelGains[channelIndex];
         }
-        targetAudioNode = targetData.outputGain;
+      } else if (targetData.type === "output-speakers" || targetData.type === "output-headphones") {
+        if (targetData.outputGain) {
+          targetAudioNode = targetData.outputGain;
+          targetData.isActive = true;
+        }
       }
 
       // Connect
@@ -538,6 +571,37 @@ const Index = () => {
       };
     } else if (type.startsWith("mixer-")) {
       const trackCount = parseInt(type.split("-")[1]);
+      const ctx = audioEngine.getContext();
+      
+      // Create Web Audio nodes for mixer
+      let channelGains: GainNode[] = [];
+      let channelPanners: StereoPannerNode[] = [];
+      let mergerNode: ChannelMergerNode | null = null;
+      
+      if (ctx) {
+        // Create gain and pan nodes for each channel
+        channelGains = Array.from({ length: trackCount }, () => {
+          const gain = ctx.createGain();
+          gain.gain.value = 0.8;
+          return gain;
+        });
+        
+        channelPanners = Array.from({ length: trackCount }, () => {
+          const panner = ctx.createStereoPanner();
+          panner.pan.value = 0;
+          return panner;
+        });
+        
+        // Create merger node for combining channels
+        mergerNode = ctx.createChannelMerger(2); // Stereo output (L/R)
+        
+        // Connect each channel: gain -> panner -> merger
+        channelGains.forEach((gain, i) => {
+          channelPanners[i] && gain.connect(channelPanners[i]);
+          channelPanners[i] && channelPanners[i].connect(mergerNode!);
+        });
+      }
+      
       newNode = {
         id,
         type,
@@ -549,9 +613,21 @@ const Index = () => {
           inputCount: 0,
           collapsed: false,
           channels: Array.from({ length: trackCount }, () => ({ volume: 0.8, pan: 0, muted: false })),
+          channelGains,
+          channelPanners,
+          mergerNode,
         },
       };
     } else if (type === "output-speakers" || type === "output-headphones") {
+      const ctx = audioEngine.getContext();
+      let outputGain: GainNode | null = null;
+      
+      if (ctx) {
+        outputGain = ctx.createGain();
+        outputGain.gain.value = 0.8;
+        outputGain.connect(ctx.destination);
+      }
+      
       newNode = {
         id,
         type,
@@ -560,7 +636,7 @@ const Index = () => {
           type,
           volume: 0.8,
           isActive: false,
-          outputGain: null,
+          outputGain,
           collapsed: false,
         },
       };
@@ -661,8 +737,56 @@ const Index = () => {
               ? {
                   ...node.data,
                   onTogglePlay: togglePlay,
-                  onMasterVolumeChange: handleMasterVolumeChange,
+                  onMasterVolumeChange: (volume: number) => {
+                    setNodes((nds) =>
+                      nds.map((n) =>
+                        n.id === node.id
+                          ? { ...n, data: { ...n.data, masterVolume: volume } }
+                          : n
+                      )
+                    );
+                  },
                   onToggleCollapse: toggleCollapse,
+                  onChannelVolumeChange: (channel: number, volume: number) => {
+                    setNodes((nds) =>
+                      nds.map((n) => {
+                        if (n.id === node.id && n.data.channelGains && n.data.channelGains[channel]) {
+                          const newChannels = [...n.data.channels];
+                          newChannels[channel] = { ...newChannels[channel], volume };
+                          n.data.channelGains[channel].gain.value = volume;
+                          return { ...n, data: { ...n.data, channels: newChannels } };
+                        }
+                        return n;
+                      })
+                    );
+                  },
+                  onChannelPanChange: (channel: number, pan: number) => {
+                    setNodes((nds) =>
+                      nds.map((n) => {
+                        if (n.id === node.id && n.data.channelPanners && n.data.channelPanners[channel]) {
+                          const newChannels = [...n.data.channels];
+                          newChannels[channel] = { ...newChannels[channel], pan };
+                          n.data.channelPanners[channel].pan.value = pan;
+                          return { ...n, data: { ...n.data, channels: newChannels } };
+                        }
+                        return n;
+                      })
+                    );
+                  },
+                  onChannelMuteToggle: (channel: number) => {
+                    setNodes((nds) =>
+                      nds.map((n) => {
+                        if (n.id === node.id && n.data.channelGains && n.data.channelGains[channel]) {
+                          const newChannels = [...n.data.channels];
+                          const wasMuted = newChannels[channel].muted;
+                          newChannels[channel] = { ...newChannels[channel], muted: !wasMuted };
+                          n.data.channelGains[channel].gain.value = wasMuted ? newChannels[channel].volume : 0;
+                          return { ...n, data: { ...n.data, channels: newChannels } };
+                        }
+                        return n;
+                      })
+                    );
+                  },
                   onRemove: removeNode,
                 }
               : node.data.type === "visualizer"
