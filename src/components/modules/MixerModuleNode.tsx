@@ -14,11 +14,13 @@ const MixerModuleNode = ({ data, id }: NodeProps<MixerModuleData & {
   return (
     <div className="bg-gradient-card backdrop-blur-sm border-2 border-primary/50 rounded-lg shadow-glow w-[280px]">
       <Handle
+        id="in"
         type="target"
         position={Position.Left}
         className="!bg-primary !w-3 !h-3 !border-2 !border-background"
       />
       <Handle
+        id="out"
         type="source"
         position={Position.Right}
         className="!bg-primary !w-3 !h-3 !border-2 !border-background"

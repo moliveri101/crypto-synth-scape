@@ -31,7 +31,7 @@ const SAMPLES = [
 const SamplerModuleNode = ({ data, id }: SamplerModuleNodeProps) => {
   return (
     <Card className="min-w-[280px] bg-card/95 backdrop-blur-sm border-primary/20 shadow-glow">
-      <Handle type="target" position={Position.Left} className="!bg-primary" />
+      <Handle id="in" type="target" position={Position.Left} className="!bg-primary" />
       
       <div className="p-4 space-y-4">
         <div className="flex items-center justify-between border-b border-border pb-2">
@@ -98,7 +98,7 @@ const SamplerModuleNode = ({ data, id }: SamplerModuleNodeProps) => {
         )}
       </div>
 
-      <Handle type="source" position={Position.Right} className="!bg-primary" />
+      <Handle id="out" type="source" position={Position.Right} className="!bg-primary" />
     </Card>
   );
 };

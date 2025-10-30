@@ -73,6 +73,7 @@ const VisualizerModuleNode = ({ data, id }: NodeProps<VisualizerModuleData & {
   return (
     <div className="bg-gradient-card backdrop-blur-sm border-2 border-border rounded-lg shadow-card overflow-hidden w-[320px]">
       <Handle
+        id="in"
         type="target"
         position={Position.Left}
         className="!bg-primary !w-3 !h-3 !border-2 !border-background"

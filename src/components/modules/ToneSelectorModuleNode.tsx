@@ -35,7 +35,7 @@ const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const ToneSelectorModuleNode = ({ data, id }: ToneSelectorModuleNodeProps) => {
   return (
     <Card className="min-w-[280px] bg-card/95 backdrop-blur-sm border-accent/20 shadow-glow">
-      <Handle type="target" position={Position.Left} className="!bg-accent" />
+      <Handle id="in" type="target" position={Position.Left} className="!bg-accent" />
       
       <div className="p-4 space-y-4">
         <div className="flex items-center justify-between border-b border-border pb-2">
@@ -109,7 +109,7 @@ const ToneSelectorModuleNode = ({ data, id }: ToneSelectorModuleNodeProps) => {
         )}
       </div>
 
-      <Handle type="source" position={Position.Right} className="!bg-accent" />
+      <Handle id="out" type="source" position={Position.Right} className="!bg-accent" />
     </Card>
   );
 };

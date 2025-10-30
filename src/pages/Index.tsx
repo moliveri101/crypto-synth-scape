@@ -10,6 +10,7 @@ import ReactFlow, {
   useEdgesState,
   BackgroundVariant,
   Node,
+  ConnectionMode,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { CryptoData } from "@/types/crypto";
@@ -629,6 +630,7 @@ const Index = () => {
         isValidConnection={isValidConnection}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        connectionMode={ConnectionMode.Loose}
         fitView
         deleteKeyCode={["Delete", "Backspace"]}
         multiSelectionKeyCode="Control"

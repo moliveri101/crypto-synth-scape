@@ -78,7 +78,7 @@ const EffectModuleNode = ({ data, id }: EffectModuleNodeProps) => {
 
   return (
     <Card className={`min-w-[280px] bg-card/95 backdrop-blur-sm border-${info.color.replace('text-', '')}/20 shadow-glow`}>
-      <Handle type="target" position={Position.Left} className="!bg-primary" />
+      <Handle id="in" type="target" position={Position.Left} className="!bg-primary" />
       
       <div className="p-4 space-y-4">
         <div className="flex items-center justify-between border-b border-border pb-2">
@@ -151,7 +151,7 @@ const EffectModuleNode = ({ data, id }: EffectModuleNodeProps) => {
         )}
       </div>
 
-      <Handle type="source" position={Position.Right} className="!bg-primary" />
+      <Handle id="out" type="source" position={Position.Right} className="!bg-primary" />
     </Card>
   );
 };
