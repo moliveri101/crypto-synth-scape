@@ -135,6 +135,63 @@ const Index = () => {
     );
   }, [nodes.length]);
 
+  const isValidConnection = useCallback(
+    (connection: Connection) => {
+      // Get source and target nodes
+      const sourceNode = nodes.find((n) => n.id === connection.source);
+      const targetNode = nodes.find((n) => n.id === connection.target);
+
+      if (!sourceNode || !targetNode) return false;
+
+      const sourceType = sourceNode.data.type;
+      const targetType = targetNode.data.type;
+
+      // Crypto can connect to mixer or effects
+      if (sourceType === "crypto") {
+        return ["mixer", "reverb", "delay", "chorus", "flanger", "phaser", "pingpong-delay",
+          "compressor", "limiter", "gate", "de-esser", "eq", "lpf", "hpf", "bandpass",
+          "resonant-filter", "overdrive", "distortion", "fuzz", "bitcrusher", "tape-saturation",
+          "vibrato", "tremolo", "ring-mod", "pitch-shifter", "octaver", "granular", "vocoder",
+          "auto-pan", "stereo-widener", "sampler"].includes(targetType);
+      }
+
+      // Sampler/Tone selector can connect to crypto, mixer, or effects
+      if (sourceType === "sampler" || sourceType === "tone-selector") {
+        return targetType === "crypto" || targetType === "mixer" || 
+          ["reverb", "delay", "chorus", "flanger", "phaser", "pingpong-delay",
+          "compressor", "limiter", "gate", "de-esser", "eq", "lpf", "hpf", "bandpass",
+          "resonant-filter", "overdrive", "distortion", "fuzz", "bitcrusher", "tape-saturation",
+          "vibrato", "tremolo", "ring-mod", "pitch-shifter", "octaver", "granular", "vocoder",
+          "auto-pan", "stereo-widener"].includes(targetType);
+      }
+
+      // Effects can chain to other effects or to mixer
+      if (["reverb", "delay", "chorus", "flanger", "phaser", "pingpong-delay",
+        "compressor", "limiter", "gate", "de-esser", "eq", "lpf", "hpf", "bandpass",
+        "resonant-filter", "overdrive", "distortion", "fuzz", "bitcrusher", "tape-saturation",
+        "vibrato", "tremolo", "ring-mod", "pitch-shifter", "octaver", "granular", "vocoder",
+        "auto-pan", "stereo-widener"].includes(sourceType)) {
+        return targetType === "mixer" || ["reverb", "delay", "chorus", "flanger", "phaser", "pingpong-delay",
+          "compressor", "limiter", "gate", "de-esser", "eq", "lpf", "hpf", "bandpass",
+          "resonant-filter", "overdrive", "distortion", "fuzz", "bitcrusher", "tape-saturation",
+          "vibrato", "tremolo", "ring-mod", "pitch-shifter", "octaver", "granular", "vocoder",
+          "auto-pan", "stereo-widener", "visualizer"].includes(targetType);
+      }
+
+      // Mixer can connect to visualizer or effects
+      if (sourceType === "mixer") {
+        return targetType === "visualizer" || ["reverb", "delay", "chorus", "flanger", "phaser", "pingpong-delay",
+          "compressor", "limiter", "gate", "de-esser", "eq", "lpf", "hpf", "bandpass",
+          "resonant-filter", "overdrive", "distortion", "fuzz", "bitcrusher", "tape-saturation",
+          "vibrato", "tremolo", "ring-mod", "pitch-shifter", "octaver", "granular", "vocoder",
+          "auto-pan", "stereo-widener"].includes(targetType);
+      }
+
+      return false;
+    },
+    [nodes]
+  );
+
   const onConnect = useCallback(
     (params: Connection | Edge) => {
       const edge = {
@@ -143,8 +200,23 @@ const Index = () => {
         style: { stroke: "hsl(188, 95%, 58%)", strokeWidth: 2 },
       };
       setEdges((eds) => addEdge(edge, eds));
+      
+      toast({
+        title: "Connected",
+        description: "Modules connected successfully",
+      });
     },
-    [setEdges]
+    [setEdges, toast]
+  );
+
+  const onEdgesDelete = useCallback(
+    (deletedEdges: Edge[]) => {
+      toast({
+        title: "Disconnected",
+        description: `${deletedEdges.length} connection(s) removed`,
+      });
+    },
+    [toast]
   );
 
   const addCryptoModule = (crypto: CryptoData) => {
@@ -176,16 +248,6 @@ const Index = () => {
     };
 
     setNodes((nds) => [...nds, newNode]);
-
-    // Auto-connect to mixer
-    const newEdge: Edge = {
-      id: `${id}-mixer`,
-      source: id,
-      target: "mixer",
-      animated: true,
-      style: { stroke: "hsl(188, 95%, 58%)", strokeWidth: 2 },
-    };
-    setEdges((eds) => [...eds, newEdge]);
 
     // Start sound if playing
     if (isPlaying) {
@@ -488,12 +550,30 @@ const Index = () => {
                 }
               : node.data,
         }))}
-        edges={edges}
+        edges={edges.map((edge) => ({
+          ...edge,
+          style: {
+            ...edge.style,
+            stroke: edge.selected ? "hsl(268, 85%, 66%)" : "hsl(188, 95%, 58%)",
+            strokeWidth: edge.selected ? 3 : 2,
+          },
+        }))}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        onEdgesDelete={onEdgesDelete}
         onConnect={onConnect}
+        isValidConnection={isValidConnection}
         nodeTypes={nodeTypes}
         fitView
+        deleteKeyCode={["Delete", "Backspace"]}
+        multiSelectionKeyCode="Control"
+        connectionLineStyle={{ stroke: "hsl(188, 95%, 58%)", strokeWidth: 3 }}
+        defaultEdgeOptions={{
+          animated: true,
+          style: { stroke: "hsl(188, 95%, 58%)", strokeWidth: 2 },
+        }}
+        snapToGrid={true}
+        snapGrid={[15, 15]}
       >
         <Background
           variant={BackgroundVariant.Dots}
