@@ -145,61 +145,76 @@ const Index = () => {
     );
   }, [nodes.length]);
 
+  const EFFECT_TYPES = [
+    "reverb", "delay", "chorus", "flanger", "phaser", "pingpong-delay",
+    "compressor", "limiter", "gate", "de-esser", 
+    "eq", "lpf", "hpf", "bandpass", "resonant-filter",
+    "overdrive", "distortion", "fuzz", "bitcrusher", "tape-saturation",
+    "vibrato", "tremolo", "ring-mod", "pitch-shifter", "octaver",
+    "granular", "vocoder", "auto-pan", "stereo-widener"
+  ];
+
   const isValidConnection = useCallback(
     (connection: Connection) => {
+      // Prevent self-connections
+      if (connection.source === connection.target) {
+        console.log("Invalid: self-connection");
+        return false;
+      }
+
       // Get source and target nodes
       const sourceNode = nodes.find((n) => n.id === connection.source);
       const targetNode = nodes.find((n) => n.id === connection.target);
 
-      if (!sourceNode || !targetNode) return false;
+      if (!sourceNode || !targetNode) {
+        console.log("Invalid: node not found", { source: connection.source, target: connection.target });
+        return false;
+      }
 
       const sourceType = sourceNode.data.type;
       const targetType = targetNode.data.type;
 
-      // Crypto can connect to mixer or effects
+      console.log("Validating connection:", { sourceType, targetType });
+
+      // Crypto can connect to: mixer, effects, sampler
       if (sourceType === "crypto") {
-        return ["mixer", "reverb", "delay", "chorus", "flanger", "phaser", "pingpong-delay",
-          "compressor", "limiter", "gate", "de-esser", "eq", "lpf", "hpf", "bandpass",
-          "resonant-filter", "overdrive", "distortion", "fuzz", "bitcrusher", "tape-saturation",
-          "vibrato", "tremolo", "ring-mod", "pitch-shifter", "octaver", "granular", "vocoder",
-          "auto-pan", "stereo-widener", "sampler"].includes(targetType);
+        const valid = targetType === "mixer" || targetType === "sampler" || EFFECT_TYPES.includes(targetType);
+        console.log("Crypto connection valid:", valid);
+        return valid;
       }
 
-      // Sampler/Tone selector can connect to crypto, mixer, or effects
-      if (sourceType === "sampler" || sourceType === "tone-selector") {
-        return targetType === "crypto" || targetType === "mixer" || 
-          ["reverb", "delay", "chorus", "flanger", "phaser", "pingpong-delay",
-          "compressor", "limiter", "gate", "de-esser", "eq", "lpf", "hpf", "bandpass",
-          "resonant-filter", "overdrive", "distortion", "fuzz", "bitcrusher", "tape-saturation",
-          "vibrato", "tremolo", "ring-mod", "pitch-shifter", "octaver", "granular", "vocoder",
-          "auto-pan", "stereo-widener"].includes(targetType);
+      // Sampler can connect to: mixer, effects
+      if (sourceType === "sampler") {
+        const valid = targetType === "mixer" || EFFECT_TYPES.includes(targetType);
+        console.log("Sampler connection valid:", valid);
+        return valid;
       }
 
-      // Effects can chain to other effects or to mixer
-      if (["reverb", "delay", "chorus", "flanger", "phaser", "pingpong-delay",
-        "compressor", "limiter", "gate", "de-esser", "eq", "lpf", "hpf", "bandpass",
-        "resonant-filter", "overdrive", "distortion", "fuzz", "bitcrusher", "tape-saturation",
-        "vibrato", "tremolo", "ring-mod", "pitch-shifter", "octaver", "granular", "vocoder",
-        "auto-pan", "stereo-widener"].includes(sourceType)) {
-        return targetType === "mixer" || ["reverb", "delay", "chorus", "flanger", "phaser", "pingpong-delay",
-          "compressor", "limiter", "gate", "de-esser", "eq", "lpf", "hpf", "bandpass",
-          "resonant-filter", "overdrive", "distortion", "fuzz", "bitcrusher", "tape-saturation",
-          "vibrato", "tremolo", "ring-mod", "pitch-shifter", "octaver", "granular", "vocoder",
-          "auto-pan", "stereo-widener", "visualizer"].includes(targetType);
+      // Tone selector can connect to: crypto, mixer, effects
+      if (sourceType === "tone-selector") {
+        const valid = targetType === "crypto" || targetType === "mixer" || EFFECT_TYPES.includes(targetType);
+        console.log("Tone selector connection valid:", valid);
+        return valid;
       }
 
-      // Mixer can connect to visualizer or effects
+      // Effects can connect to: mixer, other effects, visualizer
+      if (EFFECT_TYPES.includes(sourceType)) {
+        const valid = targetType === "mixer" || targetType === "visualizer" || EFFECT_TYPES.includes(targetType);
+        console.log("Effect connection valid:", valid);
+        return valid;
+      }
+
+      // Mixer can connect to: visualizer, effects
       if (sourceType === "mixer") {
-        return targetType === "visualizer" || ["reverb", "delay", "chorus", "flanger", "phaser", "pingpong-delay",
-          "compressor", "limiter", "gate", "de-esser", "eq", "lpf", "hpf", "bandpass",
-          "resonant-filter", "overdrive", "distortion", "fuzz", "bitcrusher", "tape-saturation",
-          "vibrato", "tremolo", "ring-mod", "pitch-shifter", "octaver", "granular", "vocoder",
-          "auto-pan", "stereo-widener"].includes(targetType);
+        const valid = targetType === "visualizer" || EFFECT_TYPES.includes(targetType);
+        console.log("Mixer connection valid:", valid);
+        return valid;
       }
 
+      console.log("Invalid: no matching rule");
       return false;
     },
-    [nodes]
+    [nodes, EFFECT_TYPES]
   );
 
   const deleteEdge = useCallback((edgeId: string) => {
@@ -224,11 +239,14 @@ const Index = () => {
         data: {},
       };
       
-      setEdges((eds) => addEdge(newEdge, eds));
+      setEdges((eds) => {
+        console.log("Adding edge:", newEdge);
+        return addEdge(newEdge, eds);
+      });
       
       toast({
         title: "Connected",
-        description: "Modules connected successfully",
+        description: `Connected ${params.source} to ${params.target}`,
       });
     },
     [setEdges, toast]
