@@ -1,7 +1,7 @@
 import { Node, Edge } from "reactflow";
 import { CryptoData } from "./crypto";
 
-export type ModuleType = "crypto" | "mixer" | "mixer-4" | "mixer-8" | "mixer-16" | "mixer-32" | "visualizer" | "sampler" | 
+export type ModuleType = "crypto" | "mixer" | "mixer-4" | "mixer-8" | "mixer-16" | "mixer-32" | "visualizer" | "sampler" | "sequencer" |
   "reverb" | "delay" | "chorus" | "flanger" | "phaser" | "pingpong-delay" |
   "compressor" | "limiter" | "gate" | "de-esser" |
   "eq" | "lpf" | "hpf" | "bandpass" | "resonant-filter" |
@@ -72,6 +72,16 @@ export interface EffectModuleData {
   dryNode: GainNode | null; // Dry signal
 }
 
+export interface SequencerModuleData {
+  type: "sequencer";
+  bpm: number;
+  steps: boolean[];
+  currentStep: number;
+  isPlaying: boolean;
+  collapsed: boolean;
+  intervalId: number | null;
+}
+
 export interface OutputModuleData {
   type: "output-speakers" | "output-headphones";
   volume: number;
@@ -85,6 +95,7 @@ export type ModuleData =
   | MixerModuleData 
   | VisualizerModuleData 
   | SamplerModuleData 
+  | SequencerModuleData
   | EffectModuleData
   | OutputModuleData;
 

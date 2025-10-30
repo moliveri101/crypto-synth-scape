@@ -20,6 +20,7 @@ import CryptoModuleNode from "@/components/modules/CryptoModuleNode";
 import MixerModuleNode from "@/components/modules/MixerModuleNode";
 import MultiTrackMixerNode from "@/components/modules/MultiTrackMixerNode";
 import VisualizerModuleNode from "@/components/modules/VisualizerModuleNode";
+import SequencerModuleNode from "@/components/modules/SequencerModuleNode";
 import SamplerModuleNode from "@/components/modules/SamplerModuleNode";
 import EffectModuleNode from "@/components/modules/EffectModuleNode";
 import OutputModuleNode from "@/components/modules/OutputModuleNode";
@@ -40,6 +41,7 @@ const nodeTypes = {
   "output-headphones": OutputModuleNode,
   visualizer: VisualizerModuleNode,
   sampler: SamplerModuleNode,
+  sequencer: SequencerModuleNode,
   reverb: EffectModuleNode,
   delay: EffectModuleNode,
   chorus: EffectModuleNode,
@@ -87,6 +89,12 @@ const Index = () => {
     audioEngine.initialize();
 
     return () => {
+      // Clean up all sequencer intervals
+      nodes.forEach((node) => {
+        if (node.data.type === "sequencer" && node.data.intervalId) {
+          clearInterval(node.data.intervalId);
+        }
+      });
       audioEngine.close();
     };
   }, []);
@@ -604,6 +612,21 @@ const Index = () => {
           collapsed: false,
         },
       };
+    } else if (type === "sequencer") {
+      newNode = {
+        id,
+        type,
+        position: { x: 100 + nodes.length * 50, y: 100 + nodes.length * 50 },
+        data: {
+          type,
+          bpm: 120,
+          steps: Array(16).fill(false),
+          currentStep: 0,
+          isPlaying: false,
+          collapsed: false,
+          intervalId: null,
+        },
+      };
     } else if (type.startsWith("mixer-")) {
       const trackCount = parseInt(type.split("-")[1]);
       const ctx = audioEngine.getContext();
@@ -706,6 +729,80 @@ const Index = () => {
       stopSound(nodeId);
     }
 
+    // Handle sequencer play/stop
+    if (node?.data.type === "sequencer" && param === "isPlaying") {
+      if (value) {
+        // Start sequencer
+        const intervalTime = (60000 / node.data.bpm) / 4; // 16th note timing
+        const intervalId = window.setInterval(() => {
+          setNodes((nds) => {
+            const sequencerNode = nds.find((n) => n.id === nodeId && n.data.type === "sequencer");
+            if (!sequencerNode) return nds;
+            
+            const currentStep = sequencerNode.data.currentStep;
+            const nextStep = (currentStep + 1) % sequencerNode.data.steps.length;
+            
+            // Trigger connected modules if current step is active
+            if (sequencerNode.data.steps[currentStep]) {
+              setEdges((edges) => {
+                // Find all edges from this sequencer
+                const connectedEdges = edges.filter((e) => e.source === nodeId);
+                connectedEdges.forEach((edge) => {
+                  const targetNode = nds.find((n) => n.id === edge.target);
+                  if (targetNode?.data.type === "crypto" && !targetNode.data.isPlaying) {
+                    startSound(edge.target);
+                    // Auto-stop after a short time
+                    setTimeout(() => stopSound(edge.target), intervalTime * 0.9);
+                  }
+                });
+                return edges;
+              });
+            }
+            
+            return nds.map((n) =>
+              n.id === nodeId ? { ...n, data: { ...n.data, currentStep: nextStep } } : n
+            );
+          });
+        }, intervalTime);
+        
+        setNodes((nds) =>
+          nds.map((n) =>
+            n.id === nodeId
+              ? { ...n, data: { ...n.data, isPlaying: true, intervalId, currentStep: 0 } }
+              : n
+          )
+        );
+      } else {
+        // Stop sequencer
+        if (node.data.intervalId) {
+          clearInterval(node.data.intervalId);
+        }
+        setNodes((nds) =>
+          nds.map((n) =>
+            n.id === nodeId
+              ? { ...n, data: { ...n.data, isPlaying: false, intervalId: null, currentStep: 0 } }
+              : n
+          )
+        );
+      }
+      return;
+    }
+    
+    // Handle sequencer BPM change - restart if playing
+    if (node?.data.type === "sequencer" && param === "bpm" && node.data.isPlaying) {
+      if (node.data.intervalId) {
+        clearInterval(node.data.intervalId);
+      }
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === nodeId ? { ...n, data: { ...n.data, bpm: value, intervalId: null } } : n
+        )
+      );
+      // Restart with new BPM
+      setTimeout(() => updatePluginParameter(nodeId, "isPlaying", true), 10);
+      return;
+    }
+
     setNodes((nds) =>
       nds.map((node) => {
         if (node.id === nodeId) {
@@ -717,6 +814,8 @@ const Index = () => {
           if (node.data.type === "crypto") {
             return { ...node, data: { ...node.data, [param]: value } };
           } else if (node.data.type === "sampler") {
+            return { ...node, data: { ...node.data, [param]: value } };
+          } else if (node.data.type === "sequencer") {
             return { ...node, data: { ...node.data, [param]: value } };
           } else {
             // Effect modules
@@ -855,6 +954,11 @@ const Index = () => {
                   onDecayChange: (decay: number) => updatePluginParameter(node.id, "decay", decay),
                   onToggleCollapse: toggleCollapse,
                   onRemove: removeNode,
+                }
+              : node.data.type === "sequencer"
+              ? {
+                  ...node.data,
+                  onParameterChange: updatePluginParameter,
                 }
               : node.data.type && ["reverb", "delay", "chorus", "flanger", "phaser", "pingpong-delay",
                   "compressor", "limiter", "gate", "de-esser", "eq", "lpf", "hpf", "bandpass", 
