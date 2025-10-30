@@ -788,7 +788,7 @@ const Index = () => {
         // Create input and output nodes for audio pass-through
         inputNode = ctx.createGain();
         outputNode = ctx.createGain();
-        outputNode.gain.value = 0; // Start muted
+        outputNode.gain.value = 1; // Pass-through when sequencer is stopped
         inputNode.connect(outputNode);
       }
       
@@ -939,7 +939,10 @@ const Index = () => {
       if (value) {
         // Resume audio context if suspended
         audioEngine.resume();
-        
+        // Ensure gate is closed before starting steps
+        if (node.data.outputNode) {
+          node.data.outputNode.gain.value = 0;
+        }
         // Start sequencer
         const intervalTime = (60000 / node.data.bpm) / 4; // 16th note timing
         const intervalId = window.setInterval(() => {
@@ -1015,6 +1018,10 @@ const Index = () => {
         // Stop sequencer
         if (node.data.intervalId) {
           clearInterval(node.data.intervalId);
+        }
+        // Allow pass-through when stopped
+        if (node.data.outputNode) {
+          node.data.outputNode.gain.value = 1;
         }
         setNodes((nds) =>
           nds.map((n) =>
