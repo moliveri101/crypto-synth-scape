@@ -758,15 +758,19 @@ const Index = () => {
             
             // Trigger connected modules if current step is active
             if (sequencerNode.data.steps[currentStep]) {
+              console.log(`Sequencer step ${currentStep} is active, triggering connected modules`);
               setEdges((edges) => {
                 // Find all edges from this sequencer
                 const connectedEdges = edges.filter((e) => e.source === nodeId);
+                console.log(`Found ${connectedEdges.length} connected edges from sequencer`);
                 connectedEdges.forEach((edge) => {
                   const targetNode = nds.find((n) => n.id === edge.target);
-                  if (targetNode?.data.type === "crypto" && !targetNode.data.isPlaying) {
+                  console.log(`Target node:`, targetNode?.id, targetNode?.data.type, `isPlaying:`, targetNode?.data.isPlaying);
+                  if (targetNode?.data.type === "crypto") {
+                    console.log(`Triggering crypto module ${edge.target}`);
                     startSound(edge.target);
                     // Auto-stop after a short time
-                    setTimeout(() => stopSound(edge.target), intervalTime * 0.9);
+                    setTimeout(() => stopSound(edge.target), intervalTime * 0.8);
                   }
                 });
                 return edges;
