@@ -263,10 +263,16 @@ const Index = () => {
 
       console.log("Validating connection:", { sourceType, targetType });
 
-      // Crypto can connect to: mixers, effects, sampler
+      // Allow connecting into sequencer (for trigger routing)
+      if (targetType === "sequencer") {
+        console.log("Target is sequencer: allowing connection");
+        return true;
+      }
+
+      // Crypto can connect to: mixers, effects, sampler, sequencer
       if (sourceType === "crypto") {
         const isMixer = targetType === "mixer" || (typeof targetType === "string" && targetType.startsWith("mixer-"));
-        const valid = isMixer || targetType === "sampler" || EFFECT_TYPES.includes(targetType);
+        const valid = isMixer || targetType === "sampler" || EFFECT_TYPES.includes(targetType) || targetType === "sequencer";
         console.log("Crypto connection valid:", valid);
         return valid;
       }
