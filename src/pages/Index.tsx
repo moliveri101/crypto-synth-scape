@@ -352,12 +352,55 @@ const Index = () => {
 
   const onEdgesDelete = useCallback(
     (deletedEdges: Edge[]) => {
+      deletedEdges.forEach((edge) => {
+        const sourceNode = nodes.find((n) => n.id === edge.source);
+        const targetNode = nodes.find((n) => n.id === edge.target);
+        
+        if (sourceNode && targetNode) {
+          const sourceData = sourceNode.data;
+          const targetData = targetNode.data;
+          
+          // Get source audio node
+          let sourceAudioNode: AudioNode | null = null;
+          if (sourceData.type === "crypto" && sourceData.gainNode) {
+            sourceAudioNode = sourceData.gainNode;
+          } else if (sourceData.outputNode) {
+            sourceAudioNode = sourceData.outputNode;
+          } else if (sourceData.type && sourceData.type.startsWith("mixer-") && sourceData.mergerNode) {
+            sourceAudioNode = sourceData.mergerNode;
+          }
+          
+          // Get target audio node
+          let targetAudioNode: AudioNode | null = null;
+          if (targetData.inputNode) {
+            targetAudioNode = targetData.inputNode;
+          } else if (targetData.type && targetData.type.startsWith("mixer-")) {
+            const channelIndex = edge.targetHandle ? parseInt(edge.targetHandle.split("-")[1]) : 0;
+            if (targetData.channelGains && targetData.channelGains[channelIndex]) {
+              targetAudioNode = targetData.channelGains[channelIndex];
+            }
+          } else if (targetData.type === "output-speakers" || targetData.type === "output-headphones") {
+            targetAudioNode = targetData.outputGain;
+          }
+          
+          // Disconnect audio nodes
+          if (sourceAudioNode && targetAudioNode) {
+            try {
+              sourceAudioNode.disconnect(targetAudioNode);
+              console.log(`Disconnected ${edge.source} from ${edge.target}`);
+            } catch (error) {
+              console.error("Disconnection error:", error);
+            }
+          }
+        }
+      });
+      
       toast({
         title: "Disconnected",
         description: `${deletedEdges.length} connection(s) removed`,
       });
     },
-    [toast]
+    [toast, nodes]
   );
 
   const addCryptoModule = (crypto: CryptoData) => {
