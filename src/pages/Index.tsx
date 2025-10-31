@@ -467,7 +467,6 @@ const Index = () => {
         >
           <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
           <Controls />
-          <MiniMap />
         </ReactFlow>
       </div>
     </div>
