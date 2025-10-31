@@ -70,8 +70,8 @@ const MandelbrotVisualizer = ({ analyser, isPlaying }: MandelbrotVisualizerProps
       const targetZoom = 1 + bassEnergy * 2;
       zoomRef.current += (targetZoom - zoomRef.current) * 0.1;
       
-      offsetXRef.current = Math.sin(timeRef.current * 0.3 + midEnergy * Math.PI) * 0.5;
-      offsetYRef.current = Math.cos(timeRef.current * 0.2 + trebleEnergy * Math.PI) * 0.5;
+      offsetXRef.current = Math.sin(timeRef.current * 0.3 + midEnergy * Math.PI) * 0.2;
+      offsetYRef.current = Math.cos(timeRef.current * 0.2 + trebleEnergy * Math.PI) * 0.2;
 
       const maxIter = 50 + Math.floor(bassEnergy * 50);
       const scale = 3 / Math.min(canvas.width, canvas.height) / zoomRef.current;
@@ -82,8 +82,10 @@ const MandelbrotVisualizer = ({ analyser, isPlaying }: MandelbrotVisualizerProps
 
       for (let px = 0; px < canvas.width; px += STEP) {
         for (let py = 0; py < canvas.height; py += STEP) {
-          const x0 = (px - canvas.width / 2) * scale + offsetXRef.current;
-          const y0 = (py - canvas.height / 2) * scale + offsetYRef.current;
+          const baseCenterX = -0.5;
+          const baseCenterY = 0.0;
+          const x0 = (px - canvas.width / 2) * scale + baseCenterX + offsetXRef.current;
+          const y0 = (py - canvas.height / 2) * scale + baseCenterY + offsetYRef.current;
           
           const iter = mandelbrot(x0, y0, maxIter);
           if (iter === maxIter) continue; // keep interior transparent
