@@ -813,8 +813,11 @@ const Index = () => {
 
   return (
     <div className="w-full h-screen bg-background relative">
-      <MandelbrotVisualizer analyser={visualizerEnabled ? masterAnalyser : null} isPlaying={isPlaying} />
-      <ModuleToolbar
+      {visualizerEnabled && (
+        <MandelbrotVisualizer analyser={masterAnalyser} isPlaying={isPlaying} />
+      )}
+      <div className="relative z-10">
+        <ModuleToolbar
         onAddCrypto={addCryptoModule} 
         onAddPlugin={addPluginModule}
         livePricesEnabled={livePricesEnabled}
@@ -939,6 +942,7 @@ const Index = () => {
         <Controls />
         <MiniMap />
       </ReactFlow>
+      </div>
     </div>
   );
 };
