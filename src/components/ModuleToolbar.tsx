@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, Sparkles, Info } from "lucide-react";
+import { Search, Plus, Sparkles, Info, Eye } from "lucide-react";
 import { CryptoData } from "@/types/crypto";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -24,6 +24,8 @@ interface ModuleToolbarProps {
   onAddPlugin: (type: ModuleType) => void;
   livePricesEnabled: boolean;
   onToggleLivePrices: () => void;
+  visualizerEnabled?: boolean;
+  onToggleVisualizer?: () => void;
 }
 
 const PLUGIN_CATEGORIES = {
@@ -36,9 +38,6 @@ const PLUGIN_CATEGORIES = {
     { type: "mixer-8" as ModuleType, label: "8-Track Mixer" },
     { type: "mixer-16" as ModuleType, label: "16-Track Mixer" },
     { type: "mixer-32" as ModuleType, label: "32-Track Mixer" },
-  ],
-  "Visualization": [
-    { type: "visualizer" as ModuleType, label: "Mandelbrot Visualizer" },
   ],
   "Audio Sources": [
     { type: "sampler" as ModuleType, label: "Sampler" },
@@ -88,7 +87,7 @@ const PLUGIN_CATEGORIES = {
   ],
 };
 
-const ModuleToolbar = ({ onAddCrypto, onAddPlugin, livePricesEnabled, onToggleLivePrices }: ModuleToolbarProps) => {
+const ModuleToolbar = ({ onAddCrypto, onAddPlugin, livePricesEnabled, onToggleLivePrices, visualizerEnabled, onToggleVisualizer }: ModuleToolbarProps) => {
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<CryptoData[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -273,6 +272,16 @@ const ModuleToolbar = ({ onAddCrypto, onAddPlugin, livePricesEnabled, onToggleLi
       >
         <Sparkles className="w-5 h-5" />
         {livePricesEnabled ? "Live Prices ON" : "Live Prices OFF"}
+      </Button>
+
+      <Button
+        size="lg"
+        variant={visualizerEnabled ? "default" : "outline"}
+        onClick={onToggleVisualizer}
+        className="gap-2"
+      >
+        <Eye className="w-5 h-5" />
+        {visualizerEnabled ? "Hide" : "Show"} Visualizer
       </Button>
     </div>
     </TooltipProvider>

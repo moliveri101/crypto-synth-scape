@@ -100,7 +100,8 @@ const Index = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [masterVolume, setMasterVolume] = useState(1.0);
   const [livePricesEnabled, setLivePricesEnabled] = useState(false);
-  const [activeVisualizer, setActiveVisualizer] = useState<AnalyserNode | null>(null);
+  const [visualizerEnabled, setVisualizerEnabled] = useState(false);
+  const [masterAnalyser, setMasterAnalyser] = useState<AnalyserNode | null>(null);
   const { toast } = useToast();
 
   // Map to store AudioModule instances by node ID
@@ -158,9 +159,19 @@ const Index = () => {
     intervalMs: 120000, // Update every 2 minutes to avoid rate limits
   });
 
-  // Initialize audio context
+  // Initialize audio context and master analyser
   useEffect(() => {
     audioContextManager.initialize();
+    
+    const ctx = audioContextManager.getContext();
+    const masterGain = audioContextManager.getMasterGain();
+    if (ctx && masterGain) {
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.8;
+      masterGain.connect(analyser);
+      setMasterAnalyser(analyser);
+    }
 
     return () => {
       // Clean up all modules
@@ -645,35 +656,8 @@ const Index = () => {
     );
   };
 
-  const toggleMixerVisualizer = (nodeId: string) => {
-    setNodes((nds) =>
-      nds.map((node) => {
-        // If this is the node being toggled
-        if (node.id === nodeId && node.data.type && node.data.type.startsWith("mixer-")) {
-          const newEnabled = !node.data.visualizerEnabled;
-          
-          // Update the active visualizer for the background
-          if (newEnabled && node.data.analyserNode) {
-            setActiveVisualizer(node.data.analyserNode);
-          } else if (!newEnabled && activeVisualizer === node.data.analyserNode) {
-            setActiveVisualizer(null);
-          }
-          
-          return {
-            ...node,
-            data: { ...node.data, visualizerEnabled: newEnabled },
-          };
-        }
-        // Turn off visualizer on other mixers (only one active at a time)
-        else if (node.data.type && node.data.type.startsWith("mixer-") && node.data.visualizerEnabled) {
-          return {
-            ...node,
-            data: { ...node.data, visualizerEnabled: false },
-          };
-        }
-        return node;
-      })
-    );
+  const toggleVisualizer = () => {
+    setVisualizerEnabled(prev => !prev);
   };
 
   const addPluginModule = (type: ModuleType) => {
@@ -762,8 +746,6 @@ const Index = () => {
           isPlaying: false,
           inputCount: 0,
           collapsed: false,
-          visualizerEnabled: false,
-          analyserNode: mixerModule.getAnalyser(),
           channels: Array.from({ length: trackCount }, (_, i) => mixerModule.getChannelData(i)),
           audioModule,
           mergerNode: audioModule.outputNode,
@@ -823,7 +805,7 @@ const Index = () => {
 
   return (
     <div className="w-full h-screen bg-background relative">
-      <MandelbrotVisualizer analyser={activeVisualizer} isPlaying={isPlaying} />
+      <MandelbrotVisualizer analyser={visualizerEnabled ? masterAnalyser : null} isPlaying={isPlaying} />
       <ModuleToolbar
         onAddCrypto={addCryptoModule} 
         onAddPlugin={addPluginModule}
@@ -837,6 +819,8 @@ const Index = () => {
               : "Price tracking stopped",
           });
         }}
+        visualizerEnabled={visualizerEnabled}
+        onToggleVisualizer={toggleVisualizer}
       />
 
       <ReactFlow
@@ -861,7 +845,6 @@ const Index = () => {
                   onTogglePlay: () => togglePlay(node.id),
                   onMasterVolumeChange: (volume: number) => updatePluginParameter(node.id, "masterVolume", volume),
                   onToggleCollapse: toggleCollapse,
-                  onToggleVisualizer: () => toggleMixerVisualizer(node.id),
                   onChannelVolumeChange: (channel: number, volume: number) => {
                     updatePluginParameter(node.id, `channel_${channel}_volume`, volume);
                   },
