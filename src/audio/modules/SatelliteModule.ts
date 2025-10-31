@@ -9,6 +9,8 @@ export class SatelliteModule extends AudioModule {
   private prevLongitude: number = 0;
   private prevAltitude: number = 0;
   private updateInterval: number | null = null;
+  private pulseInterval: number = 600; // ms per pulse (default 100 BPM)
+  private pulseTimeoutId: number | null = null;
 
   constructor(ctx: AudioContext) {
     super(ctx);
@@ -33,40 +35,50 @@ export class SatelliteModule extends AudioModule {
     const altDiff = Math.abs(satellite.altitude - this.prevAltitude);
     const speed = Math.sqrt(latDiff * latDiff + lonDiff * lonDiff + altDiff * altDiff);
 
-    // Map speed to rhythm (BPM equivalent) - typical satellite speed 7-8 km/s
-    // Scale speed (0-10 km/s) to BPM (60-180)
-    const bpm = Math.max(60, Math.min(180, 60 + speed * 12));
-    const pulseInterval = (60 / bpm) * 1000; // ms per beat
+    // Map speed to pulse rate (BPM) - typical satellite speed 7-8 km/s
+    // Scale speed (0-10 km/s) to BPM (30-120) for audible, countable pulses
+    const bpm = Math.max(30, Math.min(120, 30 + speed * 9));
+    this.pulseInterval = (60 / bpm) * 1000; // ms per beat
 
-    // Map altitude to frequency (Hz) - ISS altitude ~400km
-    // Scale altitude (200-600 km) to frequency (200-800 Hz)
-    const frequency = Math.max(200, Math.min(800, 200 + satellite.altitude * 1.5));
+    // Map altitude directly to frequency (Hz) - ISS altitude ~400km
+    const frequency = Math.max(200, Math.min(800, satellite.altitude));
     this.oscillator.frequency.setValueAtTime(frequency, this.ctx.currentTime);
 
-    // Map latitude to pitch variation (vibrato/modulation)
-    // Latitude ranges from -90 to 90
+    // Map latitude to subtle pitch variation (vibrato/modulation)
     const pitchModDepth = Math.abs(satellite.latitude) / 90; // 0 to 1
-    const pitchMod = Math.sin(this.ctx.currentTime * 5) * pitchModDepth * 20;
-    this.oscillator.frequency.exponentialRampToValueAtTime(
-      frequency + pitchMod,
-      this.ctx.currentTime + 0.1
-    );
 
-    // Map longitude to volume variation
-    // Longitude ranges from -180 to 180
-    const volumeBase = 0.3 + (Math.abs(satellite.longitude) / 180) * 0.5; // 0.3 to 0.8
-    const volumeMod = Math.sin(this.ctx.currentTime * 2) * 0.1;
-    this.gainNode.gain.setValueAtTime(
-      Math.max(0.1, Math.min(0.9, volumeBase + volumeMod)),
-      this.ctx.currentTime
-    );
+    // Map longitude to base volume - direct mapping with minimum
+    const volumeBase = Math.max(0.1, (Math.abs(satellite.longitude) + 180) / 360);
 
     // Store for next update
     this.prevLatitude = satellite.latitude;
     this.prevLongitude = satellite.longitude;
     this.prevAltitude = satellite.altitude;
 
-    console.log('Satellite audio params:', { speed, frequency, bpm, pitchModDepth, volumeBase });
+    console.log('Satellite audio params:', { speed, frequency, bpm, pulseInterval: this.pulseInterval, pitchModDepth, volumeBase });
+  }
+
+  private schedulePulse() {
+    if (!this.isActive || !this.oscillator) return;
+
+    const now = this.ctx.currentTime;
+    const attackTime = 0.01; // 10ms attack
+    const decayTime = 0.09; // 90ms decay
+    const pulseDuration = attackTime + decayTime; // 100ms total
+
+    // Get current base volume from longitude
+    const volumeBase = Math.max(0.1, (Math.abs(this.satellite?.longitude || 0) + 180) / 360);
+
+    // Create pulse envelope
+    this.gainNode.gain.cancelScheduledValues(now);
+    this.gainNode.gain.setValueAtTime(0.1, now);
+    this.gainNode.gain.linearRampToValueAtTime(volumeBase, now + attackTime);
+    this.gainNode.gain.linearRampToValueAtTime(0.1, now + pulseDuration);
+
+    // Schedule next pulse
+    this.pulseTimeoutId = window.setTimeout(() => {
+      this.schedulePulse();
+    }, this.pulseInterval);
   }
 
   start() {
@@ -79,6 +91,9 @@ export class SatelliteModule extends AudioModule {
     this.oscillator.start();
     this.isActive = true;
 
+    // Start pulse scheduling
+    this.schedulePulse();
+
     // Start updating from satellite data every 2 seconds
     this.updateInterval = window.setInterval(() => {
       if (this.satellite) {
@@ -89,6 +104,11 @@ export class SatelliteModule extends AudioModule {
 
   stop() {
     if (!this.isActive) return;
+
+    if (this.pulseTimeoutId) {
+      clearTimeout(this.pulseTimeoutId);
+      this.pulseTimeoutId = null;
+    }
 
     if (this.oscillator) {
       this.oscillator.stop();
@@ -101,6 +121,8 @@ export class SatelliteModule extends AudioModule {
       this.updateInterval = null;
     }
 
+    this.gainNode.gain.cancelScheduledValues(this.ctx.currentTime);
+    this.gainNode.gain.setValueAtTime(0.5, this.ctx.currentTime);
     this.isActive = false;
   }
 
@@ -143,6 +165,9 @@ export class SatelliteModule extends AudioModule {
     this.stop();
     if (this.updateInterval) {
       clearInterval(this.updateInterval);
+    }
+    if (this.pulseTimeoutId) {
+      clearTimeout(this.pulseTimeoutId);
     }
     super.dispose();
   }
