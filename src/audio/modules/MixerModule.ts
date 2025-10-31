@@ -6,10 +6,15 @@ export class MixerModule extends AudioModule {
   private channelPanners: StereoPannerNode[] = [];
   private mixGain: GainNode;
   private channels: Array<{ volume: number; pan: number; muted: boolean }>;
+  private analyser: AnalyserNode;
 
   constructor(ctx: AudioContext, channelCount: number) {
     super(ctx);
     this.channelCount = channelCount;
+    
+    // Create analyser for visualizer
+    this.analyser = ctx.createAnalyser();
+    this.analyser.fftSize = 2048;
     
     // Initialize channel data
     this.channels = Array.from({ length: channelCount }, () => ({
@@ -35,11 +40,14 @@ export class MixerModule extends AudioModule {
     this.mixGain = ctx.createGain();
     this.mixGain.gain.value = 1.0;
 
-    // Wire up: gain -> panner -> mix bus
+    // Wire up: gain -> panner -> mix bus -> analyser
     this.channelGains.forEach((gain, i) => {
       gain.connect(this.channelPanners[i]);
       this.channelPanners[i].connect(this.mixGain);
     });
+    
+    // Connect mix bus to analyser (always connected for monitoring)
+    this.mixGain.connect(this.analyser);
 
     // Set input/output nodes
     // Note: For mixers, each channel is a separate input
@@ -107,5 +115,9 @@ export class MixerModule extends AudioModule {
 
   getChannelData(index: number) {
     return this.channels[index];
+  }
+
+  getAnalyser(): AnalyserNode {
+    return this.analyser;
   }
 }

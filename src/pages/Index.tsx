@@ -278,9 +278,6 @@ const Index = () => {
         }
       });
 
-      // Update active visualizer
-      setActiveVisualizer(newActiveVisualizer);
-
       // Update visualizer nodes' isActive state
       return currentNodes.map(node => {
         if (node.data.type === "visualizer") {
@@ -648,6 +645,37 @@ const Index = () => {
     );
   };
 
+  const toggleMixerVisualizer = (nodeId: string) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        // If this is the node being toggled
+        if (node.id === nodeId && node.data.type && node.data.type.startsWith("mixer-")) {
+          const newEnabled = !node.data.visualizerEnabled;
+          
+          // Update the active visualizer for the background
+          if (newEnabled && node.data.analyserNode) {
+            setActiveVisualizer(node.data.analyserNode);
+          } else if (!newEnabled && activeVisualizer === node.data.analyserNode) {
+            setActiveVisualizer(null);
+          }
+          
+          return {
+            ...node,
+            data: { ...node.data, visualizerEnabled: newEnabled },
+          };
+        }
+        // Turn off visualizer on other mixers (only one active at a time)
+        else if (node.data.type && node.data.type.startsWith("mixer-") && node.data.visualizerEnabled) {
+          return {
+            ...node,
+            data: { ...node.data, visualizerEnabled: false },
+          };
+        }
+        return node;
+      })
+    );
+  };
+
   const addPluginModule = (type: ModuleType) => {
     const id = `${type}-${Date.now()}`;
     const ctx = audioContextManager.getContext();
@@ -723,6 +751,7 @@ const Index = () => {
     } else if (type.startsWith("mixer-")) {
       const trackCount = parseInt(type.split("-")[1]);
       audioModule = new MixerModule(ctx, trackCount);
+      const mixerModule = audioModule as MixerModule;
       newNode = {
         id,
         type,
@@ -733,10 +762,12 @@ const Index = () => {
           isPlaying: false,
           inputCount: 0,
           collapsed: false,
-          channels: Array.from({ length: trackCount }, (_, i) => (audioModule as MixerModule).getChannelData(i)),
+          visualizerEnabled: false,
+          analyserNode: mixerModule.getAnalyser(),
+          channels: Array.from({ length: trackCount }, (_, i) => mixerModule.getChannelData(i)),
           audioModule,
           mergerNode: audioModule.outputNode,
-          channelGains: Array.from({ length: trackCount }, (_, i) => (audioModule as MixerModule).getChannelInput(i)),
+          channelGains: Array.from({ length: trackCount }, (_, i) => mixerModule.getChannelInput(i)),
         },
       };
     } else if (type === "output-speakers" || type === "output-headphones") {
@@ -768,22 +799,6 @@ const Index = () => {
           parameters: {},
           collapsed: false,
           audioModule,
-          inputNode: audioModule.inputNode,
-          outputNode: audioModule.outputNode,
-        },
-      };
-    } else if (type === "visualizer") {
-      audioModule = new VisualizerModule(ctx);
-      newNode = {
-        id,
-        type,
-        position: { x: 100 + nodes.length * 50, y: 100 + nodes.length * 50 },
-        data: {
-          type,
-          isActive: false,
-          collapsed: false,
-          audioModule,
-          analyserNode: (audioModule as VisualizerModule).getAnalyser(),
           inputNode: audioModule.inputNode,
           outputNode: audioModule.outputNode,
         },
@@ -846,6 +861,7 @@ const Index = () => {
                   onTogglePlay: () => togglePlay(node.id),
                   onMasterVolumeChange: (volume: number) => updatePluginParameter(node.id, "masterVolume", volume),
                   onToggleCollapse: toggleCollapse,
+                  onToggleVisualizer: () => toggleMixerVisualizer(node.id),
                   onChannelVolumeChange: (channel: number, volume: number) => {
                     updatePluginParameter(node.id, `channel_${channel}_volume`, volume);
                   },
