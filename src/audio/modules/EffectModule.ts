@@ -9,6 +9,9 @@ export class EffectModule extends AudioModule {
   private mix: number = 0.5;
   private parameters: Record<string, number> = {};
   private oscillators: OscillatorNode[] = [];
+  private feedbackGain?: GainNode;
+  private filterNode?: BiquadFilterNode;
+  private lfoGain?: GainNode;
 
   constructor(ctx: AudioContext, effectType: string) {
     super(ctx);
@@ -25,7 +28,11 @@ export class EffectModule extends AudioModule {
     this.dryGain.gain.value = 0.5;
 
     // Create effect-specific node
-    this.effectNode = this.createEffectNode(effectType);
+    const effectNodes = this.createEffectNode(effectType);
+    this.effectNode = effectNodes.main;
+    this.feedbackGain = effectNodes.feedback;
+    this.filterNode = effectNodes.filter;
+    this.lfoGain = effectNodes.lfoGain;
 
     // Wire up: input -> dry -> output
     this.inputNode.connect(this.dryGain);
@@ -39,14 +46,14 @@ export class EffectModule extends AudioModule {
     this.isActive = true;
   }
 
-  private createEffectNode(type: string): AudioNode {
+  private createEffectNode(type: string): { main: AudioNode; feedback?: GainNode; filter?: BiquadFilterNode; lfoGain?: GainNode } {
     switch (type) {
       case "lpf": {
         const filter = this.ctx.createBiquadFilter();
         filter.type = "lowpass";
         filter.frequency.value = 2000;
         filter.Q.value = 1;
-        return filter;
+        return { main: filter };
       }
 
       case "hpf": {
@@ -54,7 +61,7 @@ export class EffectModule extends AudioModule {
         filter.type = "highpass";
         filter.frequency.value = 200;
         filter.Q.value = 1;
-        return filter;
+        return { main: filter };
       }
 
       case "bandpass":
@@ -63,7 +70,7 @@ export class EffectModule extends AudioModule {
         filter.type = "bandpass";
         filter.frequency.value = 1000;
         filter.Q.value = 5;
-        return filter;
+        return { main: filter };
       }
 
       case "eq": {
@@ -72,7 +79,7 @@ export class EffectModule extends AudioModule {
         filter.frequency.value = 1000;
         filter.Q.value = 1;
         filter.gain.value = 0;
-        return filter;
+        return { main: filter };
       }
 
       case "compressor": {
@@ -82,14 +89,26 @@ export class EffectModule extends AudioModule {
         compressor.ratio.value = 12;
         compressor.attack.value = 0.003;
         compressor.release.value = 0.25;
-        return compressor;
+        return { main: compressor };
       }
 
       case "delay":
       case "pingpong-delay": {
         const delay = this.ctx.createDelay(2);
+        const feedbackGain = this.ctx.createGain();
+        const filterNode = this.ctx.createBiquadFilter();
+        
         delay.delayTime.value = 0.3;
-        return delay;
+        feedbackGain.gain.value = 0.5;
+        filterNode.type = "lowpass";
+        filterNode.frequency.value = 4000;
+        
+        // Create feedback loop with filter
+        delay.connect(filterNode);
+        filterNode.connect(feedbackGain);
+        feedbackGain.connect(delay);
+        
+        return { main: delay, feedback: feedbackGain, filter: filterNode };
       }
 
       case "reverb": {
@@ -108,7 +127,7 @@ export class EffectModule extends AudioModule {
         }
         
         convolver.buffer = impulse;
-        return convolver;
+        return { main: convolver };
       }
 
       case "distortion":
@@ -127,7 +146,7 @@ export class EffectModule extends AudioModule {
         
         waveshaper.curve = curve;
         waveshaper.oversample = "4x";
-        return waveshaper;
+        return { main: waveshaper };
       }
 
       case "tremolo": {
@@ -143,7 +162,7 @@ export class EffectModule extends AudioModule {
         lfo.start();
         this.oscillators.push(lfo);
         
-        return tremolo;
+        return { main: tremolo, lfoGain };
       }
 
       case "chorus":
@@ -152,16 +171,24 @@ export class EffectModule extends AudioModule {
         const delay = this.ctx.createDelay(0.1);
         const lfo = this.ctx.createOscillator();
         const lfoGain = this.ctx.createGain();
+        const feedbackGain = this.ctx.createGain();
         
         // Flanger has faster LFO and shorter delay
         if (type === "flanger") {
           lfo.frequency.value = 0.5;
           lfoGain.gain.value = 0.002;
           delay.delayTime.value = 0.005;
+          feedbackGain.gain.value = 0.5;
+        } else if (type === "phaser") {
+          lfo.frequency.value = 0.3;
+          lfoGain.gain.value = 0.005;
+          delay.delayTime.value = 0.02;
+          feedbackGain.gain.value = 0.5;
         } else {
           lfo.frequency.value = 0.3;
           lfoGain.gain.value = 0.005;
           delay.delayTime.value = 0.02;
+          feedbackGain.gain.value = 0;
         }
         
         lfo.connect(lfoGain);
@@ -169,7 +196,11 @@ export class EffectModule extends AudioModule {
         lfo.start();
         this.oscillators.push(lfo);
         
-        return delay;
+        // Add feedback loop
+        delay.connect(feedbackGain);
+        feedbackGain.connect(delay);
+        
+        return { main: delay, feedback: feedbackGain, lfoGain };
       }
 
       case "bitcrusher": {
@@ -185,14 +216,14 @@ export class EffectModule extends AudioModule {
         }
         
         waveshaper.curve = curve;
-        return waveshaper;
+        return { main: waveshaper };
       }
 
       default:
         // For unimplemented effects, use gain node
         const gain = this.ctx.createGain();
         gain.gain.value = 1;
-        return gain;
+        return { main: gain };
     }
   }
 
@@ -240,8 +271,9 @@ export class EffectModule extends AudioModule {
   }
 
   private applyParameters() {
-    // Apply parameters to the effect node
+    // Apply parameters based on effect type
     if (this.effectNode instanceof BiquadFilterNode) {
+      // Handle filters (LPF, HPF, Bandpass, EQ, Resonant)
       if (this.parameters.cutoff !== undefined || this.parameters.frequency !== undefined) {
         const freq = this.parameters.cutoff || this.parameters.frequency || 1000;
         this.effectNode.frequency.value = Math.max(20, Math.min(20000, freq));
@@ -250,10 +282,18 @@ export class EffectModule extends AudioModule {
         const q = this.parameters.resonance || this.parameters.Q || 1;
         this.effectNode.Q.value = Math.max(0.0001, Math.min(30, q));
       }
-      if (this.parameters.gain !== undefined && this.effectNode.gain) {
-        this.effectNode.gain.value = Math.max(-40, Math.min(40, this.parameters.gain));
+      
+      // EQ-specific parameters
+      if (this.effectType === "eq" && this.effectNode.gain) {
+        if (this.parameters.lowGain !== undefined) {
+          this.effectNode.gain.value = Math.max(-40, Math.min(40, this.parameters.lowGain));
+        }
+        if (this.parameters.lowFreq !== undefined) {
+          this.effectNode.frequency.value = Math.max(20, Math.min(500, this.parameters.lowFreq));
+        }
       }
     } else if (this.effectNode instanceof DynamicsCompressorNode) {
+      // Compressor parameters
       if (this.parameters.threshold !== undefined) {
         this.effectNode.threshold.value = Math.max(-100, Math.min(0, this.parameters.threshold));
       }
@@ -266,15 +306,28 @@ export class EffectModule extends AudioModule {
       if (this.parameters.release !== undefined) {
         this.effectNode.release.value = Math.max(0, Math.min(1, this.parameters.release));
       }
+      if (this.parameters.knee !== undefined) {
+        this.effectNode.knee.value = Math.max(0, Math.min(40, this.parameters.knee));
+      }
     } else if (this.effectNode instanceof DelayNode) {
+      // Delay parameters
       if (this.parameters.time !== undefined) {
-        this.effectNode.delayTime.value = Math.max(0, Math.min(2, this.parameters.time));
+        this.effectNode.delayTime.value = Math.max(0.001, Math.min(2, this.parameters.time));
+      }
+      // Delay feedback
+      if (this.feedbackGain && this.parameters.feedback !== undefined) {
+        this.feedbackGain.gain.value = Math.max(0, Math.min(0.95, this.parameters.feedback));
+      }
+      // Delay filter
+      if (this.filterNode && this.parameters.filterFreq !== undefined) {
+        this.filterNode.frequency.value = Math.max(200, Math.min(8000, this.parameters.filterFreq));
       }
     } else if (this.effectNode instanceof WaveShaperNode) {
-      // For distortion effects, intensity affects the drive amount
-      if (this.intensity !== undefined) {
-        const amount = this.effectType === "fuzz" ? 100 : this.effectType === "distortion" ? 50 : 20;
-        const drive = amount * this.intensity * 2;
+      // Distortion effects: drive/amount/fuzz parameter
+      const driveParam = this.parameters.drive || this.parameters.amount || this.parameters.fuzz || this.intensity;
+      if (driveParam !== undefined) {
+        const baseAmount = this.effectType === "fuzz" ? 100 : this.effectType === "distortion" ? 50 : 20;
+        const drive = baseAmount * driveParam * 2;
         const samples = 44100;
         const curve = new Float32Array(samples);
         const deg = Math.PI / 180;
@@ -286,6 +339,69 @@ export class EffectModule extends AudioModule {
         
         this.effectNode.curve = curve;
       }
+      
+      // Bitcrusher bit depth
+      if (this.effectType === "bitcrusher" && this.parameters.bits !== undefined) {
+        const bits = Math.max(1, Math.min(16, this.parameters.bits));
+        const samples = 44100;
+        const curve = new Float32Array(samples);
+        const step = Math.pow(0.5, bits);
+        
+        for (let i = 0; i < samples; i++) {
+          const x = (i * 2) / samples - 1;
+          curve[i] = step * Math.floor(x / step + 0.5);
+        }
+        
+        this.effectNode.curve = curve;
+      }
+    } else if (this.effectNode instanceof ConvolverNode) {
+      // Reverb parameters (requires regenerating impulse response)
+      if (this.parameters.size !== undefined || this.parameters.decay !== undefined || this.parameters.damping !== undefined) {
+        const size = this.parameters.size || 0.5;
+        const decay = this.parameters.decay || 2;
+        const damping = this.parameters.damping || 0.5;
+        
+        const length = this.ctx.sampleRate * decay * (0.5 + size * 1.5);
+        const impulse = this.ctx.createBuffer(2, length, this.ctx.sampleRate);
+        const leftChannel = impulse.getChannelData(0);
+        const rightChannel = impulse.getChannelData(1);
+        
+        for (let i = 0; i < length; i++) {
+          const decay_factor = Math.pow(1 - i / length, 2);
+          const damping_factor = 1 - (damping * i / length);
+          leftChannel[i] = (Math.random() * 2 - 1) * decay_factor * damping_factor;
+          rightChannel[i] = (Math.random() * 2 - 1) * decay_factor * damping_factor;
+        }
+        
+        this.effectNode.buffer = impulse;
+      }
+    }
+    
+    // Modulation effects (tremolo, chorus, flanger, phaser)
+    if (this.oscillators.length > 0) {
+      const lfo = this.oscillators[0];
+      if (this.parameters.rate !== undefined) {
+        const rate = Math.max(0.01, Math.min(20, this.parameters.rate));
+        lfo.frequency.value = rate;
+      }
+    }
+    
+    // LFO depth control for modulation effects
+    if (this.lfoGain && this.parameters.depth !== undefined) {
+      const depth = Math.max(0, Math.min(1, this.parameters.depth));
+      if (this.effectType === "flanger") {
+        this.lfoGain.gain.value = depth * 0.005;
+      } else if (this.effectType === "tremolo") {
+        this.lfoGain.gain.value = depth;
+      } else {
+        this.lfoGain.gain.value = depth * 0.01;
+      }
+    }
+    
+    // Feedback control for chorus/flanger/phaser
+    if (this.feedbackGain && this.parameters.feedback !== undefined && 
+        (this.effectType === "chorus" || this.effectType === "flanger" || this.effectType === "phaser")) {
+      this.feedbackGain.gain.value = Math.max(-0.95, Math.min(0.95, this.parameters.feedback));
     }
   }
 

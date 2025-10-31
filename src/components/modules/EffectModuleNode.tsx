@@ -30,47 +30,181 @@ interface EffectModuleNodeProps {
   };
 }
 
-const EFFECT_INFO: Record<string, { label: string; icon: any; color: string; params?: { name: string; min: number; max: number; step: number }[] }> = {
-  // Time-Based
-  "reverb": { label: "Reverb", icon: Waves, color: "text-blue-400", params: [{ name: "size", min: 0, max: 1, step: 0.01 }, { name: "decay", min: 0.1, max: 10, step: 0.1 }] },
-  "delay": { label: "Delay", icon: Clock, color: "text-cyan-400", params: [{ name: "time", min: 0.1, max: 2, step: 0.01 }, { name: "feedback", min: 0, max: 0.9, step: 0.01 }] },
-  "chorus": { label: "Chorus", icon: Wind, color: "text-teal-400", params: [{ name: "rate", min: 0.1, max: 10, step: 0.1 }, { name: "depth", min: 0, max: 1, step: 0.01 }] },
-  "flanger": { label: "Flanger", icon: CircleDot, color: "text-emerald-400", params: [{ name: "rate", min: 0.1, max: 10, step: 0.1 }, { name: "depth", min: 0, max: 1, step: 0.01 }] },
-  "phaser": { label: "Phaser", icon: Layers, color: "text-green-400", params: [{ name: "rate", min: 0.1, max: 10, step: 0.1 }, { name: "stages", min: 2, max: 12, step: 1 }] },
-  "pingpong-delay": { label: "Ping-Pong Delay", icon: Zap, color: "text-blue-300", params: [{ name: "time", min: 0.1, max: 2, step: 0.01 }] },
+const EFFECT_INFO: Record<string, { label: string; icon: any; color: string; params?: { name: string; min: number; max: number; step: number; unit?: string }[] }> = {
+  // Time-Based Effects
+  "reverb": { 
+    label: "Reverb", 
+    icon: Waves, 
+    color: "text-blue-400", 
+    params: [
+      { name: "size", min: 0.1, max: 1, step: 0.01 },
+      { name: "decay", min: 0.1, max: 10, step: 0.1, unit: "s" },
+      { name: "damping", min: 0, max: 1, step: 0.01 },
+      { name: "predelay", min: 0, max: 100, step: 1, unit: "ms" }
+    ]
+  },
+  "delay": { 
+    label: "Delay", 
+    icon: Clock, 
+    color: "text-cyan-400", 
+    params: [
+      { name: "time", min: 0.01, max: 2, step: 0.01, unit: "s" },
+      { name: "feedback", min: 0, max: 0.95, step: 0.01 },
+      { name: "filterFreq", min: 200, max: 8000, step: 100, unit: "Hz" }
+    ]
+  },
+  "chorus": { 
+    label: "Chorus", 
+    icon: Wind, 
+    color: "text-teal-400", 
+    params: [
+      { name: "rate", min: 0.1, max: 5, step: 0.1, unit: "Hz" },
+      { name: "depth", min: 0, max: 1, step: 0.01 },
+      { name: "feedback", min: -0.5, max: 0.5, step: 0.01 },
+      { name: "delay", min: 10, max: 40, step: 1, unit: "ms" }
+    ]
+  },
+  "flanger": { 
+    label: "Flanger", 
+    icon: CircleDot, 
+    color: "text-emerald-400", 
+    params: [
+      { name: "rate", min: 0.01, max: 10, step: 0.01, unit: "Hz" },
+      { name: "depth", min: 0, max: 1, step: 0.01 },
+      { name: "feedback", min: 0, max: 0.9, step: 0.01 },
+      { name: "delay", min: 0.5, max: 10, step: 0.1, unit: "ms" }
+    ]
+  },
+  "phaser": { 
+    label: "Phaser", 
+    icon: Layers, 
+    color: "text-green-400", 
+    params: [
+      { name: "rate", min: 0.1, max: 10, step: 0.1, unit: "Hz" },
+      { name: "depth", min: 0, max: 1, step: 0.01 },
+      { name: "feedback", min: 0, max: 0.9, step: 0.01 },
+      { name: "frequency", min: 200, max: 5000, step: 100, unit: "Hz" }
+    ]
+  },
   
-  // Dynamic
-  "compressor": { label: "Compressor", icon: Gauge, color: "text-orange-400", params: [{ name: "threshold", min: -60, max: 0, step: 1 }, { name: "ratio", min: 1, max: 20, step: 0.5 }] },
-  "limiter": { label: "Limiter", icon: Shrink, color: "text-red-400", params: [{ name: "threshold", min: -30, max: 0, step: 1 }] },
-  "gate": { label: "Gate", icon: DoorClosed, color: "text-yellow-400", params: [{ name: "threshold", min: -60, max: 0, step: 1 }] },
-  "de-esser": { label: "De-esser", icon: Mic, color: "text-pink-400", params: [{ name: "frequency", min: 2000, max: 10000, step: 100 }] },
+  // Dynamic Effects
+  "compressor": { 
+    label: "Compressor", 
+    icon: Gauge, 
+    color: "text-orange-400", 
+    params: [
+      { name: "threshold", min: -60, max: 0, step: 1, unit: "dB" },
+      { name: "ratio", min: 1, max: 20, step: 0.5 },
+      { name: "attack", min: 0.001, max: 0.5, step: 0.001, unit: "s" },
+      { name: "release", min: 0.01, max: 1, step: 0.01, unit: "s" },
+      { name: "knee", min: 0, max: 40, step: 1, unit: "dB" }
+    ]
+  },
   
-  // EQ/Filter
-  "eq": { label: "EQ", icon: Sliders, color: "text-purple-400", params: [{ name: "low", min: -12, max: 12, step: 0.5 }, { name: "mid", min: -12, max: 12, step: 0.5 }, { name: "high", min: -12, max: 12, step: 0.5 }] },
-  "lpf": { label: "Low-Pass Filter", icon: TrendingDown, color: "text-indigo-400", params: [{ name: "cutoff", min: 20, max: 20000, step: 10 }, { name: "resonance", min: 0, max: 20, step: 0.1 }] },
-  "hpf": { label: "High-Pass Filter", icon: TrendingUp, color: "text-violet-400", params: [{ name: "cutoff", min: 20, max: 20000, step: 10 }, { name: "resonance", min: 0, max: 20, step: 0.1 }] },
-  "bandpass": { label: "Band-Pass Filter", icon: Filter, color: "text-fuchsia-400", params: [{ name: "frequency", min: 20, max: 20000, step: 10 }, { name: "Q", min: 0.1, max: 20, step: 0.1 }] },
-  "resonant-filter": { label: "Resonant Filter", icon: CircleDot, color: "text-rose-400", params: [{ name: "cutoff", min: 20, max: 20000, step: 10 }, { name: "resonance", min: 0, max: 30, step: 0.1 }] },
+  // EQ/Filter Effects
+  "eq": { 
+    label: "3-Band EQ", 
+    icon: Sliders, 
+    color: "text-purple-400", 
+    params: [
+      { name: "lowFreq", min: 20, max: 500, step: 10, unit: "Hz" },
+      { name: "lowGain", min: -12, max: 12, step: 0.5, unit: "dB" },
+      { name: "midFreq", min: 200, max: 5000, step: 100, unit: "Hz" },
+      { name: "midGain", min: -12, max: 12, step: 0.5, unit: "dB" },
+      { name: "midQ", min: 0.5, max: 10, step: 0.1 },
+      { name: "highFreq", min: 2000, max: 20000, step: 100, unit: "Hz" },
+      { name: "highGain", min: -12, max: 12, step: 0.5, unit: "dB" }
+    ]
+  },
+  "lpf": { 
+    label: "Low-Pass Filter", 
+    icon: TrendingDown, 
+    color: "text-indigo-400", 
+    params: [
+      { name: "cutoff", min: 20, max: 20000, step: 10, unit: "Hz" },
+      { name: "resonance", min: 0.1, max: 30, step: 0.1 }
+    ]
+  },
+  "hpf": { 
+    label: "High-Pass Filter", 
+    icon: TrendingUp, 
+    color: "text-violet-400", 
+    params: [
+      { name: "cutoff", min: 20, max: 20000, step: 10, unit: "Hz" },
+      { name: "resonance", min: 0.1, max: 30, step: 0.1 }
+    ]
+  },
+  "bandpass": { 
+    label: "Band-Pass Filter", 
+    icon: Filter, 
+    color: "text-fuchsia-400", 
+    params: [
+      { name: "frequency", min: 20, max: 20000, step: 10, unit: "Hz" },
+      { name: "Q", min: 0.1, max: 30, step: 0.1 }
+    ]
+  },
+  "resonant-filter": { 
+    label: "Resonant Filter", 
+    icon: CircleDot, 
+    color: "text-rose-400", 
+    params: [
+      { name: "cutoff", min: 20, max: 20000, step: 10, unit: "Hz" },
+      { name: "resonance", min: 0.1, max: 30, step: 0.1 },
+      { name: "envAmount", min: 0, max: 1, step: 0.01 }
+    ]
+  },
   
-  // Distortion
-  "overdrive": { label: "Overdrive", icon: Disc, color: "text-amber-400", params: [{ name: "drive", min: 0, max: 1, step: 0.01 }] },
-  "distortion": { label: "Distortion", icon: Zap, color: "text-orange-500", params: [{ name: "amount", min: 0, max: 1, step: 0.01 }] },
-  "fuzz": { label: "Fuzz", icon: Hash, color: "text-red-500", params: [{ name: "fuzz", min: 0, max: 1, step: 0.01 }] },
-  "bitcrusher": { label: "Bitcrusher", icon: Hash, color: "text-gray-400", params: [{ name: "bits", min: 1, max: 16, step: 1 }, { name: "rate", min: 0.1, max: 1, step: 0.01 }] },
-  "tape-saturation": { label: "Tape Saturation", icon: Radio, color: "text-brown-400", params: [{ name: "drive", min: 0, max: 1, step: 0.01 }] },
+  // Distortion Effects
+  "overdrive": { 
+    label: "Overdrive", 
+    icon: Disc, 
+    color: "text-amber-400", 
+    params: [
+      { name: "drive", min: 0, max: 1, step: 0.01 },
+      { name: "tone", min: 0, max: 1, step: 0.01 },
+      { name: "level", min: 0, max: 2, step: 0.01 }
+    ]
+  },
+  "distortion": { 
+    label: "Distortion", 
+    icon: Zap, 
+    color: "text-orange-500", 
+    params: [
+      { name: "amount", min: 0, max: 1, step: 0.01 },
+      { name: "tone", min: 0, max: 1, step: 0.01 },
+      { name: "level", min: 0, max: 2, step: 0.01 }
+    ]
+  },
+  "fuzz": { 
+    label: "Fuzz", 
+    icon: Hash, 
+    color: "text-red-500", 
+    params: [
+      { name: "fuzz", min: 0, max: 1, step: 0.01 },
+      { name: "tone", min: 0, max: 1, step: 0.01 },
+      { name: "octave", min: 0, max: 1, step: 0.01 }
+    ]
+  },
+  "bitcrusher": { 
+    label: "Bitcrusher", 
+    icon: Hash, 
+    color: "text-gray-400", 
+    params: [
+      { name: "bits", min: 1, max: 16, step: 1 },
+      { name: "sampleRate", min: 0.01, max: 1, step: 0.01 }
+    ]
+  },
   
-  // Modulation
-  "vibrato": { label: "Vibrato", icon: Waves, color: "text-sky-400", params: [{ name: "rate", min: 0.1, max: 20, step: 0.1 }, { name: "depth", min: 0, max: 1, step: 0.01 }] },
-  "tremolo": { label: "Tremolo", icon: Volume2, color: "text-blue-500", params: [{ name: "rate", min: 0.1, max: 20, step: 0.1 }, { name: "depth", min: 0, max: 1, step: 0.01 }] },
-  "ring-mod": { label: "Ring Modulator", icon: CircleDot, color: "text-indigo-500", params: [{ name: "frequency", min: 20, max: 2000, step: 10 }] },
-  "pitch-shifter": { label: "Pitch Shifter", icon: Music4, color: "text-purple-500", params: [{ name: "shift", min: -24, max: 24, step: 1 }] },
-  "octaver": { label: "Octaver", icon: BarChart3, color: "text-violet-500", params: [{ name: "octave", min: -2, max: 2, step: 1 }] },
-  
-  // Advanced
-  "granular": { label: "Granular", icon: Sparkles, color: "text-pink-500", params: [{ name: "grainSize", min: 10, max: 500, step: 10 }, { name: "overlap", min: 0, max: 1, step: 0.01 }] },
-  "vocoder": { label: "Vocoder", icon: Mic, color: "text-cyan-500", params: [{ name: "bands", min: 4, max: 32, step: 1 }] },
-  "auto-pan": { label: "Auto-Pan", icon: Move, color: "text-teal-500", params: [{ name: "rate", min: 0.1, max: 10, step: 0.1 }, { name: "depth", min: 0, max: 1, step: 0.01 }] },
-  "stereo-widener": { label: "Stereo Widener", icon: Maximize2, color: "text-emerald-500", params: [{ name: "width", min: 0, max: 2, step: 0.01 }] },
+  // Modulation Effects
+  "tremolo": { 
+    label: "Tremolo", 
+    icon: Volume2, 
+    color: "text-blue-500", 
+    params: [
+      { name: "rate", min: 0.1, max: 20, step: 0.1, unit: "Hz" },
+      { name: "depth", min: 0, max: 1, step: 0.01 }
+    ]
+  }
 };
 
 const EffectModuleNode = ({ data, id }: EffectModuleNodeProps) => {
@@ -140,22 +274,26 @@ const EffectModuleNode = ({ data, id }: EffectModuleNodeProps) => {
             />
           </div>
 
-          {info.params?.map((param) => (
-            <div key={param.name}>
-              <Label className="text-sm text-muted-foreground capitalize">
-                {param.name}: {data.parameters[param.name]?.toFixed(2) ?? param.min}
-              </Label>
-              <Slider
-                value={[data.parameters[param.name] ?? param.min]}
-                onValueChange={([v]) => data.onParameterChange?.(param.name, v)}
-                min={param.min}
-                max={param.max}
-                step={param.step}
-                className="mt-2"
-                disabled={!data.isActive}
-              />
-            </div>
-          ))}
+          {info.params?.map((param) => {
+            const value = data.parameters[param.name] ?? param.min;
+            const displayValue = param.step >= 1 ? value.toFixed(0) : value.toFixed(2);
+            return (
+              <div key={param.name}>
+                <Label className="text-sm text-muted-foreground capitalize">
+                  {param.name.replace(/([A-Z])/g, ' $1').trim()}: {displayValue}{param.unit || ''}
+                </Label>
+                <Slider
+                  value={[value]}
+                  onValueChange={([v]) => data.onParameterChange?.(param.name, v)}
+                  min={param.min}
+                  max={param.max}
+                  step={param.step}
+                  className="mt-2"
+                  disabled={!data.isActive}
+                />
+              </div>
+            );
+          })}
         </div>
         )}
       </div>
