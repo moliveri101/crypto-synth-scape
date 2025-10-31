@@ -31,6 +31,7 @@ import SamplerModuleNode from "@/components/modules/SamplerModuleNode";
 import EffectModuleNode from "@/components/modules/EffectModuleNode";
 import OutputModuleNode from "@/components/modules/OutputModuleNode";
 import ModuleToolbar from "@/components/ModuleToolbar";
+import MandelbrotVisualizer from "@/components/MandelbrotVisualizer";
 import { useToast } from "@/hooks/use-toast";
 import { ModuleType } from "@/types/modules";
 import InteractiveEdge from "@/components/modules/InteractiveEdge";
@@ -99,6 +100,7 @@ const Index = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [masterVolume, setMasterVolume] = useState(1.0);
   const [livePricesEnabled, setLivePricesEnabled] = useState(false);
+  const [masterAnalyser, setMasterAnalyser] = useState<AnalyserNode | null>(null);
   const { toast } = useToast();
 
   // Map to store AudioModule instances by node ID
@@ -159,6 +161,18 @@ const Index = () => {
   // Initialize audio context
   useEffect(() => {
     audioContextManager.initialize();
+    const ctx = audioContextManager.getContext();
+    
+    if (ctx) {
+      // Create analyser for background visualizer
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 2048;
+      const masterGain = audioContextManager.getMasterGain();
+      if (masterGain) {
+        masterGain.connect(analyser);
+      }
+      setMasterAnalyser(analyser);
+    }
 
     return () => {
       // Clean up all modules
@@ -772,8 +786,9 @@ const Index = () => {
   const cryptoCount = nodes.filter((n) => n.data.type === "crypto").length;
 
   return (
-    <div className="w-full h-screen bg-background">
-      <ModuleToolbar 
+    <div className="w-full h-screen bg-background relative">
+      <MandelbrotVisualizer analyser={masterAnalyser} isPlaying={isPlaying} />
+      <ModuleToolbar
         onAddCrypto={addCryptoModule} 
         onAddPlugin={addPluginModule}
         livePricesEnabled={livePricesEnabled}
