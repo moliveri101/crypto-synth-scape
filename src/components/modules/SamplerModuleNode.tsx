@@ -2,7 +2,7 @@ import { Handle, Position } from "reactflow";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { Music2, ChevronDown, ChevronUp, X, Mic, Square, Play, Pause, Repeat } from "lucide-react";
+import { Music2, ChevronDown, ChevronUp, X, Mic, Square, Play, Pause, Repeat, Music, Scissors, Rewind } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 
@@ -11,6 +11,13 @@ interface SamplerModuleNodeProps {
   data: {
     volume: number;
     loop: boolean;
+    pitch: number;
+    reverse: boolean;
+    loopStart: number;
+    loopEnd: number;
+    sampleStart: number;
+    sampleEnd: number;
+    duration: number;
     isRecording: boolean;
     isPlaying: boolean;
     hasRecording: boolean;
@@ -21,6 +28,12 @@ interface SamplerModuleNodeProps {
     onStopPlayback?: (id: string) => void;
     onVolumeChange?: (id: string, volume: number) => void;
     onLoopChange?: (id: string, loop: boolean) => void;
+    onPitchChange?: (id: string, pitch: number) => void;
+    onReverseChange?: (id: string, reverse: boolean) => void;
+    onLoopStartChange?: (id: string, time: number) => void;
+    onLoopEndChange?: (id: string, time: number) => void;
+    onSampleStartChange?: (id: string, normalized: number) => void;
+    onSampleEndChange?: (id: string, normalized: number) => void;
     onToggleCollapse?: (id: string) => void;
     onRemove?: (id: string) => void;
   };
@@ -105,14 +118,42 @@ const SamplerModuleNode = ({ data, id }: SamplerModuleNodeProps) => {
                   )}
                 </div>
 
-                <div className="flex items-center justify-between">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center justify-between col-span-2">
+                    <Label className="text-sm text-muted-foreground flex items-center gap-2">
+                      <Repeat className="w-4 h-4" />
+                      Loop
+                    </Label>
+                    <Switch
+                      checked={data.loop}
+                      onCheckedChange={(checked) => data.onLoopChange?.(id, checked)}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between col-span-2">
+                    <Label className="text-sm text-muted-foreground flex items-center gap-2">
+                      <Rewind className="w-4 h-4" />
+                      Reverse
+                    </Label>
+                    <Switch
+                      checked={data.reverse}
+                      onCheckedChange={(checked) => data.onReverseChange?.(id, checked)}
+                    />
+                  </div>
+                </div>
+
+                <div>
                   <Label className="text-sm text-muted-foreground flex items-center gap-2">
-                    <Repeat className="w-4 h-4" />
-                    Loop
+                    <Music className="w-3 h-3" />
+                    Pitch: {data.pitch.toFixed(2)}x
                   </Label>
-                  <Switch
-                    checked={data.loop}
-                    onCheckedChange={(checked) => data.onLoopChange?.(id, checked)}
+                  <Slider
+                    value={[data.pitch]}
+                    onValueChange={([v]) => data.onPitchChange?.(id, v)}
+                    min={0.25}
+                    max={4}
+                    step={0.01}
+                    className="mt-2"
                   />
                 </div>
 
@@ -128,6 +169,71 @@ const SamplerModuleNode = ({ data, id }: SamplerModuleNodeProps) => {
                     step={0.01}
                     className="mt-2"
                   />
+                </div>
+
+                {data.loop && (
+                  <div className="space-y-2 p-2 bg-accent/20 rounded-md">
+                    <Label className="text-xs text-muted-foreground">Loop Points</Label>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">
+                        Start: {data.loopStart.toFixed(2)}s
+                      </Label>
+                      <Slider
+                        value={[data.loopStart]}
+                        onValueChange={([v]) => data.onLoopStartChange?.(id, v)}
+                        min={0}
+                        max={data.duration}
+                        step={0.01}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">
+                        End: {data.loopEnd.toFixed(2)}s
+                      </Label>
+                      <Slider
+                        value={[data.loopEnd]}
+                        onValueChange={([v]) => data.onLoopEndChange?.(id, v)}
+                        min={data.loopStart}
+                        max={data.duration}
+                        step={0.01}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-2 p-2 bg-accent/20 rounded-md">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Scissors className="w-3 h-3" />
+                    Sample Trim
+                  </Label>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">
+                      Start: {(data.sampleStart * 100).toFixed(0)}%
+                    </Label>
+                    <Slider
+                      value={[data.sampleStart]}
+                      onValueChange={([v]) => data.onSampleStartChange?.(id, v)}
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">
+                      End: {(data.sampleEnd * 100).toFixed(0)}%
+                    </Label>
+                    <Slider
+                      value={[data.sampleEnd]}
+                      onValueChange={([v]) => data.onSampleEndChange?.(id, v)}
+                      min={data.sampleStart}
+                      max={1}
+                      step={0.01}
+                      className="mt-1"
+                    />
+                  </div>
                 </div>
               </>
             )}

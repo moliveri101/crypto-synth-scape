@@ -260,7 +260,16 @@ export const useModuleManager = (
     setNodes((nds) =>
       nds.map((n) =>
         n.id === nodeId
-          ? { ...n, data: { ...n.data, isRecording: false, hasRecording: module.hasRecording() } }
+          ? { 
+              ...n, 
+              data: { 
+                ...n.data, 
+                isRecording: false, 
+                hasRecording: module.hasRecording(),
+                duration: module.getDuration(),
+                loopEnd: module.getLoopEnd(),
+              } 
+            }
           : n
       )
     );

@@ -10,13 +10,21 @@ export class SamplerModule extends AudioModule {
   private isRecording: boolean = false;
   private isPlayingBack: boolean = false;
   private stream: MediaStream | null = null;
+  
+  // Professional sampler controls
+  private playbackRate: number = 1.0; // Pitch control (0.5 = -1 octave, 2.0 = +1 octave)
+  private loopStart: number = 0; // Loop start point in seconds
+  private loopEnd: number = 0; // Loop end point in seconds
+  private reverse: boolean = false; // Reverse playback
+  private sampleStart: number = 0; // Sample trim start
+  private sampleEnd: number = 1; // Sample trim end (0-1 normalized)
 
   constructor(ctx: AudioContext) {
     super(ctx);
     
-    // Create gain node for output
+    // Create gain node for output with safer default volume
     this.gainNode = ctx.createGain();
-    this.gainNode.gain.value = 0.8;
+    this.gainNode.gain.value = 0.6; // Reduced from 0.8 to prevent clipping
     
     // Set input/output nodes
     this.inputNode = this.gainNode;
@@ -74,6 +82,15 @@ export class SamplerModule extends AudioModule {
     try {
       const arrayBuffer = await blob.arrayBuffer();
       this.recordedBuffer = await this.ctx.decodeAudioData(arrayBuffer);
+      
+      // Initialize loop points to full sample
+      if (this.recordedBuffer) {
+        this.loopStart = 0;
+        this.loopEnd = this.recordedBuffer.duration;
+        this.sampleStart = 0;
+        this.sampleEnd = 1;
+      }
+      
       console.log('SamplerModule: Audio loaded successfully', this.recordedBuffer.duration);
     } catch (error) {
       console.error('SamplerModule: Failed to decode audio', error);
@@ -85,9 +102,26 @@ export class SamplerModule extends AudioModule {
 
     this.stopPlayback(); // Stop any existing playback
 
+    // Create buffer source with professional sampler features
     this.bufferSource = this.ctx.createBufferSource();
-    this.bufferSource.buffer = this.recordedBuffer;
+    
+    // Handle reverse playback
+    if (this.reverse && this.recordedBuffer) {
+      this.bufferSource.buffer = this.reverseBuffer(this.recordedBuffer);
+    } else {
+      this.bufferSource.buffer = this.recordedBuffer;
+    }
+    
+    // Set playback rate (pitch control)
+    this.bufferSource.playbackRate.value = this.playbackRate;
+    
+    // Set loop points
     this.bufferSource.loop = this.isLooping;
+    if (this.isLooping && this.recordedBuffer) {
+      this.bufferSource.loopStart = this.loopStart;
+      this.bufferSource.loopEnd = this.loopEnd;
+    }
+    
     this.bufferSource.connect(this.gainNode);
     
     this.bufferSource.onended = () => {
@@ -96,10 +130,39 @@ export class SamplerModule extends AudioModule {
       }
     };
 
-    this.bufferSource.start(0);
+    // Calculate start offset based on sample trim
+    const duration = this.recordedBuffer.duration;
+    const offset = this.sampleStart * duration;
+    const playDuration = (this.sampleEnd - this.sampleStart) * duration;
+    
+    if (this.isLooping) {
+      this.bufferSource.start(0, offset);
+    } else {
+      this.bufferSource.start(0, offset, playDuration);
+    }
+    
     this.isPlayingBack = true;
     this.isActive = true;
-    console.log('SamplerModule: Playback started, loop:', this.isLooping);
+    console.log('SamplerModule: Playback started, rate:', this.playbackRate, 'loop:', this.isLooping, 'reverse:', this.reverse);
+  }
+
+  private reverseBuffer(buffer: AudioBuffer): AudioBuffer {
+    const reversedBuffer = this.ctx.createBuffer(
+      buffer.numberOfChannels,
+      buffer.length,
+      buffer.sampleRate
+    );
+
+    for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+      const inputData = buffer.getChannelData(channel);
+      const outputData = reversedBuffer.getChannelData(channel);
+      
+      for (let i = 0; i < buffer.length; i++) {
+        outputData[i] = inputData[buffer.length - 1 - i];
+      }
+    }
+
+    return reversedBuffer;
   }
 
   stopPlayback() {
@@ -120,11 +183,81 @@ export class SamplerModule extends AudioModule {
     this.isLooping = loop;
     if (this.bufferSource) {
       this.bufferSource.loop = loop;
+      if (loop && this.recordedBuffer) {
+        this.bufferSource.loopStart = this.loopStart;
+        this.bufferSource.loopEnd = this.loopEnd;
+      }
     }
   }
 
   setVolume(volume: number) {
-    this.gainNode.gain.value = volume;
+    // Clamp volume to prevent clipping
+    this.gainNode.gain.value = Math.max(0, Math.min(1, volume));
+  }
+
+  setPitch(rate: number) {
+    // Clamp playback rate to reasonable values (0.25x to 4x)
+    this.playbackRate = Math.max(0.25, Math.min(4, rate));
+    if (this.bufferSource) {
+      this.bufferSource.playbackRate.value = this.playbackRate;
+    }
+  }
+
+  setLoopStart(time: number) {
+    if (this.recordedBuffer) {
+      this.loopStart = Math.max(0, Math.min(this.recordedBuffer.duration, time));
+      if (this.bufferSource && this.isLooping) {
+        this.bufferSource.loopStart = this.loopStart;
+      }
+    }
+  }
+
+  setLoopEnd(time: number) {
+    if (this.recordedBuffer) {
+      this.loopEnd = Math.max(this.loopStart, Math.min(this.recordedBuffer.duration, time));
+      if (this.bufferSource && this.isLooping) {
+        this.bufferSource.loopEnd = this.loopEnd;
+      }
+    }
+  }
+
+  setReverse(reverse: boolean) {
+    this.reverse = reverse;
+    // Need to restart playback for reverse to take effect
+    if (this.isPlayingBack) {
+      this.stopPlayback();
+      this.startPlayback();
+    }
+  }
+
+  setSampleStart(normalized: number) {
+    // 0-1 normalized position
+    this.sampleStart = Math.max(0, Math.min(1, normalized));
+  }
+
+  setSampleEnd(normalized: number) {
+    // 0-1 normalized position
+    this.sampleEnd = Math.max(this.sampleStart, Math.min(1, normalized));
+  }
+
+  getDuration(): number {
+    return this.recordedBuffer?.duration || 0;
+  }
+
+  getLoopStart(): number {
+    return this.loopStart;
+  }
+
+  getLoopEnd(): number {
+    return this.loopEnd;
+  }
+
+  getPitch(): number {
+    return this.playbackRate;
+  }
+
+  getReverse(): boolean {
+    return this.reverse;
   }
 
   getIsRecording(): boolean {
@@ -152,10 +285,31 @@ export class SamplerModule extends AudioModule {
   }
 
   setParameter(name: string, value: any) {
-    if (name === "volume") {
-      this.setVolume(value);
-    } else if (name === "loop") {
-      this.setLoop(value);
+    switch (name) {
+      case "volume":
+        this.setVolume(value);
+        break;
+      case "loop":
+        this.setLoop(value);
+        break;
+      case "pitch":
+        this.setPitch(value);
+        break;
+      case "loopStart":
+        this.setLoopStart(value);
+        break;
+      case "loopEnd":
+        this.setLoopEnd(value);
+        break;
+      case "reverse":
+        this.setReverse(value);
+        break;
+      case "sampleStart":
+        this.setSampleStart(value);
+        break;
+      case "sampleEnd":
+        this.setSampleEnd(value);
+        break;
     }
   }
 

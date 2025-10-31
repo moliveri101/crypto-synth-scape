@@ -440,6 +440,12 @@ const Index = () => {
                     onStopPlayback: moduleManager.stopSamplerPlayback,
                     onVolumeChange: (id: string, vol: number) => moduleManager.updateParameter(id, "volume", vol),
                     onLoopChange: (id: string, loop: boolean) => moduleManager.updateParameter(id, "loop", loop),
+                    onPitchChange: (id: string, pitch: number) => moduleManager.updateParameter(id, "pitch", pitch),
+                    onReverseChange: (id: string, reverse: boolean) => moduleManager.updateParameter(id, "reverse", reverse),
+                    onLoopStartChange: (id: string, time: number) => moduleManager.updateParameter(id, "loopStart", time),
+                    onLoopEndChange: (id: string, time: number) => moduleManager.updateParameter(id, "loopEnd", time),
+                    onSampleStartChange: (id: string, normalized: number) => moduleManager.updateParameter(id, "sampleStart", normalized),
+                    onSampleEndChange: (id: string, normalized: number) => moduleManager.updateParameter(id, "sampleEnd", normalized),
                     onToggleCollapse: moduleManager.toggleCollapse,
                     onRemove: moduleManager.removeModule,
                   }
