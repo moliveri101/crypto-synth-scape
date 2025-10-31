@@ -14,9 +14,6 @@ const MandelbrotVisualizer = ({ analyser, isPlaying }: MandelbrotVisualizerProps
   const offsetYRef = useRef(0);
 
   useEffect(() => {
-    // Only show visualizer when analyser is connected
-    if (!analyser) return;
-
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -52,6 +49,7 @@ const MandelbrotVisualizer = ({ analyser, isPlaying }: MandelbrotVisualizerProps
       let midEnergy = 0;
       let trebleEnergy = 0;
       
+      // Only analyze audio if analyser is available and playing
       if (analyser && dataArray && isPlaying) {
         analyser.getByteFrequencyData(dataArray);
         
@@ -65,6 +63,7 @@ const MandelbrotVisualizer = ({ analyser, isPlaying }: MandelbrotVisualizerProps
         midEnergy = midEnergy / third / 255;
         trebleEnergy = trebleEnergy / third / 255;
       }
+      // Otherwise use default values for time-based animation only
 
       // Animate zoom and position based on audio
       const targetZoom = 1 + bassEnergy * 2;
@@ -132,11 +131,6 @@ const MandelbrotVisualizer = ({ analyser, isPlaying }: MandelbrotVisualizerProps
       window.removeEventListener("resize", resizeCanvas);
     };
   }, [analyser, isPlaying]);
-
-  // Don't render canvas if no analyser is connected
-  if (!analyser) {
-    return null;
-  }
 
   return (
     <canvas

@@ -171,6 +171,7 @@ const Index = () => {
       analyser.smoothingTimeConstant = 0.8;
       masterGain.connect(analyser);
       setMasterAnalyser(analyser);
+      console.log('Master analyser created:', analyser);
     }
 
     return () => {
@@ -657,7 +658,14 @@ const Index = () => {
   };
 
   const toggleVisualizer = () => {
-    setVisualizerEnabled(prev => !prev);
+    const newState = !visualizerEnabled;
+    setVisualizerEnabled(newState);
+    toast({
+      title: newState ? "Visualizer Enabled" : "Visualizer Disabled",
+      description: newState 
+        ? "The Mandelbrot fractal will appear in the background" 
+        : "Background visualizer hidden",
+    });
   };
 
   const addPluginModule = (type: ModuleType) => {
