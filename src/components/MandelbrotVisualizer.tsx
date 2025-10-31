@@ -88,10 +88,11 @@ const MandelbrotVisualizer = ({ analyser, isPlaying }: MandelbrotVisualizerProps
           const index = (py * canvas.width + px) * 4;
           
           if (iter === maxIter) {
+            // Make interior transparent instead of solid black
             imageData.data[index] = 0;
             imageData.data[index + 1] = 0;
             imageData.data[index + 2] = 0;
-            imageData.data[index + 3] = 255;
+            imageData.data[index + 3] = 0;
           } else {
             // Psychedelic color palette based on audio
             const hue = (ratio * 360 + timeRef.current * 50 + bassEnergy * 180) % 360;
@@ -135,7 +136,7 @@ const MandelbrotVisualizer = ({ analyser, isPlaying }: MandelbrotVisualizerProps
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 w-full h-full z-0 pointer-events-none"
+      className="fixed inset-0 w-full h-full z-0 pointer-events-none opacity-60"
       style={{ imageRendering: "pixelated" }}
     />
   );
