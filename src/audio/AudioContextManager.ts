@@ -22,6 +22,9 @@ class AudioContextManager {
       this.masterGain = this.audioContext.createGain();
       this.masterGain.connect(this.audioContext.destination);
       this.masterGain.gain.value = 1.0;
+      console.log('AudioContext initialized:', this.audioContext, 'State:', this.audioContext.state);
+    } else {
+      console.log('AudioContext already exists:', this.audioContext, 'State:', this.audioContext.state);
     }
   }
 

@@ -20,6 +20,13 @@ export abstract class AudioModule {
    */
   connect(target: AudioModule | AudioNode) {
     try {
+      console.log('Connecting:', {
+        sourceContext: this.ctx,
+        sourceState: this.ctx.state,
+        targetContext: target instanceof AudioModule ? target.ctx : 'AudioNode',
+        targetState: target instanceof AudioModule ? target.ctx.state : 'N/A'
+      });
+      
       if (target instanceof AudioModule) {
         this.outputNode.connect(target.inputNode);
       } else {

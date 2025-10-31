@@ -17,6 +17,7 @@ export class SatelliteModule extends AudioModule {
     this.gainNode = ctx.createGain();
     this.gainNode.gain.value = 0.5;
     this.outputNode = this.gainNode;
+    console.log('SatelliteModule created with context:', ctx, 'Context state:', ctx.state);
   }
 
   setSatellite(satellite: SatelliteData) {
@@ -134,7 +135,10 @@ export class SatelliteModule extends AudioModule {
         `https://tmrygmhnzxploeytuacn.supabase.co/functions/v1/fetch-satellite-data`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRtcnlnbWhuenhwbG9leXR1YWNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE4NTc5ODksImV4cCI6MjA3NzQzMzk4OX0.5sv7o3QoKAc0pQiTgvi5bXlGqLS1NWmzg6oZTfOfLPI`
+          },
           body: JSON.stringify({ satelliteId: this.satellite.id })
         }
       );
@@ -142,6 +146,8 @@ export class SatelliteModule extends AudioModule {
       if (response.ok) {
         const data = await response.json();
         this.updateFromSatellite(data);
+      } else {
+        console.error('Satellite API error:', response.status, await response.text());
       }
     } catch (error) {
       console.error('Failed to fetch satellite data:', error);
