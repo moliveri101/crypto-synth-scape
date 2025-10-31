@@ -38,7 +38,7 @@ const PLUGIN_CATEGORIES = {
     { type: "mixer-32" as ModuleType, label: "32-Track Mixer" },
   ],
   "Visualization": [
-    { type: "visualizer" as ModuleType, label: "Visualizer" },
+    { type: "visualizer" as ModuleType, label: "Mandelbrot Visualizer" },
   ],
   "Audio Sources": [
     { type: "sampler" as ModuleType, label: "Sampler" },

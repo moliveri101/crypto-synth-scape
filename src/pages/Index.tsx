@@ -21,6 +21,7 @@ import { EffectModule } from "@/audio/modules/EffectModule";
 import { DrumsModule } from "@/audio/modules/DrumsModule";
 import { SequencerModule } from "@/audio/modules/SequencerModule";
 import { OutputModule } from "@/audio/modules/OutputModule";
+import { VisualizerModule } from "@/audio/modules/VisualizerModule";
 import CryptoModuleNode from "@/components/modules/CryptoModuleNode";
 import MixerModuleNode from "@/components/modules/MixerModuleNode";
 import MultiTrackMixerNode from "@/components/modules/MultiTrackMixerNode";
@@ -100,7 +101,7 @@ const Index = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [masterVolume, setMasterVolume] = useState(1.0);
   const [livePricesEnabled, setLivePricesEnabled] = useState(false);
-  const [masterAnalyser, setMasterAnalyser] = useState<AnalyserNode | null>(null);
+  const [activeVisualizer, setActiveVisualizer] = useState<AnalyserNode | null>(null);
   const { toast } = useToast();
 
   // Map to store AudioModule instances by node ID
@@ -161,18 +162,6 @@ const Index = () => {
   // Initialize audio context
   useEffect(() => {
     audioContextManager.initialize();
-    const ctx = audioContextManager.getContext();
-    
-    if (ctx) {
-      // Create analyser for background visualizer
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 2048;
-      const masterGain = audioContextManager.getMasterGain();
-      if (masterGain) {
-        masterGain.connect(analyser);
-      }
-      setMasterAnalyser(analyser);
-    }
 
     return () => {
       // Clean up all modules
@@ -259,6 +248,9 @@ const Index = () => {
         }
       });
 
+      // Track active visualizers
+      let newActiveVisualizer: AnalyserNode | null = null;
+
       // Rebuild connections
       edges.forEach(edge => {
         const sourceNode = currentNodes.find(n => n.id === edge.source);
@@ -271,8 +263,16 @@ const Index = () => {
 
         if (!sourceModule || !targetModule) return;
 
+        // Handle visualizer connections
+        if (targetNode.data.type === "visualizer") {
+          const visualizerModule = targetModule as VisualizerModule;
+          sourceModule.connect(visualizerModule);
+          // Activate this visualizer's analyser for background
+          newActiveVisualizer = visualizerModule.getAnalyser();
+          console.log(`Connected ${edge.source} to visualizer ${edge.target}`);
+        }
         // Handle mixer channel connections
-        if (targetNode.data.type && targetNode.data.type.startsWith("mixer-")) {
+        else if (targetNode.data.type && targetNode.data.type.startsWith("mixer-")) {
           const mixerModule = targetModule as MixerModule;
           const channelIndex = edge.targetHandle ? parseInt(edge.targetHandle.split("-")[1]) : 0;
           const channelInput = mixerModule.getChannelInput(channelIndex);
@@ -287,7 +287,21 @@ const Index = () => {
         }
       });
 
-      return currentNodes;
+      // Update active visualizer
+      setActiveVisualizer(newActiveVisualizer);
+
+      // Update visualizer nodes' isActive state
+      return currentNodes.map(node => {
+        if (node.data.type === "visualizer") {
+          const isConnected = edges.some(e => e.target === node.id);
+          return {
+            ...node,
+            data: { ...node.data, isActive: isConnected }
+          };
+        }
+        return node;
+      });
+
     });
   }, [edges]);
 
@@ -767,8 +781,24 @@ const Index = () => {
           outputNode: audioModule.outputNode,
         },
       };
+    } else if (type === "visualizer") {
+      audioModule = new VisualizerModule(ctx);
+      newNode = {
+        id,
+        type,
+        position: { x: 100 + nodes.length * 50, y: 100 + nodes.length * 50 },
+        data: {
+          type,
+          isActive: false,
+          collapsed: false,
+          audioModule,
+          analyserNode: (audioModule as VisualizerModule).getAnalyser(),
+          inputNode: audioModule.inputNode,
+          outputNode: audioModule.outputNode,
+        },
+      };
     } else {
-      // Visualizer (doesn't use audio modules)
+      // Default fallback
       newNode = {
         id,
         type,
@@ -787,7 +817,7 @@ const Index = () => {
 
   return (
     <div className="w-full h-screen bg-background relative">
-      <MandelbrotVisualizer analyser={masterAnalyser} isPlaying={isPlaying} />
+      <MandelbrotVisualizer analyser={activeVisualizer} isPlaying={isPlaying} />
       <ModuleToolbar
         onAddCrypto={addCryptoModule} 
         onAddPlugin={addPluginModule}
@@ -873,6 +903,16 @@ const Index = () => {
               ? {
                   ...node.data,
                   onVolumeChange: (volume: number) => updatePluginParameter(node.id, "volume", volume),
+                  onRemove: removeNode,
+                }
+              : node.data.type === "visualizer"
+              ? {
+                  ...node.data,
+                  onUpdate: (id: string, updates: any) => {
+                    setNodes((nds) =>
+                      nds.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...updates } } : n))
+                    );
+                  },
                   onRemove: removeNode,
                 }
               : node.data,

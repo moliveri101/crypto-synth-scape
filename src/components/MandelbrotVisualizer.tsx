@@ -14,6 +14,9 @@ const MandelbrotVisualizer = ({ analyser, isPlaying }: MandelbrotVisualizerProps
   const offsetYRef = useRef(0);
 
   useEffect(() => {
+    // Only show visualizer when analyser is connected
+    if (!analyser) return;
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -129,6 +132,11 @@ const MandelbrotVisualizer = ({ analyser, isPlaying }: MandelbrotVisualizerProps
       window.removeEventListener("resize", resizeCanvas);
     };
   }, [analyser, isPlaying]);
+
+  // Don't render canvas if no analyser is connected
+  if (!analyser) {
+    return null;
+  }
 
   return (
     <canvas

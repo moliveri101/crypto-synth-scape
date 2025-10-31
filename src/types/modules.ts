@@ -42,6 +42,9 @@ export interface VisualizerModuleData {
   type: "visualizer";
   isActive: boolean;
   collapsed: boolean;
+  analyserNode: AnalyserNode | null;
+  inputNode: GainNode | null;
+  outputNode: GainNode | null;
 }
 
 export interface SamplerModuleData {
