@@ -51,16 +51,16 @@ export class EffectModule extends AudioModule {
       case "lpf": {
         const filter = this.ctx.createBiquadFilter();
         filter.type = "lowpass";
-        filter.frequency.value = 2000;
-        filter.Q.value = 1;
+        filter.frequency.value = 1000;
+        filter.Q.value = 8; // More dramatic resonance
         return { main: filter };
       }
 
       case "hpf": {
         const filter = this.ctx.createBiquadFilter();
         filter.type = "highpass";
-        filter.frequency.value = 200;
-        filter.Q.value = 1;
+        filter.frequency.value = 500;
+        filter.Q.value = 8; // More dramatic resonance
         return { main: filter };
       }
 
@@ -69,7 +69,7 @@ export class EffectModule extends AudioModule {
         const filter = this.ctx.createBiquadFilter();
         filter.type = "bandpass";
         filter.frequency.value = 1000;
-        filter.Q.value = 5;
+        filter.Q.value = 20; // Much more dramatic resonance
         return { main: filter };
       }
 
@@ -98,12 +98,12 @@ export class EffectModule extends AudioModule {
         const feedbackGain = this.ctx.createGain();
         const filterNode = this.ctx.createBiquadFilter();
         
-        delay.delayTime.value = 0.3;
-        feedbackGain.gain.value = 0.5;
+        delay.delayTime.value = 0.375; // Musical timing (dotted 8th)
+        feedbackGain.gain.value = 0.65; // More dramatic feedback
         filterNode.type = "lowpass";
-        filterNode.frequency.value = 4000;
+        filterNode.frequency.value = 3000; // Darker tape-style delay
         
-        // Create feedback loop with filter
+        // Create feedback loop with filter for tape-style degradation
         delay.connect(filterNode);
         filterNode.connect(feedbackGain);
         feedbackGain.connect(delay);
@@ -112,18 +112,18 @@ export class EffectModule extends AudioModule {
       }
 
       case "reverb": {
-        // Create a simple reverb using multiple delays
+        // Create a lush hall reverb
         const convolver = this.ctx.createConvolver();
-        // Create impulse response for reverb
-        const length = this.ctx.sampleRate * 2;
+        const length = this.ctx.sampleRate * 4; // Longer for bigger space
         const impulse = this.ctx.createBuffer(2, length, this.ctx.sampleRate);
         const leftChannel = impulse.getChannelData(0);
         const rightChannel = impulse.getChannelData(1);
         
         for (let i = 0; i < length; i++) {
-          const decay = Math.pow(1 - i / length, 2);
-          leftChannel[i] = (Math.random() * 2 - 1) * decay;
-          rightChannel[i] = (Math.random() * 2 - 1) * decay;
+          const decay = Math.pow(1 - i / length, 1.5); // Slower decay for hall
+          const earlyReflection = i < this.ctx.sampleRate * 0.1 ? Math.random() * 0.3 : 0;
+          leftChannel[i] = ((Math.random() * 2 - 1) * decay + earlyReflection) * 0.8;
+          rightChannel[i] = ((Math.random() * 2 - 1) * decay + earlyReflection) * 0.8;
         }
         
         convolver.buffer = impulse;
@@ -134,14 +134,24 @@ export class EffectModule extends AudioModule {
       case "overdrive":
       case "fuzz": {
         const waveshaper = this.ctx.createWaveShaper();
-        const amount = type === "fuzz" ? 100 : type === "distortion" ? 50 : 20;
+        // More dramatic distortion curves
+        const amount = type === "fuzz" ? 200 : type === "distortion" ? 100 : 30;
         const samples = 44100;
         const curve = new Float32Array(samples);
-        const deg = Math.PI / 180;
         
         for (let i = 0; i < samples; i++) {
           const x = (i * 2) / samples - 1;
-          curve[i] = ((3 + amount) * x * 20 * deg) / (Math.PI + amount * Math.abs(x));
+          if (type === "fuzz") {
+            // Hard clipping for fuzz with asymmetrical curve
+            curve[i] = Math.max(-0.8, Math.min(0.9, x * amount)) * (x > 0 ? 1 : 0.9);
+          } else if (type === "distortion") {
+            // Aggressive soft clipping for distortion
+            curve[i] = Math.tanh(x * amount) * 0.9;
+          } else {
+            // Smooth tube-like overdrive
+            const k = 2 * amount / (1 - amount);
+            curve[i] = (1 + k) * x / (1 + k * Math.abs(x));
+          }
         }
         
         waveshaper.curve = curve;
@@ -154,8 +164,10 @@ export class EffectModule extends AudioModule {
         const lfo = this.ctx.createOscillator();
         const lfoGain = this.ctx.createGain();
         
-        lfo.frequency.value = 5;
-        lfoGain.gain.value = 0.5;
+        lfo.type = "sine"; // Classic tremolo waveform
+        lfo.frequency.value = 6; // Classic tremolo speed
+        tremolo.gain.value = 0.5; // Center point
+        lfoGain.gain.value = 0.4; // Dramatic depth
         
         lfo.connect(lfoGain);
         lfoGain.connect(tremolo.gain);
@@ -173,22 +185,26 @@ export class EffectModule extends AudioModule {
         const lfoGain = this.ctx.createGain();
         const feedbackGain = this.ctx.createGain();
         
-        // Flanger has faster LFO and shorter delay
+        // More dramatic modulation settings
         if (type === "flanger") {
-          lfo.frequency.value = 0.5;
-          lfoGain.gain.value = 0.002;
-          delay.delayTime.value = 0.005;
-          feedbackGain.gain.value = 0.5;
+          lfo.type = "sine";
+          lfo.frequency.value = 0.7; // Faster sweep
+          lfoGain.gain.value = 0.004; // Deeper modulation
+          delay.delayTime.value = 0.003;
+          feedbackGain.gain.value = 0.7; // More resonance
         } else if (type === "phaser") {
-          lfo.frequency.value = 0.3;
-          lfoGain.gain.value = 0.005;
-          delay.delayTime.value = 0.02;
-          feedbackGain.gain.value = 0.5;
+          lfo.type = "sine";
+          lfo.frequency.value = 0.5;
+          lfoGain.gain.value = 0.008; // More dramatic sweep
+          delay.delayTime.value = 0.015;
+          feedbackGain.gain.value = 0.6;
         } else {
-          lfo.frequency.value = 0.3;
-          lfoGain.gain.value = 0.005;
-          delay.delayTime.value = 0.02;
-          feedbackGain.gain.value = 0;
+          // Chorus with lush, wide modulation
+          lfo.type = "sine";
+          lfo.frequency.value = 0.4;
+          lfoGain.gain.value = 0.01; // Wider modulation
+          delay.delayTime.value = 0.025;
+          feedbackGain.gain.value = 0.2; // Subtle feedback
         }
         
         lfo.connect(lfoGain);
@@ -196,7 +212,7 @@ export class EffectModule extends AudioModule {
         lfo.start();
         this.oscillators.push(lfo);
         
-        // Add feedback loop
+        // Add feedback loop for resonance
         delay.connect(feedbackGain);
         feedbackGain.connect(delay);
         
@@ -205,14 +221,15 @@ export class EffectModule extends AudioModule {
 
       case "bitcrusher": {
         const waveshaper = this.ctx.createWaveShaper();
-        const bits = 4;
+        const bits = 6; // More dramatic bit reduction
         const samples = 44100;
         const curve = new Float32Array(samples);
         const step = Math.pow(0.5, bits);
         
         for (let i = 0; i < samples; i++) {
           const x = (i * 2) / samples - 1;
-          curve[i] = step * Math.floor(x / step + 0.5);
+          // Add some non-linearity for more character
+          curve[i] = step * Math.floor(x / step + 0.5) * 1.1;
         }
         
         waveshaper.curve = curve;

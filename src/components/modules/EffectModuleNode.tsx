@@ -31,16 +31,18 @@ interface EffectModuleNodeProps {
 }
 
 const EFFECT_INFO: Record<string, { label: string; icon: any; color: string; params?: { name: string; min: number; max: number; step: number; unit?: string }[] }> = {
-  // Time-Based Effects
+  // Time-Based Effects - Hall/Room Style
   "reverb": { 
     label: "Reverb", 
     icon: Waves, 
     color: "text-blue-400", 
     params: [
       { name: "size", min: 0.1, max: 1, step: 0.01 },
-      { name: "decay", min: 0.1, max: 10, step: 0.1, unit: "s" },
+      { name: "decay", min: 0.1, max: 15, step: 0.1, unit: "s" },
       { name: "damping", min: 0, max: 1, step: 0.01 },
-      { name: "predelay", min: 0, max: 100, step: 1, unit: "ms" }
+      { name: "predelay", min: 0, max: 200, step: 1, unit: "ms" },
+      { name: "shimmer", min: 0, max: 1, step: 0.01 },
+      { name: "modulation", min: 0, max: 1, step: 0.01 }
     ]
   },
   "delay": { 
@@ -49,8 +51,10 @@ const EFFECT_INFO: Record<string, { label: string; icon: any; color: string; par
     color: "text-cyan-400", 
     params: [
       { name: "time", min: 0.01, max: 2, step: 0.01, unit: "s" },
-      { name: "feedback", min: 0, max: 0.95, step: 0.01 },
-      { name: "filterFreq", min: 200, max: 8000, step: 100, unit: "Hz" }
+      { name: "feedback", min: 0, max: 0.98, step: 0.01 },
+      { name: "filterFreq", min: 100, max: 12000, step: 100, unit: "Hz" },
+      { name: "pingpong", min: 0, max: 1, step: 0.01 },
+      { name: "tape", min: 0, max: 1, step: 0.01 }
     ]
   },
   "chorus": { 
@@ -58,10 +62,11 @@ const EFFECT_INFO: Record<string, { label: string; icon: any; color: string; par
     icon: Wind, 
     color: "text-teal-400", 
     params: [
-      { name: "rate", min: 0.1, max: 5, step: 0.1, unit: "Hz" },
+      { name: "rate", min: 0.1, max: 8, step: 0.1, unit: "Hz" },
       { name: "depth", min: 0, max: 1, step: 0.01 },
-      { name: "feedback", min: -0.5, max: 0.5, step: 0.01 },
-      { name: "delay", min: 10, max: 40, step: 1, unit: "ms" }
+      { name: "voices", min: 1, max: 4, step: 1 },
+      { name: "detune", min: 0, max: 50, step: 1, unit: "cents" },
+      { name: "feedback", min: -0.7, max: 0.7, step: 0.01 }
     ]
   },
   "flanger": { 
@@ -69,10 +74,11 @@ const EFFECT_INFO: Record<string, { label: string; icon: any; color: string; par
     icon: CircleDot, 
     color: "text-emerald-400", 
     params: [
-      { name: "rate", min: 0.01, max: 10, step: 0.01, unit: "Hz" },
+      { name: "rate", min: 0.01, max: 15, step: 0.01, unit: "Hz" },
       { name: "depth", min: 0, max: 1, step: 0.01 },
-      { name: "feedback", min: 0, max: 0.9, step: 0.01 },
-      { name: "delay", min: 0.5, max: 10, step: 0.1, unit: "ms" }
+      { name: "feedback", min: -0.95, max: 0.95, step: 0.01 },
+      { name: "manual", min: 0.1, max: 20, step: 0.1, unit: "ms" },
+      { name: "resonance", min: 0, max: 1, step: 0.01 }
     ]
   },
   "phaser": { 
@@ -80,14 +86,15 @@ const EFFECT_INFO: Record<string, { label: string; icon: any; color: string; par
     icon: Layers, 
     color: "text-green-400", 
     params: [
-      { name: "rate", min: 0.1, max: 10, step: 0.1, unit: "Hz" },
+      { name: "rate", min: 0.05, max: 12, step: 0.05, unit: "Hz" },
       { name: "depth", min: 0, max: 1, step: 0.01 },
-      { name: "feedback", min: 0, max: 0.9, step: 0.01 },
-      { name: "frequency", min: 200, max: 5000, step: 100, unit: "Hz" }
+      { name: "feedback", min: -0.9, max: 0.9, step: 0.01 },
+      { name: "stages", min: 2, max: 12, step: 1 },
+      { name: "frequency", min: 200, max: 8000, step: 100, unit: "Hz" }
     ]
   },
   
-  // Dynamic Effects
+  // Dynamic Effects - Studio Style
   "compressor": { 
     label: "Compressor", 
     icon: Gauge, 
@@ -95,25 +102,26 @@ const EFFECT_INFO: Record<string, { label: string; icon: any; color: string; par
     params: [
       { name: "threshold", min: -60, max: 0, step: 1, unit: "dB" },
       { name: "ratio", min: 1, max: 20, step: 0.5 },
-      { name: "attack", min: 0.001, max: 0.5, step: 0.001, unit: "s" },
-      { name: "release", min: 0.01, max: 1, step: 0.01, unit: "s" },
-      { name: "knee", min: 0, max: 40, step: 1, unit: "dB" }
+      { name: "attack", min: 0.001, max: 1, step: 0.001, unit: "s" },
+      { name: "release", min: 0.01, max: 2, step: 0.01, unit: "s" },
+      { name: "knee", min: 0, max: 40, step: 1, unit: "dB" },
+      { name: "makeup", min: 0, max: 30, step: 0.5, unit: "dB" }
     ]
   },
   
-  // EQ/Filter Effects
+  // EQ/Filter Effects - Vintage Style
   "eq": { 
     label: "3-Band EQ", 
     icon: Sliders, 
     color: "text-purple-400", 
     params: [
       { name: "lowFreq", min: 20, max: 500, step: 10, unit: "Hz" },
-      { name: "lowGain", min: -12, max: 12, step: 0.5, unit: "dB" },
-      { name: "midFreq", min: 200, max: 5000, step: 100, unit: "Hz" },
-      { name: "midGain", min: -12, max: 12, step: 0.5, unit: "dB" },
-      { name: "midQ", min: 0.5, max: 10, step: 0.1 },
+      { name: "lowGain", min: -24, max: 24, step: 0.5, unit: "dB" },
+      { name: "midFreq", min: 200, max: 8000, step: 100, unit: "Hz" },
+      { name: "midGain", min: -24, max: 24, step: 0.5, unit: "dB" },
+      { name: "midQ", min: 0.3, max: 15, step: 0.1 },
       { name: "highFreq", min: 2000, max: 20000, step: 100, unit: "Hz" },
-      { name: "highGain", min: -12, max: 12, step: 0.5, unit: "dB" }
+      { name: "highGain", min: -24, max: 24, step: 0.5, unit: "dB" }
     ]
   },
   "lpf": { 
@@ -122,7 +130,9 @@ const EFFECT_INFO: Record<string, { label: string; icon: any; color: string; par
     color: "text-indigo-400", 
     params: [
       { name: "cutoff", min: 20, max: 20000, step: 10, unit: "Hz" },
-      { name: "resonance", min: 0.1, max: 30, step: 0.1 }
+      { name: "resonance", min: 0.1, max: 40, step: 0.1 },
+      { name: "drive", min: 0, max: 1, step: 0.01 },
+      { name: "envAmount", min: 0, max: 1, step: 0.01 }
     ]
   },
   "hpf": { 
@@ -131,7 +141,9 @@ const EFFECT_INFO: Record<string, { label: string; icon: any; color: string; par
     color: "text-violet-400", 
     params: [
       { name: "cutoff", min: 20, max: 20000, step: 10, unit: "Hz" },
-      { name: "resonance", min: 0.1, max: 30, step: 0.1 }
+      { name: "resonance", min: 0.1, max: 40, step: 0.1 },
+      { name: "drive", min: 0, max: 1, step: 0.01 },
+      { name: "slope", min: 12, max: 48, step: 12, unit: "dB/oct" }
     ]
   },
   "bandpass": { 
@@ -140,7 +152,8 @@ const EFFECT_INFO: Record<string, { label: string; icon: any; color: string; par
     color: "text-fuchsia-400", 
     params: [
       { name: "frequency", min: 20, max: 20000, step: 10, unit: "Hz" },
-      { name: "Q", min: 0.1, max: 30, step: 0.1 }
+      { name: "Q", min: 0.1, max: 50, step: 0.1 },
+      { name: "gain", min: 0, max: 2, step: 0.01 }
     ]
   },
   "resonant-filter": { 
@@ -149,12 +162,14 @@ const EFFECT_INFO: Record<string, { label: string; icon: any; color: string; par
     color: "text-rose-400", 
     params: [
       { name: "cutoff", min: 20, max: 20000, step: 10, unit: "Hz" },
-      { name: "resonance", min: 0.1, max: 30, step: 0.1 },
-      { name: "envAmount", min: 0, max: 1, step: 0.01 }
+      { name: "resonance", min: 0.1, max: 50, step: 0.1 },
+      { name: "envAmount", min: 0, max: 1, step: 0.01 },
+      { name: "drive", min: 0, max: 1, step: 0.01 },
+      { name: "type", min: 0, max: 1, step: 1 }
     ]
   },
   
-  // Distortion Effects
+  // Distortion Effects - Pedal Style
   "overdrive": { 
     label: "Overdrive", 
     icon: Disc, 
@@ -162,7 +177,9 @@ const EFFECT_INFO: Record<string, { label: string; icon: any; color: string; par
     params: [
       { name: "drive", min: 0, max: 1, step: 0.01 },
       { name: "tone", min: 0, max: 1, step: 0.01 },
-      { name: "level", min: 0, max: 2, step: 0.01 }
+      { name: "level", min: 0, max: 2, step: 0.01 },
+      { name: "presence", min: 0, max: 1, step: 0.01 },
+      { name: "bite", min: 0, max: 1, step: 0.01 }
     ]
   },
   "distortion": { 
@@ -172,7 +189,9 @@ const EFFECT_INFO: Record<string, { label: string; icon: any; color: string; par
     params: [
       { name: "amount", min: 0, max: 1, step: 0.01 },
       { name: "tone", min: 0, max: 1, step: 0.01 },
-      { name: "level", min: 0, max: 2, step: 0.01 }
+      { name: "level", min: 0, max: 2, step: 0.01 },
+      { name: "scoop", min: 0, max: 1, step: 0.01 },
+      { name: "saturation", min: 0, max: 1, step: 0.01 }
     ]
   },
   "fuzz": { 
@@ -182,7 +201,9 @@ const EFFECT_INFO: Record<string, { label: string; icon: any; color: string; par
     params: [
       { name: "fuzz", min: 0, max: 1, step: 0.01 },
       { name: "tone", min: 0, max: 1, step: 0.01 },
-      { name: "octave", min: 0, max: 1, step: 0.01 }
+      { name: "octave", min: 0, max: 1, step: 0.01 },
+      { name: "bias", min: 0, max: 1, step: 0.01 },
+      { name: "gate", min: 0, max: 1, step: 0.01 }
     ]
   },
   "bitcrusher": { 
@@ -191,18 +212,52 @@ const EFFECT_INFO: Record<string, { label: string; icon: any; color: string; par
     color: "text-gray-400", 
     params: [
       { name: "bits", min: 1, max: 16, step: 1 },
-      { name: "sampleRate", min: 0.01, max: 1, step: 0.01 }
+      { name: "sampleRate", min: 0.01, max: 1, step: 0.01 },
+      { name: "mix", min: 0, max: 1, step: 0.01 },
+      { name: "crush", min: 0, max: 1, step: 0.01 }
     ]
   },
   
-  // Modulation Effects
+  // Modulation Effects - Vintage Pedals
   "tremolo": { 
     label: "Tremolo", 
     icon: Volume2, 
     color: "text-blue-500", 
     params: [
-      { name: "rate", min: 0.1, max: 20, step: 0.1, unit: "Hz" },
-      { name: "depth", min: 0, max: 1, step: 0.01 }
+      { name: "rate", min: 0.5, max: 25, step: 0.1, unit: "Hz" },
+      { name: "depth", min: 0, max: 1, step: 0.01 },
+      { name: "shape", min: 0, max: 1, step: 0.01 },
+      { name: "phase", min: 0, max: 180, step: 1, unit: "°" }
+    ]
+  },
+  "autopan": { 
+    label: "Auto-Pan", 
+    icon: Move, 
+    color: "text-cyan-500", 
+    params: [
+      { name: "rate", min: 0.1, max: 10, step: 0.1, unit: "Hz" },
+      { name: "depth", min: 0, max: 1, step: 0.01 },
+      { name: "shape", min: 0, max: 1, step: 0.01 }
+    ]
+  },
+  "vibrato": { 
+    label: "Vibrato", 
+    icon: Sparkles, 
+    color: "text-pink-400", 
+    params: [
+      { name: "rate", min: 0.5, max: 15, step: 0.1, unit: "Hz" },
+      { name: "depth", min: 0, max: 1, step: 0.01 },
+      { name: "pitch", min: 0, max: 50, step: 1, unit: "cents" }
+    ]
+  },
+  "ringmod": { 
+    label: "Ring Modulator", 
+    icon: Radio, 
+    color: "text-yellow-400", 
+    params: [
+      { name: "frequency", min: 20, max: 5000, step: 10, unit: "Hz" },
+      { name: "mix", min: 0, max: 1, step: 0.01 },
+      { name: "octave", min: -2, max: 2, step: 1 }
     ]
   }
 };
