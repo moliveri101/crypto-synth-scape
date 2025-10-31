@@ -2,7 +2,7 @@ import { AudioModule } from "../AudioModule";
 
 export class SequencerModule extends AudioModule {
   private bpm: number = 120;
-  private steps: boolean[] = Array(16).fill(false);
+  private steps: boolean[] = [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false];
   private currentStep: number = 0;
   private intervalId: number | null = null;
   private gateGain: GainNode;

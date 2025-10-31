@@ -480,6 +480,25 @@ const Index = () => {
     );
   };
 
+  const getAllUpstreamSources = (nodeId: string, visited = new Set<string>()): any[] => {
+    if (visited.has(nodeId)) return [];
+    visited.add(nodeId);
+
+    const directSources = edges
+      .filter((e) => e.target === nodeId)
+      .map((e) => nodes.find((n) => n.id === e.source))
+      .filter(Boolean);
+
+    const allSources = [...directSources];
+    directSources.forEach((source) => {
+      if (source) {
+        allSources.push(...getAllUpstreamSources(source.id, visited));
+      }
+    });
+
+    return allSources;
+  };
+
   const togglePlay = (mixerId: string) => {
     const mixerNode = nodes.find((n) => n.id === mixerId);
     if (!mixerNode) return;
@@ -493,13 +512,10 @@ const Index = () => {
       // Stop this mixer
       mixerModule.stop();
       
-      // Find all source nodes connected to this mixer and stop them
-      const connectedSources = edges
-        .filter((e) => e.target === mixerId)
-        .map((e) => nodes.find((n) => n.id === e.source))
-        .filter(Boolean);
+      // Find ALL upstream sources (recursively) and stop them
+      const allSources = getAllUpstreamSources(mixerId);
 
-      connectedSources.forEach((sourceNode) => {
+      allSources.forEach((sourceNode) => {
         if (sourceNode?.data.audioModule) {
           const module = sourceNode.data.audioModule as AudioModule;
           module.stop();
@@ -511,8 +527,8 @@ const Index = () => {
           if (n.id === mixerId) {
             return { ...n, data: { ...n.data, isPlaying: false } };
           }
-          // Update source nodes
-          if (connectedSources.find((s) => s?.id === n.id)) {
+          // Update all source nodes
+          if (allSources.find((s) => s?.id === n.id)) {
             return { ...n, data: { ...n.data, isPlaying: false } };
           }
           return n;
@@ -535,13 +551,10 @@ const Index = () => {
       audioContextManager.resume();
       mixerModule.start();
 
-      // Find all source nodes connected to this mixer and start them
-      const connectedSources = edges
-        .filter((e) => e.target === mixerId)
-        .map((e) => nodes.find((n) => n.id === e.source))
-        .filter(Boolean);
+      // Find ALL upstream sources (recursively) and start them
+      const allSources = getAllUpstreamSources(mixerId);
 
-      connectedSources.forEach((sourceNode) => {
+      allSources.forEach((sourceNode) => {
         if (sourceNode?.data.audioModule) {
           const module = sourceNode.data.audioModule as AudioModule;
           module.start();
@@ -554,8 +567,8 @@ const Index = () => {
           if (n.id === mixerId) {
             return { ...n, data: { ...n.data, isPlaying: true } };
           }
-          // Update source nodes
-          if (connectedSources.find((s) => s?.id === n.id)) {
+          // Update all source nodes
+          if (allSources.find((s) => s?.id === n.id)) {
             return { ...n, data: { ...n.data, isPlaying: true } };
           }
           return n;
