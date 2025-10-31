@@ -12,6 +12,7 @@ const MandelbrotVisualizer = ({ analyser, isPlaying }: MandelbrotVisualizerProps
   const zoomRef = useRef(1);
   const offsetXRef = useRef(0);
   const offsetYRef = useRef(0);
+  const frameCountRef = useRef(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -28,6 +29,11 @@ const MandelbrotVisualizer = ({ analyser, isPlaying }: MandelbrotVisualizerProps
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
 
+    // Reduce FFT size for better performance
+    if (analyser) {
+      analyser.fftSize = 1024;
+    }
+
     const dataArray = analyser ? new Uint8Array(analyser.frequencyBinCount) : null;
 
     const mandelbrot = (cx: number, cy: number, maxIter: number) => {
@@ -43,6 +49,19 @@ const MandelbrotVisualizer = ({ analyser, isPlaying }: MandelbrotVisualizerProps
 
     const draw = () => {
       if (!canvas || !ctx) return;
+
+      // Frame skipping for 20fps instead of 60fps
+      frameCountRef.current++;
+      if (frameCountRef.current % 3 !== 0) {
+        animationRef.current = requestAnimationFrame(draw);
+        return;
+      }
+
+      // Only animate when playing
+      if (!isPlaying) {
+        animationRef.current = requestAnimationFrame(draw);
+        return;
+      }
 
       timeRef.current += 0.005;
       
@@ -78,7 +97,7 @@ const MandelbrotVisualizer = ({ analyser, isPlaying }: MandelbrotVisualizerProps
 
       // Faster low-res rendering using block fills for performance
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const STEP = 3; // larger = faster, more pixelated
+      const STEP = 8; // Increased from 3 to 8 for 86% faster rendering
 
       for (let px = 0; px < canvas.width; px += STEP) {
         for (let py = 0; py < canvas.height; py += STEP) {
