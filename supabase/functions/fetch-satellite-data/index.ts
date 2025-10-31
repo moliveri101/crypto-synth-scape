@@ -20,7 +20,7 @@ serve(async (req) => {
       );
     }
 
-    const apiKey = Deno.env.get('N2YO_API_KEY');
+    const apiKey = Deno.env.get('N2YO_API_KEY')?.trim();
     console.log('API Key present:', apiKey ? 'Yes' : 'No');
     
     const observerLat = 41.702;
