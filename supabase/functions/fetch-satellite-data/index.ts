@@ -28,7 +28,7 @@ serve(async (req) => {
     const observerAlt = 0;
     const seconds = 1;
 
-    const url = `https://api.n2yo.com/rest/v1/satellite/positions/${satelliteId}/${observerLat}/${observerLng}/${observerAlt}/${seconds}?apikey=${apiKey}`;
+    const url = `https://api.n2yo.com/rest/v1/satellite/positions/${satelliteId}/${observerLat}/${observerLng}/${observerAlt}/${seconds}/&apiKey=${apiKey}`;
     
     console.log('Fetching satellite data for:', satelliteId);
     console.log('API URL:', url);
