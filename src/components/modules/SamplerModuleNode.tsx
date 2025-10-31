@@ -2,32 +2,29 @@ import { Handle, Position } from "reactflow";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Music2, ChevronDown, ChevronUp, X } from "lucide-react";
+import { Music2, ChevronDown, ChevronUp, X, Mic, Square, Play, Pause, Repeat } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 
 interface SamplerModuleNodeProps {
   id: string;
   data: {
-    sample: string;
-    pitch: number;
-    decay: number;
+    volume: number;
+    loop: boolean;
+    isRecording: boolean;
+    isPlaying: boolean;
+    hasRecording: boolean;
     collapsed: boolean;
-    onSampleChange?: (sample: string) => void;
-    onPitchChange?: (pitch: number) => void;
-    onDecayChange?: (decay: number) => void;
+    onStartRecording?: (id: string) => void;
+    onStopRecording?: (id: string) => void;
+    onStartPlayback?: (id: string) => void;
+    onStopPlayback?: (id: string) => void;
+    onVolumeChange?: (id: string, volume: number) => void;
+    onLoopChange?: (id: string, loop: boolean) => void;
     onToggleCollapse?: (id: string) => void;
     onRemove?: (id: string) => void;
   };
 }
-
-const SAMPLES = [
-  { value: "sine", label: "Sine Wave" },
-  { value: "piano", label: "Piano" },
-  { value: "synth", label: "Synth Pad" },
-  { value: "bell", label: "Bell" },
-  { value: "strings", label: "Strings" },
-];
 
 const SamplerModuleNode = ({ data, id }: SamplerModuleNodeProps) => {
   return (
@@ -62,50 +59,92 @@ const SamplerModuleNode = ({ data, id }: SamplerModuleNodeProps) => {
 
         {!data.collapsed && (
           <div className="space-y-3">
-          <div>
-            <Label className="text-sm text-muted-foreground">Sample</Label>
-            <Select value={data.sample} onValueChange={data.onSampleChange}>
-              <SelectTrigger className="bg-secondary border-border">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SAMPLES.map((sample) => (
-                  <SelectItem key={sample.value} value={sample.value}>
-                    {sample.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            <div className="flex gap-2">
+              {!data.isRecording ? (
+                <Button
+                  onClick={() => data.onStartRecording?.(id)}
+                  className="flex-1 gap-2"
+                  variant="default"
+                >
+                  <Mic className="w-4 h-4" />
+                  Record
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => data.onStopRecording?.(id)}
+                  className="flex-1 gap-2"
+                  variant="destructive"
+                >
+                  <Square className="w-4 h-4" />
+                  Stop Recording
+                </Button>
+              )}
+            </div>
 
-          <div>
-            <Label className="text-sm text-muted-foreground">
-              Pitch: {data.pitch.toFixed(1)}
-            </Label>
-            <Slider
-              value={[data.pitch]}
-              onValueChange={([v]) => data.onPitchChange?.(v)}
-              min={-12}
-              max={12}
-              step={0.1}
-              className="mt-2"
-            />
-          </div>
+            {data.hasRecording && (
+              <>
+                <div className="flex gap-2">
+                  {!data.isPlaying ? (
+                    <Button
+                      onClick={() => data.onStartPlayback?.(id)}
+                      className="flex-1 gap-2"
+                      variant="secondary"
+                    >
+                      <Play className="w-4 h-4" />
+                      Play
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => data.onStopPlayback?.(id)}
+                      className="flex-1 gap-2"
+                      variant="secondary"
+                    >
+                      <Pause className="w-4 h-4" />
+                      Stop
+                    </Button>
+                  )}
+                </div>
 
-          <div>
-            <Label className="text-sm text-muted-foreground">
-              Decay: {data.decay.toFixed(2)}s
-            </Label>
-            <Slider
-              value={[data.decay]}
-              onValueChange={([v]) => data.onDecayChange?.(v)}
-              min={0.1}
-              max={5}
-              step={0.1}
-              className="mt-2"
-            />
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm text-muted-foreground flex items-center gap-2">
+                    <Repeat className="w-4 h-4" />
+                    Loop
+                  </Label>
+                  <Switch
+                    checked={data.loop}
+                    onCheckedChange={(checked) => data.onLoopChange?.(id, checked)}
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-sm text-muted-foreground">
+                    Volume: {(data.volume * 100).toFixed(0)}%
+                  </Label>
+                  <Slider
+                    value={[data.volume]}
+                    onValueChange={([v]) => data.onVolumeChange?.(id, v)}
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    className="mt-2"
+                  />
+                </div>
+              </>
+            )}
+
+            {!data.hasRecording && !data.isRecording && (
+              <p className="text-xs text-muted-foreground text-center py-4">
+                Click Record to capture audio from your microphone
+              </p>
+            )}
+
+            {data.isRecording && (
+              <div className="flex items-center justify-center gap-2 py-2">
+                <div className="w-2 h-2 bg-destructive rounded-full animate-pulse" />
+                <p className="text-xs text-muted-foreground">Recording...</p>
+              </div>
+            )}
           </div>
-        </div>
         )}
       </div>
 

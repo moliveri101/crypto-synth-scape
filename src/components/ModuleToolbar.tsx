@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, Sparkles, Info, Satellite } from "lucide-react";
+import { Search, Plus, Sparkles, Satellite } from "lucide-react";
 import { CryptoData } from "@/types/crypto";
 import { SatelliteData } from "@/types/modules";
 import { useToast } from "@/hooks/use-toast";
@@ -13,13 +13,8 @@ import {
 import { ModuleType } from "@/types/modules";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
+import { InfoDialog } from "@/components/InfoDialog";
 
 interface ModuleToolbarProps {
   onAddCrypto: (crypto: CryptoData) => void;
@@ -43,7 +38,6 @@ const POPULAR_SATELLITES = [
 const PLUGIN_CATEGORIES = {
   "Outputs": [
     { type: "output-speakers" as ModuleType, label: "Speakers" },
-    { type: "output-headphones" as ModuleType, label: "Headphones" },
   ],
   "Mixers": [
     { type: "mixer-4" as ModuleType, label: "4-Track Mixer" },
@@ -192,8 +186,7 @@ const ModuleToolbar = ({ onAddCrypto, onAddSatellite, onAddPlugin, livePricesEna
   };
 
   return (
-    <TooltipProvider>
-      <div className="fixed top-4 left-4 z-10 flex gap-2">
+    <div className="fixed top-4 left-4 z-10 flex gap-2">
         <Popover open={isCryptoOpen} onOpenChange={setIsCryptoOpen}>
         <PopoverTrigger asChild>
           <Button size="lg" className="shadow-glow gap-2">
@@ -319,23 +312,7 @@ const ModuleToolbar = ({ onAddCrypto, onAddSatellite, onAddPlugin, livePricesEna
         </PopoverContent>
       </Popover>
 
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button size="lg" variant="outline" className="w-12 px-0">
-            <Info className="w-5 h-5" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="max-w-xs">
-          <div className="space-y-2 text-sm">
-            <p className="font-semibold">How to connect modules:</p>
-            <ul className="list-disc list-inside space-y-1">
-              <li>Drag from output (right) to input (left)</li>
-              <li>Select edge and press Delete/Backspace</li>
-              <li>Hold Ctrl to select multiple</li>
-            </ul>
-          </div>
-        </TooltipContent>
-      </Tooltip>
+      <InfoDialog />
 
       <Button 
         size="lg" 
@@ -347,7 +324,6 @@ const ModuleToolbar = ({ onAddCrypto, onAddSatellite, onAddPlugin, livePricesEna
         {livePricesEnabled ? "Live Prices ON" : "Live Prices OFF"}
       </Button>
     </div>
-    </TooltipProvider>
   );
 };
 

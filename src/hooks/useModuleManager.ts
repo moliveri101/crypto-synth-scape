@@ -5,9 +5,11 @@ import { CryptoModule } from "@/audio/modules/CryptoModule";
 import { SatelliteModule } from "@/audio/modules/SatelliteModule";
 import { DrumsModule } from "@/audio/modules/DrumsModule";
 import { MixerModule } from "@/audio/modules/MixerModule";
+import { SamplerModule } from "@/audio/modules/SamplerModule";
 import { moduleFactory } from "@/services/ModuleFactory";
 import { CryptoData } from "@/types/crypto";
 import { ModuleType, SatelliteData } from "@/types/modules";
+import { useToast } from "@/hooks/use-toast";
 
 const EFFECT_TYPES = [
   "reverb", "delay", "chorus", "flanger", "phaser", "pingpong-delay",
@@ -26,6 +28,7 @@ export const useModuleManager = (
   setNodes: (nodes: any[] | ((nodes: any[]) => any[])) => void,
   setEdges: (edges: any[] | ((edges: any[]) => any[])) => void
 ) => {
+  const { toast } = useToast();
   /**
    * Add a crypto module
    */
@@ -227,6 +230,84 @@ export const useModuleManager = (
     updateParameter(mixerId, `channel_${channel}_${param}`, value);
   }, [updateParameter]);
 
+  /**
+   * Sampler controls
+   */
+  const startSamplerRecording = useCallback(async (nodeId: string) => {
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node || node.data.type !== "sampler") return;
+
+    const module = node.data.audioModule as SamplerModule;
+    const success = await module.startRecording();
+    
+    if (success) {
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === nodeId
+            ? { ...n, data: { ...n.data, isRecording: true } }
+            : n
+        )
+      );
+      toast({ title: "Recording", description: "Microphone recording started" });
+    } else {
+      toast({ 
+        title: "Error", 
+        description: "Failed to access microphone",
+        variant: "destructive"
+      });
+    }
+  }, [nodes, setNodes, toast]);
+
+  const stopSamplerRecording = useCallback((nodeId: string) => {
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node || node.data.type !== "sampler") return;
+
+    const module = node.data.audioModule as SamplerModule;
+    module.stopRecording();
+    
+    setNodes((nds) =>
+      nds.map((n) =>
+        n.id === nodeId
+          ? { ...n, data: { ...n.data, isRecording: false, hasRecording: module.hasRecording() } }
+          : n
+      )
+    );
+    toast({ title: "Recording stopped", description: "Sample ready to play" });
+  }, [nodes, setNodes, toast]);
+
+  const startSamplerPlayback = useCallback((nodeId: string) => {
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node || node.data.type !== "sampler") return;
+
+    audioContextManager.resume();
+    const module = node.data.audioModule as SamplerModule;
+    module.startPlayback();
+    
+    setNodes((nds) =>
+      nds.map((n) =>
+        n.id === nodeId
+          ? { ...n, data: { ...n.data, isPlaying: true } }
+          : n
+      )
+    );
+  }, [nodes, setNodes]);
+
+  const stopSamplerPlayback = useCallback((nodeId: string) => {
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node || node.data.type !== "sampler") return;
+
+    const module = node.data.audioModule as SamplerModule;
+    module.stopPlayback();
+    
+    setNodes((nds) =>
+      nds.map((n) =>
+        n.id === nodeId
+          ? { ...n, data: { ...n.data, isPlaying: false } }
+          : n
+      )
+    );
+  }, [nodes, setNodes]);
+
   return {
     addCryptoModule,
     addSatelliteModule,
@@ -238,5 +319,9 @@ export const useModuleManager = (
     toggleCollapse,
     triggerDrum,
     updateMixerChannel,
+    startSamplerRecording,
+    stopSamplerRecording,
+    startSamplerPlayback,
+    stopSamplerPlayback,
   };
 };

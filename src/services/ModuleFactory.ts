@@ -7,6 +7,7 @@ import { DrumsModule } from "@/audio/modules/DrumsModule";
 import { SequencerModule } from "@/audio/modules/SequencerModule";
 import { OutputModule } from "@/audio/modules/OutputModule";
 import { SatelliteModule } from "@/audio/modules/SatelliteModule";
+import { SamplerModule } from "@/audio/modules/SamplerModule";
 import { AudioModule } from "@/audio/AudioModule";
 
 const EFFECT_TYPES = [
@@ -210,10 +211,11 @@ export class ModuleFactory {
   }
 
   /**
-   * Create a sampler module node (legacy - not using new module system yet)
+   * Create a sampler module node
    */
-  createSamplerModule(nodeCount: number): any {
+  createSamplerModule(ctx: AudioContext, nodeCount: number): any {
     const id = `sampler-${Date.now()}`;
+    const samplerModule = new SamplerModule(ctx);
 
     return {
       id,
@@ -221,11 +223,14 @@ export class ModuleFactory {
       position: { x: 100 + nodeCount * 50, y: 100 + nodeCount * 50 },
       data: {
         type: "sampler",
-        sample: "sine",
-        pitch: 0,
-        decay: 1,
-        isActive: true,
+        volume: 0.8,
+        loop: false,
+        isRecording: false,
+        isPlaying: false,
+        hasRecording: false,
         collapsed: false,
+        audioModule: samplerModule,
+        outputNode: samplerModule.outputNode,
       },
     };
   }
@@ -235,7 +240,7 @@ export class ModuleFactory {
    */
   createModule(ctx: AudioContext, type: ModuleType, nodeCount: number, options?: any): any {
     if (type === "sampler") {
-      return this.createSamplerModule(nodeCount);
+      return this.createSamplerModule(ctx, nodeCount);
     } else if (type === "sequencer") {
       return this.createSequencerModule(ctx, nodeCount, options?.stepCallback);
     } else if (type === "drums") {

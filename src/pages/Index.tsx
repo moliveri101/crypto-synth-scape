@@ -417,6 +417,18 @@ const Index = () => {
                     onVolumeChange: (vol: number) => moduleManager.updateParameter(node.id, "volume", vol),
                     onRemove: moduleManager.removeModule,
                   }
+                : node.data.type === "sampler"
+                ? {
+                    ...node.data,
+                    onStartRecording: moduleManager.startSamplerRecording,
+                    onStopRecording: moduleManager.stopSamplerRecording,
+                    onStartPlayback: moduleManager.startSamplerPlayback,
+                    onStopPlayback: moduleManager.stopSamplerPlayback,
+                    onVolumeChange: (id: string, vol: number) => moduleManager.updateParameter(id, "volume", vol),
+                    onLoopChange: (id: string, loop: boolean) => moduleManager.updateParameter(id, "loop", loop),
+                    onToggleCollapse: moduleManager.toggleCollapse,
+                    onRemove: moduleManager.removeModule,
+                  }
                 : node.data,
           }))}
           edges={edges.map((edge) => ({
