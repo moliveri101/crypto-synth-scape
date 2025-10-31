@@ -16,10 +16,22 @@ export class SatelliteModule extends AudioModule {
 
   constructor(ctx: AudioContext) {
     super(ctx);
+    
+    // Validate context is not closed
+    if (ctx.state === 'closed') {
+      console.error('SatelliteModule: Cannot create with closed AudioContext');
+      throw new Error('Cannot create SatelliteModule with closed AudioContext');
+    }
+    
     this.gainNode = ctx.createGain();
     this.gainNode.gain.value = 0.5;
+    
+    // Explicitly set both input and output
+    this.inputNode = ctx.createGain(); // Override base class default
+    this.inputNode.connect(this.gainNode); // Connect input through to output
     this.outputNode = this.gainNode;
-    console.log('SatelliteModule created with context:', ctx, 'Context state:', ctx.state);
+    
+    console.log('SatelliteModule created - Context:', ctx.state, 'Gain:', this.gainNode.gain.value);
   }
 
   setSatellite(satellite: SatelliteData) {
@@ -100,6 +112,19 @@ export class SatelliteModule extends AudioModule {
 
   start() {
     if (this.isActive) return;
+    
+    // Validate context state before starting
+    if (this.ctx.state === 'closed') {
+      console.error('SatelliteModule: Cannot start with closed AudioContext');
+      return;
+    }
+    
+    // Resume context if suspended
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume().then(() => {
+        console.log('SatelliteModule: AudioContext resumed');
+      });
+    }
 
     this.oscillator = this.ctx.createOscillator();
     this.oscillator.type = "sine";
@@ -107,6 +132,8 @@ export class SatelliteModule extends AudioModule {
     this.oscillator.connect(this.gainNode);
     this.oscillator.start();
     this.isActive = true;
+    
+    console.log('SatelliteModule started - Context:', this.ctx.state, 'Oscillator connected');
 
     // Start pulse scheduling
     this.schedulePulse();
