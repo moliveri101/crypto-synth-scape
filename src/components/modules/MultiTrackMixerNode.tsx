@@ -138,7 +138,7 @@ const MultiTrackMixerNode = ({ data, id }: NodeProps<MixerModuleData & {
                         value={[channel.volume * 100]}
                         onValueChange={([v]) => onChannelVolumeChange?.(i, v / 100)}
                         min={0}
-                        max={100}
+                        max={200}
                         step={1}
                         disabled={channel.muted}
                       />
@@ -183,7 +183,7 @@ const MultiTrackMixerNode = ({ data, id }: NodeProps<MixerModuleData & {
               <Slider
                 value={[masterVolume * 100]}
                 onValueChange={(values) => onMasterVolumeChange(values[0] / 100)}
-                max={100}
+                max={200}
                 step={1}
               />
             </div>

@@ -228,12 +228,14 @@ export class EffectModule extends AudioModule {
   }
 
   start() {
-    this.isActive = true;
+    // Don't override isActive - respect the user's bypass setting
+    // Just ensure the audio graph is ready
     this.updateBypass();
   }
 
   stop() {
-    this.isActive = false;
+    // Don't change isActive when stopping playback
+    // The bypass state should persist
     this.updateBypass();
   }
 
