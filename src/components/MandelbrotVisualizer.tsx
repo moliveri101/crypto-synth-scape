@@ -136,7 +136,7 @@ const MandelbrotVisualizer = ({ analyser, isPlaying }: MandelbrotVisualizerProps
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 w-full h-full z-0 pointer-events-none opacity-60"
+      className="absolute inset-0 w-full h-full z-0 pointer-events-none opacity-60"
       style={{ imageRendering: "pixelated" }}
     />
   );

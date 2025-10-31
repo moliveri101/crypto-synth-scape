@@ -816,7 +816,7 @@ const Index = () => {
       {visualizerEnabled && (
         <MandelbrotVisualizer analyser={masterAnalyser} isPlaying={isPlaying} />
       )}
-      <div className="relative z-20">
+      <div className="relative z-30">
         <ModuleToolbar
         onAddCrypto={addCryptoModule} 
         onAddPlugin={addPluginModule}
