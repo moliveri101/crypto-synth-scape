@@ -33,7 +33,18 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      console.error('CoinGecko API error:', response.status, await response.text());
+      const errorText = await response.text();
+      console.error('CoinGecko API error:', response.status, errorText);
+      if (response.status === 429) {
+        // Graceful degrade on rate limiting: return empty array to avoid client errors
+        return new Response(
+          JSON.stringify([]),
+          { 
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Rate-Limited': 'true' }
+          }
+        );
+      }
       throw new Error(`CoinGecko API returned ${response.status}`);
     }
 

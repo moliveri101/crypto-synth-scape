@@ -17,9 +17,12 @@ export const useLiveCryptoPrices = ({
 }: UseLiveCryptoPricesOptions) => {
   const failureCountRef = useRef(0);
   const backoffTimeoutRef = useRef<number | null>(null);
+  const isFetchingRef = useRef(false);
   
   const fetchPrices = useCallback(async () => {
     if (!enabled || cryptoIds.length === 0) return;
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
 
     try {
       const { data, error } = await supabase.functions.invoke('fetch-crypto-prices', {
@@ -29,11 +32,6 @@ export const useLiveCryptoPrices = ({
       if (error) {
         console.error('Error fetching crypto prices:', error);
         failureCountRef.current++;
-        
-        // Stop polling after 3 consecutive failures
-        if (failureCountRef.current >= 3) {
-          console.warn('Too many failures, stopping price updates');
-        }
         return;
       }
 
@@ -41,6 +39,9 @@ export const useLiveCryptoPrices = ({
       failureCountRef.current = 0;
 
       if (data && Array.isArray(data)) {
+        // If rate-limited, the function returns an empty array; just skip update
+        if (data.length === 0) return;
+
         const updatedCryptos: CryptoData[] = data.map((crypto: any) => ({
           id: crypto.id,
           symbol: crypto.symbol,
@@ -56,6 +57,8 @@ export const useLiveCryptoPrices = ({
     } catch (error) {
       console.error('Error in useLiveCryptoPrices:', error);
       failureCountRef.current++;
+    } finally {
+      isFetchingRef.current = false;
     }
   }, [cryptoIds, onPriceUpdate, enabled]);
 
@@ -68,7 +71,7 @@ export const useLiveCryptoPrices = ({
       return;
     }
 
-    // Don't fetch if too many failures
+    // Don't fetch if too many consecutive failures
     if (failureCountRef.current >= 3) {
       console.warn('Skipping fetch due to previous failures');
       return;
