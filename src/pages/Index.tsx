@@ -510,14 +510,17 @@ const Index = () => {
 
     if (mixerIsPlaying) {
       // Stop this mixer
+      console.log('Stopping mixer:', mixerId);
       mixerModule.stop();
       
       // Find ALL upstream sources (recursively) and stop them
       const allSources = getAllUpstreamSources(mixerId);
+      console.log('Found upstream sources to stop:', allSources.map(s => `${s?.type}-${s?.id}`));
 
       allSources.forEach((sourceNode) => {
         if (sourceNode?.data.audioModule) {
           const module = sourceNode.data.audioModule as AudioModule;
+          console.log('Stopping module:', sourceNode.type, sourceNode.id);
           module.stop();
         }
       });
@@ -548,15 +551,18 @@ const Index = () => {
       }
     } else {
       // Start this mixer
+      console.log('Starting mixer:', mixerId);
       audioContextManager.resume();
       mixerModule.start();
 
       // Find ALL upstream sources (recursively) and start them
       const allSources = getAllUpstreamSources(mixerId);
+      console.log('Found upstream sources to start:', allSources.map(s => `${s?.type}-${s?.id}`));
 
       allSources.forEach((sourceNode) => {
         if (sourceNode?.data.audioModule) {
           const module = sourceNode.data.audioModule as AudioModule;
+          console.log('Starting module:', sourceNode.type, sourceNode.id, 'isActive:', module.getIsActive());
           module.start();
         }
       });
