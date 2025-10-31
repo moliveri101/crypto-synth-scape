@@ -153,7 +153,7 @@ const Index = () => {
     cryptoIds: activeCryptoIds,
     onPriceUpdate: handlePriceUpdate,
     enabled: livePricesEnabled && activeCryptoIds.length > 0,
-    intervalMs: 30000, // Update every 30 seconds
+    intervalMs: 120000, // Update every 2 minutes to avoid rate limits
   });
 
   // Initialize audio context
