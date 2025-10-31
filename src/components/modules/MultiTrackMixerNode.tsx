@@ -2,7 +2,7 @@ import { Handle, Position, NodeProps } from "reactflow";
 import { MixerModuleData } from "@/types/modules";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Play, Pause, Volume2, ChevronDown, ChevronUp, VolumeX, X } from "lucide-react";
+import { Play, Pause, Volume2, ChevronDown, ChevronUp, VolumeX, X, Eye } from "lucide-react";
 import { Label } from "@/components/ui/label";
 
 const MultiTrackMixerNode = ({ data, id }: NodeProps<MixerModuleData & {
@@ -12,6 +12,7 @@ const MultiTrackMixerNode = ({ data, id }: NodeProps<MixerModuleData & {
   onChannelVolumeChange?: (channel: number, volume: number) => void;
   onChannelPanChange?: (channel: number, pan: number) => void;
   onChannelMuteToggle?: (channel: number) => void;
+  onToggleVisualizer: () => void;
   onRemove: (id: string) => void;
 }>) => {
   const { 
@@ -89,6 +90,15 @@ const MultiTrackMixerNode = ({ data, id }: NodeProps<MixerModuleData & {
               ) : (
                 <Play className="w-6 h-6 ml-0.5" />
               )}
+            </Button>
+            <Button
+              variant={data.visualizerEnabled ? "default" : "outline"}
+              size="icon"
+              className={data.visualizerEnabled ? "h-6 w-6 shadow-glow" : "h-6 w-6"}
+              onClick={data.onToggleVisualizer}
+              title="Toggle Visualizer"
+            >
+              <Eye className="w-3 h-3" />
             </Button>
             <Button
               variant="ghost"

@@ -21,7 +21,6 @@ import { EffectModule } from "@/audio/modules/EffectModule";
 import { DrumsModule } from "@/audio/modules/DrumsModule";
 import { SequencerModule } from "@/audio/modules/SequencerModule";
 import { OutputModule } from "@/audio/modules/OutputModule";
-import { VisualizerModule } from "@/audio/modules/VisualizerModule";
 import CryptoModuleNode from "@/components/modules/CryptoModuleNode";
 import MixerModuleNode from "@/components/modules/MixerModuleNode";
 import MultiTrackMixerNode from "@/components/modules/MultiTrackMixerNode";
@@ -248,23 +247,7 @@ const Index = () => {
         }
       });
 
-      // Track active visualizers - check if any visualizer is connected
-      const visualizerEdges = edges.filter(e => {
-        const target = currentNodes.find(n => n.id === e.target);
-        return target?.data.type === "visualizer";
-      });
-
-      let newActiveVisualizer: AnalyserNode | null = null;
-
-      // If we have visualizer connections, use the first one's analyser
-      if (visualizerEdges.length > 0) {
-        const visualizerNode = currentNodes.find(n => n.id === visualizerEdges[0].target);
-        if (visualizerNode?.data.audioModule) {
-          const visualizerModule = visualizerNode.data.audioModule as VisualizerModule;
-          newActiveVisualizer = visualizerModule.getAnalyser();
-          console.log('Activating visualizer for background:', visualizerEdges[0].target);
-        }
-      }
+      
 
       // Rebuild connections
       edges.forEach(edge => {
@@ -278,12 +261,7 @@ const Index = () => {
 
         if (!sourceModule || !targetModule) return;
 
-        // Handle visualizer connections
-        if (targetNode.data.type === "visualizer") {
-          const visualizerModule = targetModule as VisualizerModule;
-          sourceModule.connect(visualizerModule);
-          console.log(`Connected ${edge.source} to visualizer ${edge.target}`);
-        }
+        
         // Handle mixer channel connections
         else if (targetNode.data.type && targetNode.data.type.startsWith("mixer-")) {
           const mixerModule = targetModule as MixerModule;

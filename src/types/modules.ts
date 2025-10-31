@@ -36,6 +36,8 @@ export interface MixerModuleData {
   channelGains?: GainNode[];
   channelPanners?: StereoPannerNode[];
   mergerNode?: AudioNode | null;
+  visualizerEnabled?: boolean;
+  analyserNode?: AnalyserNode | null;
 }
 
 export interface VisualizerModuleData {
