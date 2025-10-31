@@ -82,7 +82,7 @@ const MandelbrotVisualizer = ({ analyser, isPlaying }: MandelbrotVisualizerProps
 
       for (let px = 0; px < canvas.width; px += STEP) {
         for (let py = 0; py < canvas.height; py += STEP) {
-          const baseCenterX = -1;
+          const baseCenterX = -0.75;
           const baseCenterY = -0.15;
           const x0 = (px - canvas.width / 2) * scale + baseCenterX + offsetXRef.current;
           const y0 = (py - canvas.height / 2) * scale + baseCenterY + offsetYRef.current;
