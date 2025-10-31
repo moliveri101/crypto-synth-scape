@@ -82,4 +82,9 @@ All colors MUST be HSL.
   .react-flow__edge:hover .react-flow__edge-path {
     stroke-width: 3 !important;
   }
+  
+  /* Hide ReactFlow attribution */
+  .react-flow__attribution {
+    display: none !important;
+  }
 }
