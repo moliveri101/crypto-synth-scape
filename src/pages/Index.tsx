@@ -97,12 +97,16 @@ const Index = () => {
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [livePricesEnabled, setLivePricesEnabled] = useState(false);
-  const [visualizerEnabled, setVisualizerEnabled] = useState(false);
   const [masterAnalyser, setMasterAnalyser] = useState<AnalyserNode | null>(null);
   const { toast } = useToast();
 
   // Use the module manager hook
   const moduleManager = useModuleManager(nodes, setNodes, setEdges);
+
+  // Calculate if any visualizer module exists and is not collapsed
+  const visualizerVisible = nodes.some(
+    n => n.data.type === "visualizer" && !n.data.collapsed
+  );
 
   // Get list of crypto IDs from current nodes
   const activeCryptoIds = nodes
@@ -320,12 +324,15 @@ const Index = () => {
   };
 
   const toggleVisualizer = () => {
-    const newState = !visualizerEnabled;
-    setVisualizerEnabled(newState);
-    toast({
-      title: newState ? "Visualizer Enabled" : "Visualizer Disabled",
-      description: newState ? "The Mandelbrot fractal will appear in the background" : "Background visualizer hidden",
-    });
+    // Add or remove visualizer module
+    if (visualizerVisible) {
+      // Remove all visualizer modules
+      const visualizerNodes = nodes.filter(n => n.data.type === "visualizer");
+      visualizerNodes.forEach(node => moduleManager.removeModule(node.id));
+    } else {
+      // Add a new visualizer module
+      moduleManager.addPluginModule("visualizer");
+    }
   };
 
   return (
@@ -342,7 +349,7 @@ const Index = () => {
               description: !livePricesEnabled ? "Crypto prices will update every 30 seconds" : "Price tracking stopped",
             });
           }}
-          visualizerEnabled={visualizerEnabled}
+          visualizerEnabled={visualizerVisible}
           onToggleVisualizer={toggleVisualizer}
         />
 
@@ -442,7 +449,11 @@ const Index = () => {
           <MiniMap />
         </ReactFlow>
       </div>
-      {visualizerEnabled && <MandelbrotVisualizer analyser={masterAnalyser} isPlaying={isPlaying} />}
+      <MandelbrotVisualizer 
+        analyser={masterAnalyser}
+        isPlaying={isPlaying}
+        isVisible={visualizerVisible}
+      />
     </div>
   );
 };

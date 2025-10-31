@@ -3,9 +3,10 @@ import { useEffect, useRef } from "react";
 interface MandelbrotVisualizerProps {
   analyser: AnalyserNode | null;
   isPlaying: boolean;
+  isVisible: boolean;
 }
 
-const MandelbrotVisualizer = ({ analyser, isPlaying }: MandelbrotVisualizerProps) => {
+const MandelbrotVisualizer = ({ analyser, isPlaying, isVisible }: MandelbrotVisualizerProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
   const timeRef = useRef(0);
@@ -15,6 +16,8 @@ const MandelbrotVisualizer = ({ analyser, isPlaying }: MandelbrotVisualizerProps
   const frameCountRef = useRef(0);
 
   useEffect(() => {
+    if (!isVisible) return; // Don't start animation if not visible
+    
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -57,9 +60,8 @@ const MandelbrotVisualizer = ({ analyser, isPlaying }: MandelbrotVisualizerProps
         return;
       }
 
-      // Only animate when playing
+      // Only animate when playing - stop loop completely when paused
       if (!isPlaying) {
-        animationRef.current = requestAnimationFrame(draw);
         return;
       }
 
@@ -147,7 +149,9 @@ const MandelbrotVisualizer = ({ analyser, isPlaying }: MandelbrotVisualizerProps
       }
       window.removeEventListener("resize", resizeCanvas);
     };
-  }, [analyser, isPlaying]);
+  }, [analyser, isPlaying, isVisible]);
+
+  if (!isVisible) return null;
 
   return (
     <canvas
