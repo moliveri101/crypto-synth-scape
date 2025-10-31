@@ -21,30 +21,37 @@ serve(async (req) => {
     }
 
     const apiKey = Deno.env.get('N2YO_API_KEY');
+    console.log('API Key present:', apiKey ? 'Yes' : 'No');
+    
     const observerLat = 41.702;
     const observerLng = -86.238;
     const observerAlt = 0;
     const seconds = 1;
 
-    const url = `https://api.n2yo.com/rest/v1/satellite/positions/${satelliteId}/${observerLat}/${observerLng}/${observerAlt}/${seconds}/&apikey=${apiKey}`;
+    const url = `https://api.n2yo.com/rest/v1/satellite/positions/${satelliteId}/${observerLat}/${observerLng}/${observerAlt}/${seconds}?apikey=${apiKey}`;
     
     console.log('Fetching satellite data for:', satelliteId);
+    console.log('API URL:', url);
     
     const response = await fetch(url);
+    console.log('N2YO Response status:', response.status);
     
     if (!response.ok) {
-      console.error('N2YO API error:', response.status, response.statusText);
+      const errorText = await response.text();
+      console.error('N2YO API error:', response.status, response.statusText, errorText);
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch satellite data' }),
+        JSON.stringify({ error: `N2YO API error: ${response.status} - ${errorText}` }),
         { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const data = await response.json();
+    console.log('N2YO Response data:', JSON.stringify(data));
     
     if (!data.positions || data.positions.length === 0) {
+      console.error('No positions in response:', data);
       return new Response(
-        JSON.stringify({ error: 'No satellite data found' }),
+        JSON.stringify({ error: 'No satellite data found', details: data }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
