@@ -1,7 +1,7 @@
 import { Node, Edge } from "reactflow";
 import { CryptoData } from "./crypto";
 
-export type ModuleType = "crypto" | "mixer" | "mixer-4" | "mixer-8" | "mixer-16" | "mixer-32" | "sampler" | "sequencer" | "drums" |
+export type ModuleType = "crypto" | "satellite" | "mixer" | "mixer-4" | "mixer-8" | "mixer-16" | "mixer-32" | "sampler" | "sequencer" | "drums" |
   "reverb" | "delay" | "chorus" | "flanger" | "phaser" | "pingpong-delay" |
   "compressor" | "limiter" | "gate" | "de-esser" |
   "eq" | "lpf" | "hpf" | "bandpass" | "resonant-filter" |
@@ -9,6 +9,15 @@ export type ModuleType = "crypto" | "mixer" | "mixer-4" | "mixer-8" | "mixer-16"
   "vibrato" | "tremolo" | "ring-mod" | "pitch-shifter" | "octaver" |
   "granular" | "vocoder" | "auto-pan" | "stereo-widener" |
   "output-speakers" | "output-headphones";
+
+export interface SatelliteData {
+  name: string;
+  id: number;
+  altitude: number;
+  latitude: number;
+  longitude: number;
+  timestamp: number;
+}
 
 export interface CryptoModuleData {
   type: "crypto";
@@ -90,6 +99,21 @@ export interface DrumsModuleData {
   outputNode: GainNode | null;
 }
 
+export interface SatelliteModuleData {
+  type: "satellite";
+  satellite: SatelliteData | null;
+  volume: number;
+  waveform: OscillatorType;
+  oscillator: OscillatorNode | null;
+  gainNode: GainNode | null;
+  isPlaying: boolean;
+  collapsed: boolean;
+  speed: number;
+  altitude: number;
+  latitude: number;
+  longitude: number;
+}
+
 export interface OutputModuleData {
   type: "output-speakers" | "output-headphones";
   volume: number;
@@ -100,6 +124,7 @@ export interface OutputModuleData {
 
 export type ModuleData = 
   | CryptoModuleData 
+  | SatelliteModuleData
   | MixerModuleData 
   | SamplerModuleData 
   | SequencerModuleData

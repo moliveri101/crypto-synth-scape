@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, Sparkles, Info } from "lucide-react";
+import { Search, Plus, Sparkles, Info, Satellite } from "lucide-react";
 import { CryptoData } from "@/types/crypto";
+import { SatelliteData } from "@/types/modules";
 import { useToast } from "@/hooks/use-toast";
 import {
   Popover,
@@ -18,13 +19,26 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ModuleToolbarProps {
   onAddCrypto: (crypto: CryptoData) => void;
+  onAddSatellite: (satellite: SatelliteData) => void;
   onAddPlugin: (type: ModuleType) => void;
   livePricesEnabled: boolean;
   onToggleLivePrices: () => void;
 }
+
+const POPULAR_SATELLITES = [
+  { id: 25544, name: "ISS (International Space Station)" },
+  { id: 48274, name: "Starlink-1007" },
+  { id: 43013, name: "Hubble Space Telescope" },
+  { id: 41859, name: "Tiangong Space Station" },
+  { id: 37820, name: "NOAA 18 Weather Satellite" },
+  { id: 33591, name: "GPS BIIR-11" },
+  { id: 25994, name: "Terra (EOS AM-1)" },
+  { id: 27424, name: "Aqua (EOS PM-1)" },
+];
 
 const PLUGIN_CATEGORIES = {
   "Outputs": [
@@ -85,12 +99,14 @@ const PLUGIN_CATEGORIES = {
   ],
 };
 
-const ModuleToolbar = ({ onAddCrypto, onAddPlugin, livePricesEnabled, onToggleLivePrices }: ModuleToolbarProps) => {
+const ModuleToolbar = ({ onAddCrypto, onAddSatellite, onAddPlugin, livePricesEnabled, onToggleLivePrices }: ModuleToolbarProps) => {
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<CryptoData[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isCryptoOpen, setIsCryptoOpen] = useState(false);
+  const [isSatelliteOpen, setIsSatelliteOpen] = useState(false);
   const [isPluginOpen, setIsPluginOpen] = useState(false);
+  const [isFetchingSatellite, setIsFetchingSatellite] = useState(false);
   const { toast } = useToast();
 
   const searchCrypto = async () => {
@@ -137,6 +153,33 @@ const ModuleToolbar = ({ onAddCrypto, onAddPlugin, livePricesEnabled, onToggleLi
       title: "Module added",
       description: `${crypto.name} module added to canvas`,
     });
+  };
+
+  const handleAddSatellite = async (satelliteId: number, satelliteName: string) => {
+    setIsFetchingSatellite(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-satellite-data', {
+        body: { satelliteId }
+      });
+
+      if (error) throw error;
+
+      onAddSatellite(data);
+      setIsSatelliteOpen(false);
+      toast({
+        title: "Satellite added",
+        description: `${satelliteName} module added to canvas`,
+      });
+    } catch (error) {
+      console.error('Error fetching satellite:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch satellite data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsFetchingSatellite(false);
+    }
   };
 
   const handleAddPlugin = (type: ModuleType, label: string) => {
@@ -206,6 +249,38 @@ const ModuleToolbar = ({ onAddCrypto, onAddPlugin, livePricesEnabled, onToggleLi
               </div>
             )}
           </div>
+        </PopoverContent>
+      </Popover>
+
+      <Popover open={isSatelliteOpen} onOpenChange={setIsSatelliteOpen}>
+        <PopoverTrigger asChild>
+          <Button size="lg" variant="secondary" className="shadow-glow gap-2">
+            <Satellite className="w-5 h-5" />
+            Add Satellite
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-96 bg-card border-border" align="start">
+          <ScrollArea className="h-[400px] pr-4">
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold text-muted-foreground mb-3">
+                Popular Satellites
+              </h4>
+              {POPULAR_SATELLITES.map((satellite) => (
+                <Button
+                  key={satellite.id}
+                  variant="ghost"
+                  className="w-full justify-between text-left h-auto py-2"
+                  onClick={() => handleAddSatellite(satellite.id, satellite.name)}
+                  disabled={isFetchingSatellite}
+                >
+                  <span className="flex-1">{satellite.name}</span>
+                  <span className="text-xs text-muted-foreground ml-2">
+                    ID: {satellite.id}
+                  </span>
+                </Button>
+              ))}
+            </div>
+          </ScrollArea>
         </PopoverContent>
       </Popover>
 

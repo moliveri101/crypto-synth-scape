@@ -2,11 +2,12 @@ import { useCallback } from "react";
 import { audioContextManager } from "@/audio/AudioContextManager";
 import { AudioModule } from "@/audio/AudioModule";
 import { CryptoModule } from "@/audio/modules/CryptoModule";
+import { SatelliteModule } from "@/audio/modules/SatelliteModule";
 import { DrumsModule } from "@/audio/modules/DrumsModule";
 import { MixerModule } from "@/audio/modules/MixerModule";
 import { moduleFactory } from "@/services/ModuleFactory";
 import { CryptoData } from "@/types/crypto";
-import { ModuleType } from "@/types/modules";
+import { ModuleType, SatelliteData } from "@/types/modules";
 
 const EFFECT_TYPES = [
   "reverb", "delay", "chorus", "flanger", "phaser", "pingpong-delay",
@@ -42,6 +43,25 @@ export const useModuleManager = (
     setNodes((nds) => [...nds, newNode]);
 
     return { success: true, message: `${crypto.name} added to canvas` };
+  }, [nodes, setNodes]);
+
+  /**
+   * Add a satellite module
+   */
+  const addSatelliteModule = useCallback((satellite: SatelliteData) => {
+    const id = `satellite-${satellite.id}`;
+
+    if (nodes.find((n) => n.id === id)) {
+      return { success: false, message: `${satellite.name} module is already on the canvas` };
+    }
+
+    const ctx = audioContextManager.getContext();
+    if (!ctx) return { success: false, message: "Audio context not available" };
+
+    const newNode = moduleFactory.createSatelliteModule(ctx, satellite, nodes.length);
+    setNodes((nds) => [...nds, newNode]);
+
+    return { success: true, message: `${satellite.name} added to canvas` };
   }, [nodes, setNodes]);
 
   /**
@@ -198,6 +218,7 @@ export const useModuleManager = (
 
   return {
     addCryptoModule,
+    addSatelliteModule,
     addPluginModule,
     removeModule,
     startModule,

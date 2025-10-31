@@ -1,11 +1,12 @@
 import { CryptoData } from "@/types/crypto";
-import { ModuleType } from "@/types/modules";
+import { ModuleType, SatelliteData } from "@/types/modules";
 import { CryptoModule } from "@/audio/modules/CryptoModule";
 import { MixerModule } from "@/audio/modules/MixerModule";
 import { EffectModule } from "@/audio/modules/EffectModule";
 import { DrumsModule } from "@/audio/modules/DrumsModule";
 import { SequencerModule } from "@/audio/modules/SequencerModule";
 import { OutputModule } from "@/audio/modules/OutputModule";
+import { SatelliteModule } from "@/audio/modules/SatelliteModule";
 import { AudioModule } from "@/audio/AudioModule";
 
 const EFFECT_TYPES = [
@@ -45,6 +46,35 @@ export class ModuleFactory {
         collapsed: false,
         audioModule: cryptoModule,
         gainNode: cryptoModule.outputNode,
+      },
+    };
+  }
+
+  /**
+   * Create a satellite module node
+   */
+  createSatelliteModule(ctx: AudioContext, satellite: SatelliteData, nodeCount: number): any {
+    const id = `satellite-${satellite.id}`;
+    const satelliteModule = new SatelliteModule(ctx);
+    satelliteModule.setSatellite(satellite);
+
+    return {
+      id,
+      type: "satellite",
+      position: { x: 100 + nodeCount * 50, y: 100 + nodeCount * 50 },
+      data: {
+        type: "satellite",
+        satellite,
+        volume: 0.7,
+        waveform: "sine" as OscillatorType,
+        isPlaying: false,
+        collapsed: false,
+        speed: 0,
+        altitude: satellite.altitude,
+        latitude: satellite.latitude,
+        longitude: satellite.longitude,
+        audioModule: satelliteModule,
+        gainNode: satelliteModule.outputNode,
       },
     };
   }

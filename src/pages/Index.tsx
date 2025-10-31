@@ -13,10 +13,12 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { CryptoData } from "@/types/crypto";
+import { SatelliteData } from "@/types/modules";
 import { audioContextManager } from "@/audio/AudioContextManager";
 import { audioRouter } from "@/services/AudioRouter";
 import { useModuleManager } from "@/hooks/useModuleManager";
 import CryptoModuleNode from "@/components/modules/CryptoModuleNode";
+import SatelliteModuleNode from "@/components/modules/SatelliteModuleNode";
 import MixerModuleNode from "@/components/modules/MixerModuleNode";
 import MultiTrackMixerNode from "@/components/modules/MultiTrackMixerNode";
 import SequencerModuleNode from "@/components/modules/SequencerModuleNode";
@@ -30,11 +32,13 @@ import { ModuleType } from "@/types/modules";
 import InteractiveEdge from "@/components/modules/InteractiveEdge";
 import { useLiveCryptoPrices } from "@/hooks/useLiveCryptoPrices";
 import { CryptoModule } from "@/audio/modules/CryptoModule";
+import { SatelliteModule } from "@/audio/modules/SatelliteModule";
 import { MixerModule } from "@/audio/modules/MixerModule";
 import { AudioModule } from "@/audio/AudioModule";
 
 const nodeTypes = {
   crypto: CryptoModuleNode,
+  satellite: SatelliteModuleNode,
   mixer: MixerModuleNode,
   "mixer-4": MultiTrackMixerNode,
   "mixer-8": MultiTrackMixerNode,
@@ -240,6 +244,14 @@ const Index = () => {
     });
   };
 
+  const addSatelliteModule = (satellite: SatelliteData) => {
+    const result = moduleManager.addSatelliteModule(satellite);
+    toast({
+      title: result.success ? "Satellite added" : "Already added",
+      description: result.message,
+    });
+  };
+
   const togglePlay = (mixerId: string) => {
     const mixerNode = nodes.find((n) => n.id === mixerId);
     if (!mixerNode) return;
@@ -298,6 +310,7 @@ const Index = () => {
       <div className="relative z-30 w-full h-full">
         <ModuleToolbar
           onAddCrypto={addCryptoModule}
+          onAddSatellite={addSatelliteModule}
           onAddPlugin={(type: ModuleType) => moduleManager.addPluginModule(type)}
           livePricesEnabled={livePricesEnabled}
           onToggleLivePrices={() => {
@@ -324,6 +337,37 @@ const Index = () => {
                     onRootNoteChange: (id: string, note: string) => moduleManager.updateParameter(id, "rootNote", note),
                     onOctaveChange: (id: string, octave: number) => moduleManager.updateParameter(id, "octave", octave),
                     onPitchChange: (id: string, pitch: number) => moduleManager.updateParameter(id, "pitch", pitch),
+                  }
+                : node.data.type === "satellite"
+                ? {
+                    ...node.data,
+                    onUpdate: (updates: any) => {
+                      setNodes((nds) =>
+                        nds.map((n) =>
+                          n.id === node.id ? { ...n, data: { ...n.data, ...updates } } : n
+                        )
+                      );
+                      Object.entries(updates).forEach(([key, value]) => {
+                        if (key === "waveform" || key === "volume") {
+                          moduleManager.updateParameter(node.id, key, value);
+                        }
+                      });
+                    },
+                    onTogglePlay: () => {
+                      const module = node.data.audioModule as SatelliteModule;
+                      if (module) {
+                        if (node.data.isPlaying) {
+                          module.stop();
+                        } else {
+                          module.start();
+                        }
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === node.id ? { ...n, data: { ...n.data, isPlaying: !n.data.isPlaying } } : n
+                          )
+                        );
+                      }
+                    },
                   }
                 : typeof node.data.type === "string" && node.data.type.startsWith("mixer-")
                 ? {
