@@ -21,8 +21,9 @@ const MandelbrotVisualizer = ({ analyser, isPlaying }: MandelbrotVisualizerProps
     if (!ctx) return;
 
     const resizeCanvas = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      // Swap dimensions to match 90deg rotation so the fractal fills the screen
+      canvas.width = window.innerHeight;
+      canvas.height = window.innerWidth;
     };
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
