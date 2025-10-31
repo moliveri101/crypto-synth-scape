@@ -397,16 +397,39 @@ const Index = () => {
     const mixerNode = nodes.find((n) => n.id === mixerId);
     if (!mixerNode) return;
 
+    const mixerModule = mixerNode.data.audioModule as MixerModule;
+    if (!mixerModule) return;
+
     const mixerIsPlaying = mixerNode.data.isPlaying;
 
     if (mixerIsPlaying) {
       // Stop this mixer
+      mixerModule.stop();
+      
+      // Find all source nodes connected to this mixer and stop them
+      const connectedSources = edges
+        .filter((e) => e.target === mixerId)
+        .map((e) => nodes.find((n) => n.id === e.source))
+        .filter(Boolean);
+
+      connectedSources.forEach((sourceNode) => {
+        if (sourceNode?.data.audioModule) {
+          const module = sourceNode.data.audioModule as AudioModule;
+          module.stop();
+        }
+      });
+
       setNodes((nds) =>
-        nds.map((n) =>
-          n.id === mixerId
-            ? { ...n, data: { ...n.data, isPlaying: false } }
-            : n
-        )
+        nds.map((n) => {
+          if (n.id === mixerId) {
+            return { ...n, data: { ...n.data, isPlaying: false } };
+          }
+          // Update source nodes
+          if (connectedSources.find((s) => s?.id === n.id)) {
+            return { ...n, data: { ...n.data, isPlaying: false } };
+          }
+          return n;
+        })
       );
 
       // Check if any other mixers are still playing
@@ -417,33 +440,39 @@ const Index = () => {
       );
 
       if (!anyMixerPlaying) {
-        // Stop all sources
-        nodes.forEach((node) => {
-          if (node.data.type === "crypto") {
-            stopSound(node.id);
-          }
-        });
         audioContextManager.suspend();
         setIsPlaying(false);
       }
     } else {
       // Start this mixer
       audioContextManager.resume();
+      mixerModule.start();
 
-      // Start all crypto sources
-      nodes.forEach((node) => {
-        if (node.data.type === "crypto" && !node.data.isPlaying) {
-          startSound(node.id);
+      // Find all source nodes connected to this mixer and start them
+      const connectedSources = edges
+        .filter((e) => e.target === mixerId)
+        .map((e) => nodes.find((n) => n.id === e.source))
+        .filter(Boolean);
+
+      connectedSources.forEach((sourceNode) => {
+        if (sourceNode?.data.audioModule) {
+          const module = sourceNode.data.audioModule as AudioModule;
+          module.start();
         }
       });
 
       setIsPlaying(true);
       setNodes((nds) =>
-        nds.map((n) =>
-          n.id === mixerId
-            ? { ...n, data: { ...n.data, isPlaying: true } }
-            : n
-        )
+        nds.map((n) => {
+          if (n.id === mixerId) {
+            return { ...n, data: { ...n.data, isPlaying: true } };
+          }
+          // Update source nodes
+          if (connectedSources.find((s) => s?.id === n.id)) {
+            return { ...n, data: { ...n.data, isPlaying: true } };
+          }
+          return n;
+        })
       );
 
       toast({
