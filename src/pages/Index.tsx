@@ -149,76 +149,79 @@ const Index = () => {
     );
   }, [edges, nodes, setNodes]);
 
-  // Rebuild audio routing when edges or nodes change
+  // Rebuild audio routing when edges change (NOT when node data changes)
   useEffect(() => {
-    if (!isPlaying) return;
-
     const ctx = audioContextManager.getContext();
     if (!ctx) return;
 
-    // Track mixer channel inputs
-    const mixerChannelInputs: { [key: string]: Set<number> } = {};
+    // Get current nodes snapshot
+    setNodes(currentNodes => {
+      // Track mixer channel inputs
+      const mixerChannelInputs: { [key: string]: Set<number> } = {};
 
-    edges.forEach(edge => {
-      const targetNode = nodes.find(n => n.id === edge.target);
-      if (targetNode && targetNode.data.type && targetNode.data.type.startsWith("mixer-")) {
-        const channelIndex = edge.targetHandle ? parseInt(edge.targetHandle.split("-")[1]) : 0;
-        if (!mixerChannelInputs[edge.target]) {
-          mixerChannelInputs[edge.target] = new Set();
+      edges.forEach(edge => {
+        const targetNode = currentNodes.find(n => n.id === edge.target);
+        if (targetNode && targetNode.data.type && targetNode.data.type.startsWith("mixer-")) {
+          const channelIndex = edge.targetHandle ? parseInt(edge.targetHandle.split("-")[1]) : 0;
+          if (!mixerChannelInputs[edge.target]) {
+            mixerChannelInputs[edge.target] = new Set();
+          }
+          mixerChannelInputs[edge.target].add(channelIndex);
         }
-        mixerChannelInputs[edge.target].add(channelIndex);
-      }
-    });
+      });
 
-    // Update mixer channel active states
-    nodes.forEach(node => {
-      if (node.data.type && node.data.type.startsWith("mixer-")) {
-        const module = node.data.audioModule as MixerModule;
-        if (module) {
-          const activeChannels = mixerChannelInputs[node.id] || new Set();
-          for (let i = 0; i < module.getChannelCount(); i++) {
-            module.setChannelActive(i, activeChannels.has(i));
+      // Update mixer channel active states
+      currentNodes.forEach(node => {
+        if (node.data.type && node.data.type.startsWith("mixer-")) {
+          const module = node.data.audioModule as MixerModule;
+          if (module) {
+            const activeChannels = mixerChannelInputs[node.id] || new Set();
+            for (let i = 0; i < module.getChannelCount(); i++) {
+              module.setChannelActive(i, activeChannels.has(i));
+            }
           }
         }
-      }
-    });
+      });
 
-    // Disconnect all existing connections
-    nodes.forEach(node => {
-      const module = node.data.audioModule as AudioModule;
-      if (module) {
-        module.disconnect();
-      }
-    });
-
-    // Rebuild connections
-    edges.forEach(edge => {
-      const sourceNode = nodes.find(n => n.id === edge.source);
-      const targetNode = nodes.find(n => n.id === edge.target);
-
-      if (!sourceNode || !targetNode) return;
-
-      const sourceModule = sourceNode.data.audioModule as AudioModule;
-      const targetModule = targetNode.data.audioModule;
-
-      if (!sourceModule || !targetModule) return;
-
-      // Handle mixer channel connections
-      if (targetNode.data.type && targetNode.data.type.startsWith("mixer-")) {
-        const mixerModule = targetModule as MixerModule;
-        const channelIndex = edge.targetHandle ? parseInt(edge.targetHandle.split("-")[1]) : 0;
-        const channelInput = mixerModule.getChannelInput(channelIndex);
-        if (channelInput) {
-          sourceModule.connect(channelInput);
-          console.log(`Connected ${edge.source} to ${edge.target} channel ${channelIndex}`);
+      // Disconnect all existing connections
+      currentNodes.forEach(node => {
+        const module = node.data.audioModule as AudioModule;
+        if (module) {
+          module.disconnect();
         }
-      } else {
-        // Standard connection
-        sourceModule.connect(targetModule);
-        console.log(`Connected ${edge.source} to ${edge.target}`);
-      }
+      });
+
+      // Rebuild connections
+      edges.forEach(edge => {
+        const sourceNode = currentNodes.find(n => n.id === edge.source);
+        const targetNode = currentNodes.find(n => n.id === edge.target);
+
+        if (!sourceNode || !targetNode) return;
+
+        const sourceModule = sourceNode.data.audioModule as AudioModule;
+        const targetModule = targetNode.data.audioModule;
+
+        if (!sourceModule || !targetModule) return;
+
+        // Handle mixer channel connections
+        if (targetNode.data.type && targetNode.data.type.startsWith("mixer-")) {
+          const mixerModule = targetModule as MixerModule;
+          const channelIndex = edge.targetHandle ? parseInt(edge.targetHandle.split("-")[1]) : 0;
+          const channelInput = mixerModule.getChannelInput(channelIndex);
+          if (channelInput) {
+            sourceModule.connect(channelInput);
+            console.log(`Connected ${edge.source} to ${edge.target} channel ${channelIndex}`);
+          }
+        } else {
+          // Standard connection
+          sourceModule.connect(targetModule);
+          console.log(`Connected ${edge.source} to ${edge.target}`);
+        }
+      });
+
+      return currentNodes;
     });
-  }, [edges, nodes, isPlaying]);
+  }, [edges]);
 
   const isValidConnection = useCallback(
     (connection: Connection) => {
@@ -618,6 +621,19 @@ const Index = () => {
       };
     } else if (type === "sequencer") {
       audioModule = new SequencerModule(ctx);
+      const sequencerModule = audioModule as SequencerModule;
+      
+      // Set up step callback to update UI
+      sequencerModule.setStepCallback((step: number, isActive: boolean) => {
+        setNodes((nds) =>
+          nds.map((n) =>
+            n.id === id
+              ? { ...n, data: { ...n.data, currentStep: step } }
+              : n
+          )
+        );
+      });
+      
       newNode = {
         id,
         type,
