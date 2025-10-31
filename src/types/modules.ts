@@ -1,7 +1,7 @@
 import { Node, Edge } from "reactflow";
 import { CryptoData } from "./crypto";
 
-export type ModuleType = "crypto" | "mixer" | "mixer-4" | "mixer-8" | "mixer-16" | "mixer-32" | "visualizer" | "sampler" | "sequencer" | "drums" |
+export type ModuleType = "crypto" | "mixer" | "mixer-4" | "mixer-8" | "mixer-16" | "mixer-32" | "sampler" | "sequencer" | "drums" |
   "reverb" | "delay" | "chorus" | "flanger" | "phaser" | "pingpong-delay" |
   "compressor" | "limiter" | "gate" | "de-esser" |
   "eq" | "lpf" | "hpf" | "bandpass" | "resonant-filter" |
@@ -36,15 +36,6 @@ export interface MixerModuleData {
   channelGains?: GainNode[];
   channelPanners?: StereoPannerNode[];
   mergerNode?: AudioNode | null;
-}
-
-export interface VisualizerModuleData {
-  type: "visualizer";
-  isActive: boolean;
-  collapsed: boolean;
-  analyserNode: AnalyserNode | null;
-  inputNode: GainNode | null;
-  outputNode: GainNode | null;
 }
 
 export interface SamplerModuleData {
@@ -110,7 +101,6 @@ export interface OutputModuleData {
 export type ModuleData = 
   | CryptoModuleData 
   | MixerModuleData 
-  | VisualizerModuleData 
   | SamplerModuleData 
   | SequencerModuleData
   | DrumsModuleData
@@ -119,6 +109,5 @@ export type ModuleData =
 
 export type CryptoNode = Node<CryptoModuleData>;
 export type MixerNode = Node<MixerModuleData>;
-export type VisualizerNode = Node<VisualizerModuleData>;
 export type ModuleNode = Node<ModuleData>;
 export type ModuleEdge = Edge;

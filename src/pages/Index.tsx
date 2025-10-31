@@ -19,14 +19,12 @@ import { useModuleManager } from "@/hooks/useModuleManager";
 import CryptoModuleNode from "@/components/modules/CryptoModuleNode";
 import MixerModuleNode from "@/components/modules/MixerModuleNode";
 import MultiTrackMixerNode from "@/components/modules/MultiTrackMixerNode";
-import VisualizerModuleNode from "@/components/modules/VisualizerModuleNode";
 import SequencerModuleNode from "@/components/modules/SequencerModuleNode";
 import DrumsModuleNode from "@/components/modules/DrumsModuleNode";
 import SamplerModuleNode from "@/components/modules/SamplerModuleNode";
 import EffectModuleNode from "@/components/modules/EffectModuleNode";
 import OutputModuleNode from "@/components/modules/OutputModuleNode";
 import ModuleToolbar from "@/components/ModuleToolbar";
-import MandelbrotVisualizer from "@/components/MandelbrotVisualizer";
 import { useToast } from "@/hooks/use-toast";
 import { ModuleType } from "@/types/modules";
 import InteractiveEdge from "@/components/modules/InteractiveEdge";
@@ -44,7 +42,6 @@ const nodeTypes = {
   "mixer-32": MultiTrackMixerNode,
   "output-speakers": OutputModuleNode,
   "output-headphones": OutputModuleNode,
-  visualizer: VisualizerModuleNode,
   sampler: SamplerModuleNode,
   sequencer: SequencerModuleNode,
   drums: DrumsModuleNode,
@@ -97,16 +94,10 @@ const Index = () => {
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [livePricesEnabled, setLivePricesEnabled] = useState(false);
-  const [masterAnalyser, setMasterAnalyser] = useState<AnalyserNode | null>(null);
   const { toast } = useToast();
 
   // Use the module manager hook
   const moduleManager = useModuleManager(nodes, setNodes, setEdges);
-
-  // Calculate if any visualizer module exists and is not collapsed
-  const visualizerVisible = nodes.some(
-    n => n.data.type === "visualizer" && !n.data.collapsed
-  );
 
   // Get list of crypto IDs from current nodes
   const activeCryptoIds = nodes
@@ -151,19 +142,9 @@ const Index = () => {
     intervalMs: 120000,
   });
 
-  // Initialize audio context and master analyser
+  // Initialize audio context
   useEffect(() => {
     audioContextManager.initialize();
-    
-    const ctx = audioContextManager.getContext();
-    const masterGain = audioContextManager.getMasterGain();
-    if (ctx && masterGain) {
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 1024;
-      analyser.smoothingTimeConstant = 0.8;
-      masterGain.connect(analyser);
-      setMasterAnalyser(analyser);
-    }
 
     return () => {
       nodes.forEach((node) => {
@@ -207,18 +188,7 @@ const Index = () => {
   // Rebuild audio routing when edges change
   useEffect(() => {
     audioRouter.routeAudio(nodes, edges);
-
-    // Update visualizer nodes' isActive state
-    setNodes(currentNodes =>
-      currentNodes.map(node => {
-        if (node.data.type === "visualizer") {
-          const isConnected = edges.some(e => e.target === node.id);
-          return { ...node, data: { ...node.data, isActive: isConnected } };
-        }
-        return node;
-      })
-    );
-  }, [edges]);
+  }, [edges, nodes]);
 
   const isValidConnection = useCallback(
     (connection: Connection) => {
@@ -323,18 +293,6 @@ const Index = () => {
     }
   };
 
-  const toggleVisualizer = () => {
-    // Add or remove visualizer module
-    if (visualizerVisible) {
-      // Remove all visualizer modules
-      const visualizerNodes = nodes.filter(n => n.data.type === "visualizer");
-      visualizerNodes.forEach(node => moduleManager.removeModule(node.id));
-    } else {
-      // Add a new visualizer module
-      moduleManager.addPluginModule("visualizer");
-    }
-  };
-
   return (
     <div className="w-full h-screen bg-background relative">
       <div className="relative z-30 w-full h-full">
@@ -349,8 +307,6 @@ const Index = () => {
               description: !livePricesEnabled ? "Crypto prices will update every 30 seconds" : "Price tracking stopped",
             });
           }}
-          visualizerEnabled={visualizerVisible}
-          onToggleVisualizer={toggleVisualizer}
         />
 
         <ReactFlow
@@ -414,14 +370,6 @@ const Index = () => {
                     onVolumeChange: (vol: number) => moduleManager.updateParameter(node.id, "volume", vol),
                     onRemove: moduleManager.removeModule,
                   }
-                : node.data.type === "visualizer"
-                ? {
-                    ...node.data,
-                    onUpdate: (id: string, updates: any) => {
-                      setNodes((nds) => nds.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...updates } } : n)));
-                    },
-                    onRemove: moduleManager.removeModule,
-                  }
                 : node.data,
           }))}
           edges={edges.map((edge) => ({
@@ -449,11 +397,6 @@ const Index = () => {
           <MiniMap />
         </ReactFlow>
       </div>
-      <MandelbrotVisualizer 
-        analyser={masterAnalyser}
-        isPlaying={isPlaying}
-        isVisible={visualizerVisible}
-      />
     </div>
   );
 };
