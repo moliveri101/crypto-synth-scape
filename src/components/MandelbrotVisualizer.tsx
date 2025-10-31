@@ -75,51 +75,45 @@ const MandelbrotVisualizer = ({ analyser, isPlaying }: MandelbrotVisualizerProps
       const maxIter = 50 + Math.floor(bassEnergy * 50);
       const scale = 3 / Math.min(canvas.width, canvas.height) / zoomRef.current;
 
-      const imageData = ctx.createImageData(canvas.width, canvas.height);
-      
-      for (let px = 0; px < canvas.width; px++) {
-        for (let py = 0; py < canvas.height; py++) {
+      // Faster low-res rendering using block fills for performance
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const STEP = 3; // larger = faster, more pixelated
+
+      for (let px = 0; px < canvas.width; px += STEP) {
+        for (let py = 0; py < canvas.height; py += STEP) {
           const x0 = (px - canvas.width / 2) * scale + offsetXRef.current;
           const y0 = (py - canvas.height / 2) * scale + offsetYRef.current;
           
           const iter = mandelbrot(x0, y0, maxIter);
+          if (iter === maxIter) continue; // keep interior transparent
           const ratio = iter / maxIter;
-          
-          const index = (py * canvas.width + px) * 4;
-          
-          if (iter === maxIter) {
-            // Make interior transparent instead of solid black
-            imageData.data[index] = 0;
-            imageData.data[index + 1] = 0;
-            imageData.data[index + 2] = 0;
-            imageData.data[index + 3] = 0;
-          } else {
-            // Psychedelic color palette based on audio
-            const hue = (ratio * 360 + timeRef.current * 50 + bassEnergy * 180) % 360;
-            const sat = 70 + midEnergy * 30;
-            const light = 40 + trebleEnergy * 40;
-            
-            const c = (1 - Math.abs(2 * light / 100 - 1)) * sat / 100;
-            const x = c * (1 - Math.abs((hue / 60) % 2 - 1));
-            const m = light / 100 - c / 2;
-            
-            let r = 0, g = 0, b = 0;
-            if (hue < 60) { r = c; g = x; }
-            else if (hue < 120) { r = x; g = c; }
-            else if (hue < 180) { g = c; b = x; }
-            else if (hue < 240) { g = x; b = c; }
-            else if (hue < 300) { r = x; b = c; }
-            else { r = c; b = x; }
-            
-            imageData.data[index] = (r + m) * 255;
-            imageData.data[index + 1] = (g + m) * 255;
-            imageData.data[index + 2] = (b + m) * 255;
-            imageData.data[index + 3] = 255;
-          }
+
+          // Psychedelic color palette based on audio
+          const hue = (ratio * 360 + timeRef.current * 50 + bassEnergy * 180) % 360;
+          const sat = 70 + midEnergy * 30;
+          const light = 40 + trebleEnergy * 40;
+
+          // Convert HSL to RGB
+          const c = (1 - Math.abs(2 * light / 100 - 1)) * sat / 100;
+          const x = c * (1 - Math.abs((hue / 60) % 2 - 1));
+          const m = light / 100 - c / 2;
+
+          let r = 0, g = 0, b = 0;
+          if (hue < 60) { r = c; g = x; }
+          else if (hue < 120) { r = x; g = c; }
+          else if (hue < 180) { g = c; b = x; }
+          else if (hue < 240) { g = x; b = c; }
+          else if (hue < 300) { r = x; b = c; }
+          else { r = c; b = x; }
+
+          const rr = Math.round((r + m) * 255);
+          const gg = Math.round((g + m) * 255);
+          const bb = Math.round((b + m) * 255);
+          ctx.fillStyle = `rgb(${rr}, ${gg}, ${bb})`;
+          ctx.fillRect(px, py, STEP, STEP);
         }
       }
-      
-      ctx.putImageData(imageData, 0, 0);
+
       animationRef.current = requestAnimationFrame(draw);
     };
 
@@ -136,8 +130,8 @@ const MandelbrotVisualizer = ({ analyser, isPlaying }: MandelbrotVisualizerProps
   return (
     <canvas
       ref={canvasRef}
-      className="absolute inset-0 w-full h-full z-0 pointer-events-none opacity-60"
-      style={{ imageRendering: "pixelated" }}
+      className="absolute inset-0 w-full h-full z-0 pointer-events-none opacity-50"
+      style={{ imageRendering: "pixelated", background: "transparent" }}
     />
   );
 };
