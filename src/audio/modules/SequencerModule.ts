@@ -28,21 +28,33 @@ export class SequencerModule extends AudioModule {
     
     this.isActive = true;
     this.currentStep = 0;
+    this.gateGain.gain.cancelScheduledValues(this.ctx.currentTime);
     this.gateGain.gain.value = 0; // Close gate when starting
     
     const intervalTime = (60000 / this.bpm) / 4; // 16th note timing
+    const attackTime = 0.005; // 5ms attack to avoid clicks
+    const gateLength = intervalTime * 0.8; // Gate open for 80% of step duration
     
     this.intervalId = window.setInterval(() => {
       const stepActive = this.steps[this.currentStep];
+      const now = this.ctx.currentTime;
       
-      // Control gate
+      // Control gate with smooth ramping
       if (stepActive) {
-        this.gateGain.gain.value = 1; // Open gate
+        // Smooth attack
+        this.gateGain.gain.cancelScheduledValues(now);
+        this.gateGain.gain.setValueAtTime(this.gateGain.gain.value, now);
+        this.gateGain.gain.linearRampToValueAtTime(this.volume, now + attackTime);
+        // Smooth release before next step
+        this.gateGain.gain.linearRampToValueAtTime(0, now + gateLength / 1000);
+        
         if (this.onStepCallback) {
           this.onStepCallback(this.currentStep, true);
         }
       } else {
-        this.gateGain.gain.value = 0; // Close gate
+        // Ensure gate is closed
+        this.gateGain.gain.cancelScheduledValues(now);
+        this.gateGain.gain.setValueAtTime(0, now);
       }
       
       // Advance to next step
