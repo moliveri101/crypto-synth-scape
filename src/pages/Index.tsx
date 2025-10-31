@@ -119,6 +119,36 @@ const Index = () => {
     };
   }, []);
 
+  // Keep mixer input counts in sync with current connections (enables Play button)
+  useEffect(() => {
+    const mixerIds = new Set(
+      nodes
+        .filter((n) => typeof n.data.type === "string" && n.data.type.startsWith("mixer-"))
+        .map((n) => n.id)
+    );
+
+    if (mixerIds.size === 0) return;
+
+    const counts: Record<string, number> = {};
+    edges.forEach((e) => {
+      if (mixerIds.has(e.target)) {
+        counts[e.target] = (counts[e.target] || 0) + 1;
+      }
+    });
+
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (mixerIds.has(n.id)) {
+          const newCount = counts[n.id] || 0;
+          if (n.data.inputCount !== newCount) {
+            return { ...n, data: { ...n.data, inputCount: newCount } };
+          }
+        }
+        return n;
+      })
+    );
+  }, [edges, nodes, setNodes]);
+
   // Rebuild audio routing when edges or nodes change
   useEffect(() => {
     if (!isPlaying) return;
