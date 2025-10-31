@@ -1,5 +1,6 @@
 import { AudioModule } from "../AudioModule";
 import { SatelliteData } from "@/types/modules";
+import { supabase } from "@/integrations/supabase/client";
 
 export class SatelliteModule extends AudioModule {
   private oscillator: OscillatorNode | null = null;
@@ -131,26 +132,20 @@ export class SatelliteModule extends AudioModule {
     if (!this.satellite) return;
 
     try {
-      const response = await fetch(
-        `https://tmrygmhnzxploeytuacn.supabase.co/functions/v1/fetch-satellite-data`,
-        {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRtcnlnbWhuenhwbG9leXR1YWNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE4NTc5ODksImV4cCI6MjA3NzQzMzk4OX0.5sv7o3QoKAc0pQiTgvi5bXlGqLS1NWmzg6oZTfOfLPI`
-          },
-          body: JSON.stringify({ satelliteId: this.satellite.id })
-        }
-      );
+      const { data, error } = await supabase.functions.invoke('fetch-satellite-data', {
+        body: { satelliteId: this.satellite.id },
+      });
 
-      if (response.ok) {
-        const data = await response.json();
+      if (error) {
+        console.error('Satellite API error (invoke):', error);
+        return;
+      }
+
+      if (data) {
         this.updateFromSatellite(data);
-      } else {
-        console.error('Satellite API error:', response.status, await response.text());
       }
     } catch (error) {
-      console.error('Failed to fetch satellite data:', error);
+      console.error('Failed to fetch satellite data (invoke):', error);
     }
   }
 
