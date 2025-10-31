@@ -34,6 +34,7 @@ import ModuleToolbar from "@/components/ModuleToolbar";
 import { useToast } from "@/hooks/use-toast";
 import { ModuleType } from "@/types/modules";
 import InteractiveEdge from "@/components/modules/InteractiveEdge";
+import { useLiveCryptoPrices } from "@/hooks/useLiveCryptoPrices";
 
 const nodeTypes = {
   crypto: CryptoModuleNode,
@@ -97,10 +98,63 @@ const Index = () => {
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [masterVolume, setMasterVolume] = useState(0.5);
+  const [livePricesEnabled, setLivePricesEnabled] = useState(false);
   const { toast } = useToast();
 
   // Map to store AudioModule instances by node ID
   const moduleMap = new Map<string, AudioModule>();
+
+  // Get list of crypto IDs from current nodes
+  const activeCryptoIds = nodes
+    .filter((n) => n.data.type === "crypto")
+    .map((n) => n.data.crypto.id);
+
+  // Handle live price updates
+  const handlePriceUpdate = useCallback((updatedCryptos: CryptoData[]) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.data.type === "crypto") {
+          const updatedCrypto = updatedCryptos.find(
+            (c) => c.id === node.data.crypto.id
+          );
+          if (updatedCrypto) {
+            const module = node.data.audioModule as CryptoModule;
+            if (module) {
+              module.updateCrypto(updatedCrypto);
+            }
+            
+            // Show toast for significant price changes (>5%)
+            const oldChange = node.data.crypto.price_change_percentage_24h;
+            const newChange = updatedCrypto.price_change_percentage_24h;
+            if (Math.abs(newChange - oldChange) > 5) {
+              toast({
+                title: `${updatedCrypto.symbol.toUpperCase()} Price Update`,
+                description: `24h change: ${newChange.toFixed(2)}%`,
+                duration: 2000,
+              });
+            }
+
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                crypto: updatedCrypto,
+              },
+            };
+          }
+        }
+        return node;
+      })
+    );
+  }, [setNodes, toast]);
+
+  // Set up live price polling
+  useLiveCryptoPrices({
+    cryptoIds: activeCryptoIds,
+    onPriceUpdate: handlePriceUpdate,
+    enabled: livePricesEnabled && activeCryptoIds.length > 0,
+    intervalMs: 30000, // Update every 30 seconds
+  });
 
   // Initialize audio context
   useEffect(() => {
@@ -740,7 +794,20 @@ const Index = () => {
 
   return (
     <div className="w-full h-screen bg-background">
-      <ModuleToolbar onAddCrypto={addCryptoModule} onAddPlugin={addPluginModule} />
+      <ModuleToolbar 
+        onAddCrypto={addCryptoModule} 
+        onAddPlugin={addPluginModule}
+        livePricesEnabled={livePricesEnabled}
+        onToggleLivePrices={() => {
+          setLivePricesEnabled(!livePricesEnabled);
+          toast({
+            title: !livePricesEnabled ? "Live Prices Enabled" : "Live Prices Disabled",
+            description: !livePricesEnabled 
+              ? "Crypto prices will update every 30 seconds"
+              : "Price tracking stopped",
+          });
+        }}
+      />
 
       <ReactFlow
         nodes={nodes.map((node) => ({

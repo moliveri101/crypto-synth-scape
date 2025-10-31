@@ -22,6 +22,8 @@ import {
 interface ModuleToolbarProps {
   onAddCrypto: (crypto: CryptoData) => void;
   onAddPlugin: (type: ModuleType) => void;
+  livePricesEnabled: boolean;
+  onToggleLivePrices: () => void;
 }
 
 const PLUGIN_CATEGORIES = {
@@ -86,7 +88,7 @@ const PLUGIN_CATEGORIES = {
   ],
 };
 
-const ModuleToolbar = ({ onAddCrypto, onAddPlugin }: ModuleToolbarProps) => {
+const ModuleToolbar = ({ onAddCrypto, onAddPlugin, livePricesEnabled, onToggleLivePrices }: ModuleToolbarProps) => {
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<CryptoData[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -262,6 +264,16 @@ const ModuleToolbar = ({ onAddCrypto, onAddPlugin }: ModuleToolbarProps) => {
           </div>
         </TooltipContent>
       </Tooltip>
+
+      <Button 
+        size="lg" 
+        variant={livePricesEnabled ? "default" : "outline"}
+        onClick={onToggleLivePrices}
+        className="gap-2"
+      >
+        <Sparkles className="w-5 h-5" />
+        {livePricesEnabled ? "Live Prices ON" : "Live Prices OFF"}
+      </Button>
     </div>
     </TooltipProvider>
   );
