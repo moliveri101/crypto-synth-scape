@@ -20,12 +20,24 @@ export abstract class AudioModule {
    */
   connect(target: AudioModule | AudioNode) {
     try {
+      const targetCtx: BaseAudioContext | null =
+        target instanceof AudioModule ? target.ctx : (target as AudioNode).context ?? null;
+
       console.log('Connecting:', {
         sourceContext: this.ctx,
         sourceState: this.ctx.state,
-        targetContext: target instanceof AudioModule ? target.ctx : 'AudioNode',
-        targetState: target instanceof AudioModule ? target.ctx.state : 'N/A'
+        targetContext: targetCtx || (target instanceof AudioModule ? target.ctx : 'AudioNode'),
+        targetState: targetCtx ? targetCtx.state : (target instanceof AudioModule ? target.ctx.state : 'N/A')
       });
+      
+      // Guard against connecting nodes from different or closed AudioContexts
+      if (!this.ctx || !targetCtx || this.ctx.state === 'closed' || targetCtx.state === 'closed' || this.ctx !== targetCtx) {
+        console.warn('Skipping connect due to mismatched or closed AudioContext', {
+          sourceState: this.ctx?.state,
+          targetState: targetCtx?.state
+        });
+        return;
+      }
       
       if (target instanceof AudioModule) {
         this.outputNode.connect(target.inputNode);

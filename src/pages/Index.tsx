@@ -157,7 +157,8 @@ const Index = () => {
           module.dispose();
         }
       });
-      audioContextManager.close();
+      // Do not close the AudioContext to avoid context mismatch across HMR/rehydration
+      audioContextManager.suspend();
     };
   }, []);
 
