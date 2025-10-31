@@ -420,8 +420,22 @@ const Index = () => {
                 : node.data.type === "sampler"
                 ? {
                     ...node.data,
-                    onStartRecording: moduleManager.startSamplerRecording,
-                    onStopRecording: moduleManager.stopSamplerRecording,
+                    onStartRecording: async (id: string) => {
+                      const result = await moduleManager.startSamplerRecording(id);
+                      if (result.success) {
+                        toast({ title: "Recording", description: "Microphone recording started" });
+                      } else {
+                        toast({ 
+                          title: "Error", 
+                          description: "Failed to access microphone",
+                          variant: "destructive"
+                        });
+                      }
+                    },
+                    onStopRecording: (id: string) => {
+                      moduleManager.stopSamplerRecording(id);
+                      toast({ title: "Recording stopped", description: "Sample ready to play" });
+                    },
                     onStartPlayback: moduleManager.startSamplerPlayback,
                     onStopPlayback: moduleManager.stopSamplerPlayback,
                     onVolumeChange: (id: string, vol: number) => moduleManager.updateParameter(id, "volume", vol),

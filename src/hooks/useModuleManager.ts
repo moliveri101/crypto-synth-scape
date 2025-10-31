@@ -9,7 +9,6 @@ import { SamplerModule } from "@/audio/modules/SamplerModule";
 import { moduleFactory } from "@/services/ModuleFactory";
 import { CryptoData } from "@/types/crypto";
 import { ModuleType, SatelliteData } from "@/types/modules";
-import { useToast } from "@/hooks/use-toast";
 
 const EFFECT_TYPES = [
   "reverb", "delay", "chorus", "flanger", "phaser", "pingpong-delay",
@@ -28,7 +27,6 @@ export const useModuleManager = (
   setNodes: (nodes: any[] | ((nodes: any[]) => any[])) => void,
   setEdges: (edges: any[] | ((edges: any[]) => any[])) => void
 ) => {
-  const { toast } = useToast();
   /**
    * Add a crypto module
    */
@@ -235,7 +233,7 @@ export const useModuleManager = (
    */
   const startSamplerRecording = useCallback(async (nodeId: string) => {
     const node = nodes.find((n) => n.id === nodeId);
-    if (!node || node.data.type !== "sampler") return;
+    if (!node || node.data.type !== "sampler") return { success: false };
 
     const module = node.data.audioModule as SamplerModule;
     const success = await module.startRecording();
@@ -248,15 +246,9 @@ export const useModuleManager = (
             : n
         )
       );
-      toast({ title: "Recording", description: "Microphone recording started" });
-    } else {
-      toast({ 
-        title: "Error", 
-        description: "Failed to access microphone",
-        variant: "destructive"
-      });
     }
-  }, [nodes, setNodes, toast]);
+    return { success };
+  }, [nodes, setNodes]);
 
   const stopSamplerRecording = useCallback((nodeId: string) => {
     const node = nodes.find((n) => n.id === nodeId);
@@ -272,8 +264,7 @@ export const useModuleManager = (
           : n
       )
     );
-    toast({ title: "Recording stopped", description: "Sample ready to play" });
-  }, [nodes, setNodes, toast]);
+  }, [nodes, setNodes]);
 
   const startSamplerPlayback = useCallback((nodeId: string) => {
     const node = nodes.find((n) => n.id === nodeId);
