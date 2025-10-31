@@ -359,6 +359,7 @@ const Index = () => {
                         if (node.data.isPlaying) {
                           module.stop();
                         } else {
+                          audioContextManager.resume();
                           module.start();
                         }
                         setNodes((nds) =>

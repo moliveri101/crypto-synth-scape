@@ -53,10 +53,14 @@ export class ModuleFactory {
   /**
    * Create a satellite module node
    */
-  createSatelliteModule(ctx: AudioContext, satellite: SatelliteData, nodeCount: number): any {
+  createSatelliteModule(ctx: AudioContext, satellite: SatelliteData, nodeCount: number, dataUpdateCallback?: (data: { speed: number; altitude: number; latitude: number; longitude: number }) => void): any {
     const id = `satellite-${satellite.id}`;
     const satelliteModule = new SatelliteModule(ctx);
     satelliteModule.setSatellite(satellite);
+    
+    if (dataUpdateCallback) {
+      satelliteModule.setDataUpdateCallback(dataUpdateCallback);
+    }
 
     return {
       id,

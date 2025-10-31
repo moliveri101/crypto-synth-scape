@@ -58,7 +58,18 @@ export const useModuleManager = (
     const ctx = audioContextManager.getContext();
     if (!ctx) return { success: false, message: "Audio context not available" };
 
-    const newNode = moduleFactory.createSatelliteModule(ctx, satellite, nodes.length);
+    // Create callback to update node data with satellite values
+    const dataUpdateCallback = (data: { speed: number; altitude: number; latitude: number; longitude: number }) => {
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === id
+            ? { ...n, data: { ...n.data, ...data } }
+            : n
+        )
+      );
+    };
+
+    const newNode = moduleFactory.createSatelliteModule(ctx, satellite, nodes.length, dataUpdateCallback);
     setNodes((nds) => [...nds, newNode]);
 
     return { success: true, message: `${satellite.name} added to canvas` };

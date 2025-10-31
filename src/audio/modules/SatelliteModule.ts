@@ -12,6 +12,7 @@ export class SatelliteModule extends AudioModule {
   private updateInterval: number | null = null;
   private pulseInterval: number = 600; // ms per pulse (default 100 BPM)
   private pulseTimeoutId: number | null = null;
+  private onDataUpdate?: (data: { speed: number; altitude: number; latitude: number; longitude: number }) => void;
 
   constructor(ctx: AudioContext) {
     super(ctx);
@@ -26,6 +27,10 @@ export class SatelliteModule extends AudioModule {
     this.prevLatitude = satellite.latitude;
     this.prevLongitude = satellite.longitude;
     this.prevAltitude = satellite.altitude;
+  }
+
+  setDataUpdateCallback(callback: (data: { speed: number; altitude: number; latitude: number; longitude: number }) => void) {
+    this.onDataUpdate = callback;
   }
 
   updateFromSatellite(satellite: SatelliteData) {
@@ -56,6 +61,16 @@ export class SatelliteModule extends AudioModule {
     this.prevLatitude = satellite.latitude;
     this.prevLongitude = satellite.longitude;
     this.prevAltitude = satellite.altitude;
+
+    // Update UI with new data
+    if (this.onDataUpdate) {
+      this.onDataUpdate({
+        speed,
+        altitude: satellite.altitude,
+        latitude: satellite.latitude,
+        longitude: satellite.longitude
+      });
+    }
 
     console.log('Satellite audio params:', { speed, frequency, bpm, pulseInterval: this.pulseInterval, pitchModDepth, volumeBase });
   }
