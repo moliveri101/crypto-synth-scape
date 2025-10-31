@@ -83,8 +83,14 @@ All colors MUST be HSL.
     stroke-width: 3 !important;
   }
   
-  /* Hide ReactFlow attribution */
+  /* Force-hide ReactFlow attribution (in case proOptions doesn't) */
+  .react-flow .react-flow__panel.react-flow__attribution,
+  .react-flow .react-flow__attribution,
+  .react-flow__panel.react-flow__attribution,
   .react-flow__attribution {
     display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
   }
 }

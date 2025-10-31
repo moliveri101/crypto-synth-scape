@@ -463,6 +463,7 @@ const Index = () => {
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           connectionMode={ConnectionMode.Loose}
+          proOptions={{ hideAttribution: true }}
           fitView
         >
           <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
