@@ -231,82 +231,110 @@ export const useModuleManager = (
   /**
    * Sampler controls
    */
-  const startSamplerRecording = useCallback(async (nodeId: string) => {
-    const node = nodes.find((n) => n.id === nodeId);
-    if (!node || node.data.type !== "sampler") return { success: false };
-
-    const module = node.data.audioModule as SamplerModule;
-    const success = await module.startRecording();
-    
-    if (success) {
-      setNodes((nds) =>
-        nds.map((n) =>
-          n.id === nodeId
-            ? { ...n, data: { ...n.data, isRecording: true } }
-            : n
-        )
-      );
-    }
-    return { success };
-  }, [nodes, setNodes]);
-
-  const stopSamplerRecording = useCallback((nodeId: string) => {
-    const node = nodes.find((n) => n.id === nodeId);
-    if (!node || node.data.type !== "sampler") return;
-
-    const module = node.data.audioModule as SamplerModule;
-    module.stopRecording();
-    
-    setNodes((nds) =>
-      nds.map((n) =>
-        n.id === nodeId
-          ? { 
-              ...n, 
-              data: { 
-                ...n.data, 
-                isRecording: false, 
-                hasRecording: module.hasRecording(),
-                duration: module.getDuration(),
-                loopEnd: module.getLoopEnd(),
-              } 
-            }
-          : n
-      )
-    );
-  }, [nodes, setNodes]);
-
-  const startSamplerPlayback = useCallback((nodeId: string) => {
+  const triggerSamplerPad = useCallback((nodeId: string, padIndex: number) => {
     const node = nodes.find((n) => n.id === nodeId);
     if (!node || node.data.type !== "sampler") return;
 
     audioContextManager.resume();
     const module = node.data.audioModule as SamplerModule;
-    module.startPlayback();
+    module.triggerPad(padIndex);
+    
+    const updatedPads = [...node.data.pads];
+    updatedPads[padIndex] = {
+      ...updatedPads[padIndex],
+      isPlaying: true,
+    };
     
     setNodes((nds) =>
       nds.map((n) =>
         n.id === nodeId
-          ? { ...n, data: { ...n.data, isPlaying: true } }
+          ? { ...n, data: { ...n.data, pads: updatedPads } }
           : n
       )
     );
   }, [nodes, setNodes]);
 
-  const stopSamplerPlayback = useCallback((nodeId: string) => {
+  const stopSamplerPad = useCallback((nodeId: string, padIndex: number) => {
     const node = nodes.find((n) => n.id === nodeId);
     if (!node || node.data.type !== "sampler") return;
 
     const module = node.data.audioModule as SamplerModule;
-    module.stopPlayback();
+    module.stopPad(padIndex);
+    
+    const updatedPads = [...node.data.pads];
+    updatedPads[padIndex] = {
+      ...updatedPads[padIndex],
+      isPlaying: false,
+    };
     
     setNodes((nds) =>
       nds.map((n) =>
         n.id === nodeId
-          ? { ...n, data: { ...n.data, isPlaying: false } }
+          ? { ...n, data: { ...n.data, pads: updatedPads } }
           : n
       )
     );
   }, [nodes, setNodes]);
+
+  const loadSamplerSample = useCallback(async (nodeId: string, padIndex: number, file: File) => {
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node || node.data.type !== "sampler") return;
+
+    const module = node.data.audioModule as SamplerModule;
+    const success = await module.loadSampleFromFile(padIndex, file);
+    
+    if (success) {
+      const updatedPads = [...node.data.pads];
+      updatedPads[padIndex] = {
+        ...updatedPads[padIndex],
+        hasSample: true,
+        duration: module.getPadDuration(padIndex),
+        loopEnd: module.getPadLoopEnd(padIndex),
+      };
+      
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === nodeId
+            ? { ...n, data: { ...n.data, pads: updatedPads } }
+            : n
+        )
+      );
+    }
+  }, [nodes, setNodes]);
+
+  const recordSamplerPad = useCallback(async (nodeId: string, padIndex: number) => {
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node || node.data.type !== "sampler") return;
+
+    const module = node.data.audioModule as SamplerModule;
+    await module.recordToPad(padIndex);
+    
+    const updatedPads = [...node.data.pads];
+    updatedPads[padIndex] = {
+      ...updatedPads[padIndex],
+      hasSample: true,
+      duration: module.getPadDuration(padIndex),
+      loopEnd: module.getPadLoopEnd(padIndex),
+    };
+    
+    setNodes((nds) =>
+      nds.map((n) =>
+        n.id === nodeId
+          ? { ...n, data: { ...n.data, pads: updatedPads } }
+          : n
+      )
+    );
+  }, [nodes, setNodes]);
+
+  const selectSamplerPad = useCallback((nodeId: string, padIndex: number) => {
+    setNodes((nds) =>
+      nds.map((n) =>
+        n.id === nodeId && n.data.type === "sampler"
+          ? { ...n, data: { ...n.data, selectedPad: padIndex } }
+          : n
+      )
+    );
+  }, [setNodes]);
 
   return {
     addCryptoModule,
@@ -319,9 +347,10 @@ export const useModuleManager = (
     toggleCollapse,
     triggerDrum,
     updateMixerChannel,
-    startSamplerRecording,
-    stopSamplerRecording,
-    startSamplerPlayback,
-    stopSamplerPlayback,
+    triggerSamplerPad,
+    stopSamplerPad,
+    loadSamplerSample,
+    recordSamplerPad,
+    selectSamplerPad,
   };
 };

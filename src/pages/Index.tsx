@@ -420,32 +420,31 @@ const Index = () => {
                 : node.data.type === "sampler"
                 ? {
                     ...node.data,
-                    onStartRecording: async (id: string) => {
-                      const result = await moduleManager.startSamplerRecording(id);
-                      if (result.success) {
-                        toast({ title: "Recording", description: "Microphone recording started" });
-                      } else {
-                        toast({ 
-                          title: "Error", 
-                          description: "Failed to access microphone",
-                          variant: "destructive"
-                        });
-                      }
+                    onTriggerPad: moduleManager.triggerSamplerPad,
+                    onStopPad: moduleManager.stopSamplerPad,
+                    onLoadSample: async (id: string, padIndex: number, file: File) => {
+                      await moduleManager.loadSamplerSample(id, padIndex, file);
+                      toast({ title: "Sample Loaded", description: `Loaded to pad ${padIndex + 1}` });
                     },
-                    onStopRecording: (id: string) => {
-                      moduleManager.stopSamplerRecording(id);
-                      toast({ title: "Recording stopped", description: "Sample ready to play" });
+                    onRecordToPad: async (id: string, padIndex: number) => {
+                      toast({ title: "Recording", description: "Recording started (10s max)" });
+                      await moduleManager.recordSamplerPad(id, padIndex);
+                      toast({ title: "Recording Complete", description: `Saved to pad ${padIndex + 1}` });
                     },
-                    onStartPlayback: moduleManager.startSamplerPlayback,
-                    onStopPlayback: moduleManager.stopSamplerPlayback,
+                    onPadVolumeChange: (id: string, padIndex: number, vol: number) => 
+                      moduleManager.updateParameter(id, `pad_${padIndex}_volume`, vol),
+                    onPadPitchChange: (id: string, padIndex: number, pitch: number) => 
+                      moduleManager.updateParameter(id, `pad_${padIndex}_pitch`, pitch),
+                    onPadLoopChange: (id: string, padIndex: number, loop: boolean) => 
+                      moduleManager.updateParameter(id, `pad_${padIndex}_loop`, loop),
+                    onPadLoopStartChange: (id: string, padIndex: number, time: number) => 
+                      moduleManager.updateParameter(id, `pad_${padIndex}_loopStart`, time),
+                    onPadLoopEndChange: (id: string, padIndex: number, time: number) => 
+                      moduleManager.updateParameter(id, `pad_${padIndex}_loopEnd`, time),
                     onVolumeChange: (id: string, vol: number) => moduleManager.updateParameter(id, "volume", vol),
-                    onLoopChange: (id: string, loop: boolean) => moduleManager.updateParameter(id, "loop", loop),
-                    onPitchChange: (id: string, pitch: number) => moduleManager.updateParameter(id, "pitch", pitch),
-                    onReverseChange: (id: string, reverse: boolean) => moduleManager.updateParameter(id, "reverse", reverse),
-                    onLoopStartChange: (id: string, time: number) => moduleManager.updateParameter(id, "loopStart", time),
-                    onLoopEndChange: (id: string, time: number) => moduleManager.updateParameter(id, "loopEnd", time),
-                    onSampleStartChange: (id: string, normalized: number) => moduleManager.updateParameter(id, "sampleStart", normalized),
-                    onSampleEndChange: (id: string, normalized: number) => moduleManager.updateParameter(id, "sampleEnd", normalized),
+                    onFilterFreqChange: (id: string, freq: number) => moduleManager.updateParameter(id, "filterFreq", freq),
+                    onFilterResChange: (id: string, res: number) => moduleManager.updateParameter(id, "filterRes", res),
+                    onSelectPad: moduleManager.selectSamplerPad,
                     onToggleCollapse: moduleManager.toggleCollapse,
                     onRemove: moduleManager.removeModule,
                   }

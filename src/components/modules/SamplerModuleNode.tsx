@@ -2,46 +2,63 @@ import { Handle, Position } from "reactflow";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { Music2, ChevronDown, ChevronUp, X, Mic, Square, Play, Pause, Repeat, Music, Scissors, Rewind } from "lucide-react";
+import { Music2, ChevronDown, ChevronUp, X, Upload, Mic, Play, Square, Sliders } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { useState, useRef } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface SamplerModuleNodeProps {
   id: string;
   data: {
-    volume: number;
-    loop: boolean;
-    pitch: number;
-    reverse: boolean;
-    loopStart: number;
-    loopEnd: number;
-    sampleStart: number;
-    sampleEnd: number;
-    duration: number;
-    isRecording: boolean;
-    isPlaying: boolean;
-    hasRecording: boolean;
     collapsed: boolean;
-    onStartRecording?: (id: string) => void;
-    onStopRecording?: (id: string) => void;
-    onStartPlayback?: (id: string) => void;
-    onStopPlayback?: (id: string) => void;
+    selectedPad: number;
+    pads: Array<{
+      hasSample: boolean;
+      isPlaying: boolean;
+      duration: number;
+      volume: number;
+      pitch: number;
+      loop: boolean;
+      loopStart: number;
+      loopEnd: number;
+    }>;
+    volume: number;
+    filterFreq: number;
+    filterRes: number;
+    onTriggerPad?: (id: string, padIndex: number) => void;
+    onStopPad?: (id: string, padIndex: number) => void;
+    onLoadSample?: (id: string, padIndex: number, file: File) => void;
+    onRecordToPad?: (id: string, padIndex: number) => void;
+    onPadVolumeChange?: (id: string, padIndex: number, volume: number) => void;
+    onPadPitchChange?: (id: string, padIndex: number, pitch: number) => void;
+    onPadLoopChange?: (id: string, padIndex: number, loop: boolean) => void;
+    onPadLoopStartChange?: (id: string, padIndex: number, time: number) => void;
+    onPadLoopEndChange?: (id: string, padIndex: number, time: number) => void;
     onVolumeChange?: (id: string, volume: number) => void;
-    onLoopChange?: (id: string, loop: boolean) => void;
-    onPitchChange?: (id: string, pitch: number) => void;
-    onReverseChange?: (id: string, reverse: boolean) => void;
-    onLoopStartChange?: (id: string, time: number) => void;
-    onLoopEndChange?: (id: string, time: number) => void;
-    onSampleStartChange?: (id: string, normalized: number) => void;
-    onSampleEndChange?: (id: string, normalized: number) => void;
+    onFilterFreqChange?: (id: string, freq: number) => void;
+    onFilterResChange?: (id: string, res: number) => void;
+    onSelectPad?: (id: string, padIndex: number) => void;
     onToggleCollapse?: (id: string) => void;
     onRemove?: (id: string) => void;
   };
 }
 
 const SamplerModuleNode = ({ data, id }: SamplerModuleNodeProps) => {
+  const [activeTab, setActiveTab] = useState("pads");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const selectedPad = data.selectedPad;
+  const pad = data.pads[selectedPad];
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      data.onLoadSample?.(id, selectedPad, file);
+    }
+  };
+
   return (
-    <Card className="min-w-[280px] bg-card/95 backdrop-blur-sm border-primary/20 shadow-glow">
+    <Card className="min-w-[320px] bg-card/95 backdrop-blur-sm border-primary/20 shadow-glow">
       <Handle id="in" type="target" position={Position.Left} className="!bg-primary" />
       
       <div className="p-4 space-y-4">
@@ -71,186 +88,232 @@ const SamplerModuleNode = ({ data, id }: SamplerModuleNodeProps) => {
         </div>
 
         {!data.collapsed && (
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              {!data.isRecording ? (
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="pads">Pads</TabsTrigger>
+              <TabsTrigger value="controls">Controls</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="pads" className="space-y-3 mt-3">
+              {/* Pad Grid */}
+              <div className="grid grid-cols-4 gap-2">
+                {data.pads.map((pad, index) => (
+                  <Button
+                    key={index}
+                    variant={selectedPad === index ? "default" : "outline"}
+                    className={`h-12 relative ${
+                      pad.isPlaying ? 'animate-pulse' : ''
+                    } ${
+                      pad.hasSample ? 'border-primary' : ''
+                    }`}
+                    onClick={() => {
+                      data.onSelectPad?.(id, index);
+                      if (pad.hasSample) {
+                        data.onTriggerPad?.(id, index);
+                      }
+                    }}
+                  >
+                    <span className="text-xs">{index + 1}</span>
+                    {pad.hasSample && (
+                      <div className="absolute bottom-1 right-1 w-1.5 h-1.5 bg-primary rounded-full" />
+                    )}
+                  </Button>
+                ))}
+              </div>
+
+              {/* Pad Actions */}
+              <div className="flex gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="audio/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
                 <Button
-                  onClick={() => data.onStartRecording?.(id)}
+                  onClick={() => fileInputRef.current?.click()}
                   className="flex-1 gap-2"
-                  variant="default"
+                  variant="secondary"
+                  size="sm"
                 >
-                  <Mic className="w-4 h-4" />
+                  <Upload className="w-3 h-3" />
+                  Load
+                </Button>
+                <Button
+                  onClick={() => data.onRecordToPad?.(id, selectedPad)}
+                  className="flex-1 gap-2"
+                  variant="secondary"
+                  size="sm"
+                >
+                  <Mic className="w-3 h-3" />
                   Record
                 </Button>
-              ) : (
-                <Button
-                  onClick={() => data.onStopRecording?.(id)}
-                  className="flex-1 gap-2"
-                  variant="destructive"
-                >
-                  <Square className="w-4 h-4" />
-                  Stop Recording
-                </Button>
-              )}
-            </div>
+              </div>
 
-            {data.hasRecording && (
-              <>
+              {pad?.hasSample && (
                 <div className="flex gap-2">
-                  {!data.isPlaying ? (
+                  {!pad.isPlaying ? (
                     <Button
-                      onClick={() => data.onStartPlayback?.(id)}
+                      onClick={() => data.onTriggerPad?.(id, selectedPad)}
                       className="flex-1 gap-2"
-                      variant="secondary"
+                      size="sm"
                     >
-                      <Play className="w-4 h-4" />
+                      <Play className="w-3 h-3" />
                       Play
                     </Button>
                   ) : (
                     <Button
-                      onClick={() => data.onStopPlayback?.(id)}
+                      onClick={() => data.onStopPad?.(id, selectedPad)}
                       className="flex-1 gap-2"
-                      variant="secondary"
+                      variant="destructive"
+                      size="sm"
                     >
-                      <Pause className="w-4 h-4" />
+                      <Square className="w-3 h-3" />
                       Stop
                     </Button>
                   )}
                 </div>
+              )}
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex items-center justify-between col-span-2">
-                    <Label className="text-sm text-muted-foreground flex items-center gap-2">
-                      <Repeat className="w-4 h-4" />
-                      Loop
-                    </Label>
-                    <Switch
-                      checked={data.loop}
-                      onCheckedChange={(checked) => data.onLoopChange?.(id, checked)}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between col-span-2">
-                    <Label className="text-sm text-muted-foreground flex items-center gap-2">
-                      <Rewind className="w-4 h-4" />
-                      Reverse
-                    </Label>
-                    <Switch
-                      checked={data.reverse}
-                      onCheckedChange={(checked) => data.onReverseChange?.(id, checked)}
-                    />
-                  </div>
+              {pad?.hasSample && (
+                <div className="text-xs text-muted-foreground text-center">
+                  Pad {selectedPad + 1} • {pad.duration.toFixed(2)}s
                 </div>
+              )}
+            </TabsContent>
 
-                <div>
-                  <Label className="text-sm text-muted-foreground flex items-center gap-2">
-                    <Music className="w-3 h-3" />
-                    Pitch: {data.pitch.toFixed(2)}x
-                  </Label>
-                  <Slider
-                    value={[data.pitch]}
-                    onValueChange={([v]) => data.onPitchChange?.(id, v)}
-                    min={0.25}
-                    max={4}
-                    step={0.01}
-                    className="mt-2"
-                  />
-                </div>
-
-                <div>
-                  <Label className="text-sm text-muted-foreground">
-                    Volume: {(data.volume * 100).toFixed(0)}%
-                  </Label>
-                  <Slider
-                    value={[data.volume]}
-                    onValueChange={([v]) => data.onVolumeChange?.(id, v)}
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    className="mt-2"
-                  />
-                </div>
-
-                {data.loop && (
-                  <div className="space-y-2 p-2 bg-accent/20 rounded-md">
-                    <Label className="text-xs text-muted-foreground">Loop Points</Label>
+            <TabsContent value="controls" className="space-y-3 mt-3">
+              {pad?.hasSample ? (
+                <>
+                  {/* Pad Controls */}
+                  <div className="space-y-3 p-2 bg-accent/20 rounded-md">
+                    <Label className="text-xs font-semibold">Pad {selectedPad + 1} Controls</Label>
+                    
                     <div>
                       <Label className="text-xs text-muted-foreground">
-                        Start: {data.loopStart.toFixed(2)}s
+                        Volume: {(pad.volume * 100).toFixed(0)}%
                       </Label>
                       <Slider
-                        value={[data.loopStart]}
-                        onValueChange={([v]) => data.onLoopStartChange?.(id, v)}
+                        value={[pad.volume]}
+                        onValueChange={([v]) => data.onPadVolumeChange?.(id, selectedPad, v)}
                         min={0}
-                        max={data.duration}
+                        max={1}
                         step={0.01}
                         className="mt-1"
                       />
                     </div>
+
                     <div>
                       <Label className="text-xs text-muted-foreground">
-                        End: {data.loopEnd.toFixed(2)}s
+                        Pitch: {pad.pitch.toFixed(2)}x
                       </Label>
                       <Slider
-                        value={[data.loopEnd]}
-                        onValueChange={([v]) => data.onLoopEndChange?.(id, v)}
-                        min={data.loopStart}
-                        max={data.duration}
+                        value={[pad.pitch]}
+                        onValueChange={([v]) => data.onPadPitchChange?.(id, selectedPad, v)}
+                        min={0.25}
+                        max={4}
                         step={0.01}
                         className="mt-1"
                       />
                     </div>
-                  </div>
-                )}
 
-                <div className="space-y-2 p-2 bg-accent/20 rounded-md">
-                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Scissors className="w-3 h-3" />
-                    Sample Trim
-                  </Label>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">
-                      Start: {(data.sampleStart * 100).toFixed(0)}%
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs text-muted-foreground">Loop</Label>
+                      <Switch
+                        checked={pad.loop}
+                        onCheckedChange={(checked) => data.onPadLoopChange?.(id, selectedPad, checked)}
+                      />
+                    </div>
+
+                    {pad.loop && (
+                      <div className="space-y-2 pl-2 border-l-2 border-primary/30">
+                        <div>
+                          <Label className="text-xs text-muted-foreground">
+                            Loop Start: {pad.loopStart.toFixed(2)}s
+                          </Label>
+                          <Slider
+                            value={[pad.loopStart]}
+                            onValueChange={([v]) => data.onPadLoopStartChange?.(id, selectedPad, v)}
+                            min={0}
+                            max={pad.duration}
+                            step={0.01}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">
+                            Loop End: {pad.loopEnd.toFixed(2)}s
+                          </Label>
+                          <Slider
+                            value={[pad.loopEnd]}
+                            onValueChange={([v]) => data.onPadLoopEndChange?.(id, selectedPad, v)}
+                            min={pad.loopStart}
+                            max={pad.duration}
+                            step={0.01}
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Global Controls */}
+                  <div className="space-y-3 p-2 bg-accent/10 rounded-md">
+                    <Label className="text-xs font-semibold flex items-center gap-2">
+                      <Sliders className="w-3 h-3" />
+                      Global
                     </Label>
-                    <Slider
-                      value={[data.sampleStart]}
-                      onValueChange={([v]) => data.onSampleStartChange?.(id, v)}
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">
-                      End: {(data.sampleEnd * 100).toFixed(0)}%
-                    </Label>
-                    <Slider
-                      value={[data.sampleEnd]}
-                      onValueChange={([v]) => data.onSampleEndChange?.(id, v)}
-                      min={data.sampleStart}
-                      max={1}
-                      step={0.01}
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-              </>
-            )}
+                    
+                    <div>
+                      <Label className="text-xs text-muted-foreground">
+                        Master Volume: {(data.volume * 100).toFixed(0)}%
+                      </Label>
+                      <Slider
+                        value={[data.volume]}
+                        onValueChange={([v]) => data.onVolumeChange?.(id, v)}
+                        min={0}
+                        max={1}
+                        step={0.01}
+                        className="mt-1"
+                      />
+                    </div>
 
-            {!data.hasRecording && !data.isRecording && (
-              <p className="text-xs text-muted-foreground text-center py-4">
-                Click Record to capture audio from your microphone
-              </p>
-            )}
+                    <div>
+                      <Label className="text-xs text-muted-foreground">
+                        Filter: {data.filterFreq.toFixed(0)}Hz
+                      </Label>
+                      <Slider
+                        value={[data.filterFreq]}
+                        onValueChange={([v]) => data.onFilterFreqChange?.(id, v)}
+                        min={20}
+                        max={20000}
+                        step={10}
+                        className="mt-1"
+                      />
+                    </div>
 
-            {data.isRecording && (
-              <div className="flex items-center justify-center gap-2 py-2">
-                <div className="w-2 h-2 bg-destructive rounded-full animate-pulse" />
-                <p className="text-xs text-muted-foreground">Recording...</p>
-              </div>
-            )}
-          </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">
+                        Resonance: {data.filterRes.toFixed(1)}
+                      </Label>
+                      <Slider
+                        value={[data.filterRes]}
+                        onValueChange={([v]) => data.onFilterResChange?.(id, v)}
+                        min={0}
+                        max={30}
+                        step={0.1}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-4">
+                  Load or record a sample to access controls
+                </p>
+              )}
+            </TabsContent>
+          </Tabs>
         )}
       </div>
 
