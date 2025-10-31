@@ -21,7 +21,7 @@ class AudioContextManager {
       this.audioContext = new AudioContext();
       this.masterGain = this.audioContext.createGain();
       this.masterGain.connect(this.audioContext.destination);
-      this.masterGain.gain.value = 0.5;
+      this.masterGain.gain.value = 1.0;
     }
   }
 

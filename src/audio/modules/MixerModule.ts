@@ -13,7 +13,7 @@ export class MixerModule extends AudioModule {
     
     // Initialize channel data
     this.channels = Array.from({ length: channelCount }, () => ({
-      volume: 0.8,
+      volume: 1.0,
       pan: 0,
       muted: false
     }));
@@ -33,7 +33,7 @@ export class MixerModule extends AudioModule {
 
     // Create mix bus
     this.mixGain = ctx.createGain();
-    this.mixGain.gain.value = 0.7;
+    this.mixGain.gain.value = 1.0;
 
     // Wire up: gain -> panner -> mix bus
     this.channelGains.forEach((gain, i) => {

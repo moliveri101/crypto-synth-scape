@@ -10,7 +10,7 @@ export class CryptoModule extends AudioModule {
   private rootNote: string = "C";
   private octave: number = 4;
   private pitch: number = 0;
-  private volume: number = 0.7;
+  private volume: number = 1.0;
 
   constructor(ctx: AudioContext, crypto: CryptoData) {
     super(ctx);

@@ -1,7 +1,7 @@
 import { AudioModule } from "../AudioModule";
 
 export class DrumsModule extends AudioModule {
-  private volume: number = 0.8;
+  private volume: number = 1.0;
   private pitch: number = 0;
   private selectedDrum: string = "kick";
   private analyser: AnalyserNode;

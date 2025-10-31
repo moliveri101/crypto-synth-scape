@@ -97,7 +97,7 @@ const Index = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState<any>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [masterVolume, setMasterVolume] = useState(0.5);
+  const [masterVolume, setMasterVolume] = useState(1.0);
   const [livePricesEnabled, setLivePricesEnabled] = useState(false);
   const { toast } = useToast();
 
@@ -279,6 +279,7 @@ const Index = () => {
 
   const isValidConnection = useCallback(
     (connection: Connection) => {
+      // Only prevent self-connections, allow all other connections
       if (connection.source === connection.target) return false;
 
       const sourceNode = nodes.find((n) => n.id === connection.source);
@@ -286,51 +287,10 @@ const Index = () => {
 
       if (!sourceNode || !targetNode) return false;
 
-      const sourceType = sourceNode.data.type;
-      const targetType = targetNode.data.type;
-
-      // Allow sequencer inputs
-      if (targetType === "sequencer") return true;
-
-      // Crypto connections
-      if (sourceType === "crypto") {
-        const isMixer = targetType === "mixer" || (typeof targetType === "string" && targetType.startsWith("mixer-"));
-        return isMixer || targetType === "sampler" || EFFECT_TYPES.includes(targetType) || targetType === "sequencer";
-      }
-
-      // Sampler connections
-      if (sourceType === "sampler") {
-        const isMixer = targetType === "mixer" || (typeof targetType === "string" && targetType.startsWith("mixer-"));
-        return isMixer || EFFECT_TYPES.includes(targetType);
-      }
-
-      // Sequencer connections
-      if (sourceType === "sequencer") {
-        const isMixer = targetType === "mixer" || (typeof targetType === "string" && targetType.startsWith("mixer-"));
-        return targetType === "crypto" || targetType === "sampler" || targetType === "drums" || isMixer;
-      }
-
-      // Drums connections
-      if (sourceType === "drums") {
-        const isMixer = targetType === "mixer" || (typeof targetType === "string" && targetType.startsWith("mixer-"));
-        return isMixer || EFFECT_TYPES.includes(targetType);
-      }
-
-      // Effect connections
-      if (EFFECT_TYPES.includes(sourceType)) {
-        const isMixer = targetType === "mixer" || (typeof targetType === "string" && targetType.startsWith("mixer-"));
-        return isMixer || targetType === "visualizer" || EFFECT_TYPES.includes(targetType);
-      }
-
-      // Mixer connections
-      if (sourceType === "mixer" || (typeof sourceType === "string" && sourceType.startsWith("mixer-"))) {
-        const isOutput = targetType === "output-speakers" || targetType === "output-headphones";
-        return targetType === "visualizer" || EFFECT_TYPES.includes(targetType) || isOutput;
-      }
-
-      return false;
+      // Allow all connections between different modules
+      return true;
     },
-    [nodes, EFFECT_TYPES]
+    [nodes]
   );
 
   const deleteEdge = useCallback((edgeId: string) => {
