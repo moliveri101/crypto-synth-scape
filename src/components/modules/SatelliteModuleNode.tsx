@@ -4,14 +4,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Satellite, Play, Pause, ChevronDown, ChevronUp } from "lucide-react";
+import { Satellite, Play, Pause, ChevronDown, ChevronUp, X } from "lucide-react";
 import { SatelliteModuleData } from "@/types/modules";
 
 const SatelliteModuleNode = ({ data }: NodeProps<SatelliteModuleData & {
   onUpdate: (updates: Partial<SatelliteModuleData>) => void;
   onTogglePlay: () => void;
+  onRemove?: () => void;
 }>) => {
-  const { onUpdate, onTogglePlay } = data as any;
+  const { onUpdate, onTogglePlay, onRemove } = data as any;
   
   const formatValue = (value: number, decimals = 2) => value.toFixed(decimals);
 
@@ -48,6 +49,16 @@ const SatelliteModuleNode = ({ data }: NodeProps<SatelliteModuleData & {
           >
             {data.collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
           </Button>
+          {onRemove && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
+              onClick={onRemove}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
 

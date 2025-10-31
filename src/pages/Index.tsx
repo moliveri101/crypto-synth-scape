@@ -368,6 +368,7 @@ const Index = () => {
                         );
                       }
                     },
+                    onRemove: () => moduleManager.removeModule(node.id),
                   }
                 : typeof node.data.type === "string" && node.data.type.startsWith("mixer-")
                 ? {
