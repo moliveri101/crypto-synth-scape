@@ -4,12 +4,19 @@ export class DrumsModule extends AudioModule {
   private volume: number = 0.8;
   private pitch: number = 0;
   private selectedDrum: string = "kick";
+  private analyser: AnalyserNode;
+  private monitoringInterval: number | null = null;
+  private lastTriggerTime: number = 0;
+  private minTriggerInterval: number = 0.05; // 50ms between triggers
 
   constructor(ctx: AudioContext) {
     super(ctx);
     
-    // Drums don't use inputNode (they generate sound)
+    // Create input node with analyser to detect gate signals
     this.inputNode = ctx.createGain();
+    this.analyser = ctx.createAnalyser();
+    this.analyser.fftSize = 256;
+    this.inputNode.connect(this.analyser);
     
     // Output node for volume control
     const outputGain = ctx.createGain();
@@ -18,12 +25,48 @@ export class DrumsModule extends AudioModule {
   }
 
   start() {
-    // Drums are triggered, not continuously playing
     this.isActive = true;
+    // Start monitoring input for gate signals
+    this.startMonitoring();
   }
 
   stop() {
     this.isActive = false;
+    this.stopMonitoring();
+  }
+
+  private startMonitoring() {
+    if (this.monitoringInterval !== null) return;
+    
+    const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+    
+    this.monitoringInterval = window.setInterval(() => {
+      if (!this.isActive) return;
+      
+      this.analyser.getByteTimeDomainData(dataArray);
+      
+      // Calculate RMS to detect gate signal
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        const normalized = (dataArray[i] - 128) / 128;
+        sum += normalized * normalized;
+      }
+      const rms = Math.sqrt(sum / dataArray.length);
+      
+      // Trigger if RMS is above threshold and enough time has passed
+      const now = this.ctx.currentTime;
+      if (rms > 0.1 && (now - this.lastTriggerTime) > this.minTriggerInterval) {
+        this.trigger();
+        this.lastTriggerTime = now;
+      }
+    }, 10); // Check every 10ms
+  }
+
+  private stopMonitoring() {
+    if (this.monitoringInterval !== null) {
+      clearInterval(this.monitoringInterval);
+      this.monitoringInterval = null;
+    }
   }
 
   trigger() {
@@ -122,5 +165,10 @@ export class DrumsModule extends AudioModule {
         this.selectedDrum = value;
         break;
     }
+  }
+
+  dispose() {
+    this.stopMonitoring();
+    super.dispose();
   }
 }
