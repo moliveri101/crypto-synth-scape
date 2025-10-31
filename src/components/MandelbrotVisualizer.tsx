@@ -131,7 +131,12 @@ const MandelbrotVisualizer = ({ analyser, isPlaying }: MandelbrotVisualizerProps
     <canvas
       ref={canvasRef}
       className="absolute inset-0 w-full h-full z-0 pointer-events-none opacity-50"
-      style={{ imageRendering: "pixelated", background: "transparent" }}
+      style={{ 
+        imageRendering: "pixelated", 
+        background: "transparent",
+        transform: "rotate(90deg)",
+        transformOrigin: "center center"
+      }}
     />
   );
 };
