@@ -131,11 +131,13 @@ const MandelbrotVisualizer = ({ analyser, isPlaying }: MandelbrotVisualizerProps
   return (
     <canvas
       ref={canvasRef}
-      className="absolute inset-0 w-full h-full z-0 pointer-events-none opacity-50"
+      className="absolute top-1/2 left-1/2 z-0 pointer-events-none opacity-50"
       style={{ 
-        imageRendering: "pixelated", 
+        imageRendering: "pixelated",
         background: "transparent",
-        transform: "rotate(90deg)",
+        width: "100vh",
+        height: "100vw",
+        transform: "translate(-50%, -50%) rotate(90deg)",
         transformOrigin: "center center"
       }}
     />
