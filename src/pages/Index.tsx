@@ -149,6 +149,16 @@ const Index = () => {
   // Initialize audio context
   useEffect(() => {
     audioContextManager.initialize();
+    
+    // Phase 1: Add user interaction handler to resume AudioContext
+    const resumeAudio = () => {
+      audioContextManager.resume();
+      document.removeEventListener('click', resumeAudio);
+      document.removeEventListener('touchstart', resumeAudio);
+    };
+    
+    document.addEventListener('click', resumeAudio);
+    document.addEventListener('touchstart', resumeAudio);
 
     return () => {
       nodes.forEach((node) => {
@@ -159,6 +169,9 @@ const Index = () => {
       });
       // Do not close the AudioContext to avoid context mismatch across HMR/rehydration
       audioContextManager.suspend();
+      
+      document.removeEventListener('click', resumeAudio);
+      document.removeEventListener('touchstart', resumeAudio);
     };
   }, []);
 

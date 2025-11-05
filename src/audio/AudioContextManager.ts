@@ -18,10 +18,25 @@ class AudioContextManager {
 
   initialize() {
     if (!this.audioContext) {
-      this.audioContext = new AudioContext();
+      // Phase 5: Set optimal sample rate and latency hint
+      this.audioContext = new AudioContext({
+        sampleRate: 48000,
+        latencyHint: 'interactive'
+      });
+      
+      // Phase 3: Add DC offset removal with high-pass filter at 20Hz
+      const dcBlocker = this.audioContext.createBiquadFilter();
+      dcBlocker.type = 'highpass';
+      dcBlocker.frequency.value = 20;
+      dcBlocker.Q.value = 0.7071; // Butterworth response
+      
       this.masterGain = this.audioContext.createGain();
-      this.masterGain.connect(this.audioContext.destination);
       this.masterGain.gain.value = 1.0;
+      
+      // Chain: masterGain -> DC blocker -> destination
+      this.masterGain.connect(dcBlocker);
+      dcBlocker.connect(this.audioContext.destination);
+      
       console.log('AudioContext initialized:', this.audioContext, 'State:', this.audioContext.state);
     } else {
       console.log('AudioContext already exists:', this.audioContext, 'State:', this.audioContext.state);
