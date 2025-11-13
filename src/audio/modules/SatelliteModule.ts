@@ -138,12 +138,12 @@ export class SatelliteModule extends AudioModule {
     // Start pulse scheduling
     this.schedulePulse();
 
-    // Start updating from satellite data every 2 seconds
+    // Start updating from satellite data every minute
     this.updateInterval = window.setInterval(() => {
       if (this.satellite) {
         this.fetchAndUpdate();
       }
-    }, 2000);
+    }, 60000);
   }
 
   stop() {
