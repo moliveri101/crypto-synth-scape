@@ -37,7 +37,7 @@ export class ModuleFactory {
       data: {
         type: "crypto",
         crypto,
-        volume: 0.6,
+        volume: 0.8,
         waveform: "sine",
         scale: "major",
         rootNote: "C",
@@ -97,7 +97,7 @@ export class ModuleFactory {
       position: { x: 100 + nodeCount * 50, y: 100 + nodeCount * 50 },
       data: {
         type: `mixer-${trackCount}`,
-        masterVolume: 0.85,
+        masterVolume: 1.0,
         isPlaying: false,
         inputCount: 0,
         collapsed: false,

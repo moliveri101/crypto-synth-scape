@@ -6,7 +6,7 @@ export class OutputModule extends AudioModule {
   private limiter: DynamicsCompressorNode;
   private makeupGain: GainNode;
   private analyser: AnalyserNode;
-  private volume: number = 0.7; // Phase 2: Reduced default volume
+  private volume: number = 0.85; // Increased for better output level
   private dataArray: Uint8Array;
 
   constructor(ctx: AudioContext) {
