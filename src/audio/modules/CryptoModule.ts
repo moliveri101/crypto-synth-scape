@@ -19,7 +19,7 @@ export class CryptoModule extends AudioModule {
     
     // Create gain node for volume control
     this.gainNode = ctx.createGain();
-    this.gainNode.gain.value = 0;
+    this.gainNode.gain.value = 0.001;
     
     // Phase 4: Add anti-aliasing filter (gentle low-pass at 18kHz)
     this.antiAliasFilter = ctx.createBiquadFilter();
@@ -46,7 +46,7 @@ export class CryptoModule extends AudioModule {
     
     // Phase 3: Smooth fade-in to prevent click (5ms)
     const now = this.ctx.currentTime;
-    this.gainNode.gain.setValueAtTime(0, now);
+    this.gainNode.gain.setValueAtTime(0.001, now);
     this.gainNode.gain.exponentialRampToValueAtTime(this.volume, now + 0.005);
     
     this.oscillator.start();
