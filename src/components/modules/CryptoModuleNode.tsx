@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { X, TrendingUp, TrendingDown, ChevronDown, ChevronUp } from "lucide-react";
+import { X, TrendingUp, TrendingDown, ChevronDown, ChevronUp, Play, Square } from "lucide-react";
 
 const waveforms: OscillatorType[] = ["sine", "square", "sawtooth", "triangle"];
 
@@ -26,8 +26,10 @@ const CryptoModuleNode = ({ data, id }: NodeProps<CryptoModuleData & {
   onRootNoteChange?: (id: string, note: string) => void;
   onOctaveChange?: (id: string, octave: number) => void;
   onPitchChange?: (id: string, pitch: number) => void;
+  onPlay?: (id: string) => void;
+  onStop?: (id: string) => void;
 }>) => {
-  const { crypto, volume, waveform, isPlaying, collapsed, scale, rootNote, octave, pitch, onRemove, onVolumeChange, onWaveformChange, onToggleCollapse, onScaleChange, onRootNoteChange, onOctaveChange, onPitchChange } = data;
+  const { crypto, volume, waveform, isPlaying, collapsed, scale, rootNote, octave, pitch, onRemove, onVolumeChange, onWaveformChange, onToggleCollapse, onScaleChange, onRootNoteChange, onOctaveChange, onPitchChange, onPlay, onStop } = data;
   const priceChange = crypto.price_change_percentage_24h;
   const isPositive = priceChange >= 0;
 
@@ -80,6 +82,25 @@ const CryptoModuleNode = ({ data, id }: NodeProps<CryptoModuleData & {
 
         {!collapsed && (
           <>
+        {/* Play/Stop Button */}
+        <Button
+          onClick={() => isPlaying ? onStop?.(id) : onPlay?.(id)}
+          className="w-full"
+          variant={isPlaying ? "destructive" : "default"}
+        >
+          {isPlaying ? (
+            <>
+              <Square className="w-4 h-4 mr-2" />
+              Stop
+            </>
+          ) : (
+            <>
+              <Play className="w-4 h-4 mr-2" />
+              Play
+            </>
+          )}
+        </Button>
+
         {/* Price Info */}
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div>

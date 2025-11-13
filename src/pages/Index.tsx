@@ -335,6 +335,8 @@ const Index = () => {
                     onRootNoteChange: (id: string, note: string) => moduleManager.updateParameter(id, "rootNote", note),
                     onOctaveChange: (id: string, octave: number) => moduleManager.updateParameter(id, "octave", octave),
                     onPitchChange: (id: string, pitch: number) => moduleManager.updateParameter(id, "pitch", pitch),
+                    onPlay: moduleManager.startModule,
+                    onStop: moduleManager.stopModule,
                   }
                 : node.data.type === "satellite"
                 ? {
