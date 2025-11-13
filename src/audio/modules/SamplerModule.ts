@@ -16,7 +16,7 @@ export class SamplerModule extends AudioModule {
   private padLoopEnd: Map<number, number> = new Map();
   
   // Global controls
-  private volume: number = 0.8;
+  private volume: number = 0.5;
   private filterFreq: number = 20000;
   private filterRes: number = 0;
 

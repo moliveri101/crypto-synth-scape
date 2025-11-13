@@ -13,7 +13,7 @@ export class MixerModule extends AudioModule {
     
     // Initialize channel data
     this.channels = Array.from({ length: channelCount }, () => ({
-      volume: 1.0,
+      volume: 0.7,
       pan: 0,
       muted: false
     }));

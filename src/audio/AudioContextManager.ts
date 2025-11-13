@@ -25,11 +25,11 @@ class AudioContextManager {
         latencyHint: 'interactive'
       });
       
-      // Phase 3: Add DC offset removal with high-pass filter at 5Hz (less aggressive)
+      // Phase 3: Add DC offset removal with high-pass filter at 20Hz
       const dcBlocker = this.audioContext.createBiquadFilter();
       dcBlocker.type = 'highpass';
-      dcBlocker.frequency.value = 5;
-      dcBlocker.Q.value = 0.5; // Gentle slope to avoid phase issues
+      dcBlocker.frequency.value = 20;
+      dcBlocker.Q.value = 0.7071;
       
       this.masterGain = this.audioContext.createGain();
       this.masterGain.gain.value = 1.0;
@@ -67,8 +67,8 @@ class AudioContextManager {
       this.masterGain.disconnect();
       const dcBlocker = this.audioContext.createBiquadFilter();
       dcBlocker.type = 'highpass';
-      dcBlocker.frequency.value = 5;
-      dcBlocker.Q.value = 0.5;
+      dcBlocker.frequency.value = 20;
+      dcBlocker.Q.value = 0.7071;
       
       this.masterGain.connect(dcBlocker);
       dcBlocker.connect(this.analyser);

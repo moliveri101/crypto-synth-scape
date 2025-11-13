@@ -10,7 +10,7 @@ export class CryptoModule extends AudioModule {
   private rootNote: string = "C";
   private octave: number = 4;
   private pitch: number = 0;
-  private volume: number = 0.8; // Increased for better output level
+  private volume: number = 0.3;
   private antiAliasFilter: BiquadFilterNode; // Phase 4: Anti-aliasing filter
 
   constructor(ctx: AudioContext, crypto: CryptoData) {
@@ -19,7 +19,7 @@ export class CryptoModule extends AudioModule {
     
     // Create gain node for volume control
     this.gainNode = ctx.createGain();
-    this.gainNode.gain.value = 0.001;
+    this.gainNode.gain.value = 0;
     
     // Phase 4: Add anti-aliasing filter (gentle low-pass at 18kHz)
     this.antiAliasFilter = ctx.createBiquadFilter();
@@ -46,8 +46,8 @@ export class CryptoModule extends AudioModule {
     
     // Phase 3: Smooth fade-in to prevent click (5ms)
     const now = this.ctx.currentTime;
-    this.gainNode.gain.setValueAtTime(0.001, now);
-    this.gainNode.gain.exponentialRampToValueAtTime(this.volume, now + 0.005);
+    this.gainNode.gain.setValueAtTime(0, now);
+    this.gainNode.gain.linearRampToValueAtTime(this.volume, now + 0.005);
     
     this.oscillator.start();
     this.isActive = true;
@@ -59,7 +59,7 @@ export class CryptoModule extends AudioModule {
         // Phase 3: Smooth fade-out to prevent click (5ms)
         const now = this.ctx.currentTime;
         this.gainNode.gain.setValueAtTime(this.gainNode.gain.value, now);
-        this.gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.005);
+        this.gainNode.gain.linearRampToValueAtTime(0, now + 0.005);
         
         this.oscillator.stop(now + 0.005);
         this.oscillator.disconnect();
