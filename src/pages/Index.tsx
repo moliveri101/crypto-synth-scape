@@ -16,6 +16,7 @@ import { CryptoData } from "@/types/crypto";
 import { SatelliteData } from "@/types/modules";
 import { audioContextManager } from "@/audio/AudioContextManager";
 import { audioRouter } from "@/services/AudioRouter";
+import { audioGraphManager } from "@/services/AudioGraphManager";
 import { useModuleManager } from "@/hooks/useModuleManager";
 import CryptoModuleNode from "@/components/modules/CryptoModuleNode";
 import SatelliteModuleNode from "@/components/modules/SatelliteModuleNode";
@@ -113,9 +114,9 @@ const Index = () => {
     setNodes((nds) =>
       nds.map((node) => {
         if (node.data.type === "crypto") {
-          const updatedCrypto = updatedCryptos.find((c) => c.id === node.data.crypto.id);
+            const updatedCrypto = updatedCryptos.find((c) => c.id === node.data.crypto.id);
           if (updatedCrypto) {
-            const module = node.data.audioModule as CryptoModule;
+            const module = audioGraphManager.getModule(node.id) as CryptoModule;
             if (module) {
               module.updateCrypto(updatedCrypto);
             }
@@ -151,12 +152,8 @@ const Index = () => {
     audioContextManager.initialize();
 
     return () => {
-      nodes.forEach((node) => {
-        if (node.data.audioModule) {
-          const module = node.data.audioModule as AudioModule;
-          module.dispose();
-        }
-      });
+      // Dispose all modules via graph manager
+      audioGraphManager.dispose();
       // Do not close the AudioContext to avoid context mismatch across HMR/rehydration
       audioContextManager.suspend();
     };
@@ -190,10 +187,10 @@ const Index = () => {
     );
   }, [edges, nodes, setNodes]);
 
-  // Rebuild audio routing when edges change
+  // Rebuild audio routing ONLY when topology changes (edges, not node data)
   useEffect(() => {
     audioRouter.routeAudio(nodes, edges);
-  }, [edges, nodes]);
+  }, [edges]);
 
   const isValidConnection = useCallback(
     (connection: Connection) => {
@@ -257,7 +254,7 @@ const Index = () => {
     const mixerNode = nodes.find((n) => n.id === mixerId);
     if (!mixerNode) return;
 
-    const mixerModule = mixerNode.data.audioModule as MixerModule;
+    const mixerModule = audioGraphManager.getModule(mixerId) as MixerModule;
     if (!mixerModule) return;
 
     const mixerIsPlaying = mixerNode.data.isPlaying;
@@ -355,7 +352,7 @@ const Index = () => {
                       });
                     },
                     onTogglePlay: () => {
-                      const module = node.data.audioModule as SatelliteModule;
+                      const module = audioGraphManager.getModule(node.id) as SatelliteModule;
                       if (module) {
                         if (node.data.isPlaying) {
                           module.stop();

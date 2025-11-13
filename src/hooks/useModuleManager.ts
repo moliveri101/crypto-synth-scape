@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { audioContextManager } from "@/audio/AudioContextManager";
-import { AudioModule } from "@/audio/AudioModule";
+import { audioGraphManager } from "@/services/AudioGraphManager";
 import { CryptoModule } from "@/audio/modules/CryptoModule";
 import { SatelliteModule } from "@/audio/modules/SatelliteModule";
 import { DrumsModule } from "@/audio/modules/DrumsModule";
@@ -41,6 +41,10 @@ export const useModuleManager = (
     if (!ctx) return { success: false, message: "Audio context not available" };
 
     const newNode = moduleFactory.createCryptoModule(ctx, crypto, nodes.length);
+    
+    // Register module in graph manager
+    audioGraphManager.registerModule(newNode.id, newNode.data.audioModule);
+    
     setNodes((nds) => [...nds, newNode]);
 
     return { success: true, message: `${crypto.name} added to canvas` };
@@ -71,6 +75,10 @@ export const useModuleManager = (
     };
 
     const newNode = moduleFactory.createSatelliteModule(ctx, satellite, nodes.length, dataUpdateCallback);
+    
+    // Register module in graph manager
+    audioGraphManager.registerModule(newNode.id, newNode.data.audioModule);
+    
     setNodes((nds) => [...nds, newNode]);
 
     return { success: true, message: `${satellite.name} added to canvas` };
@@ -90,7 +98,7 @@ export const useModuleManager = (
       const stepCallback = (step: number, isActive: boolean) => {
         setNodes((nds) =>
           nds.map((n) => {
-            if (n.data.audioModule instanceof AudioModule && (n.data.audioModule as any).setStepCallback) {
+            if (n.data.type === "sequencer") {
               return { ...n, data: { ...n.data, currentStep: step } };
             }
             return n;
@@ -102,6 +110,9 @@ export const useModuleManager = (
       newNode = moduleFactory.createModule(ctx, type, nodes.length);
     }
 
+    // Register module in graph manager
+    audioGraphManager.registerModule(newNode.id, newNode.data.audioModule);
+
     setNodes((nds) => [...nds, newNode]);
     return { success: true, message: `${type} module added` };
   }, [nodes.length, setNodes]);
@@ -110,15 +121,12 @@ export const useModuleManager = (
    * Remove a module
    */
   const removeModule = useCallback((id: string) => {
-    const node = nodes.find((n) => n.id === id);
-    if (node && node.data.audioModule) {
-      const module = node.data.audioModule as AudioModule;
-      module.dispose();
-    }
+    // Unregister from graph manager (handles disposal)
+    audioGraphManager.unregisterModule(id);
 
     setNodes((nds) => nds.filter((n) => n.id !== id));
     setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
-  }, [nodes, setNodes, setEdges]);
+  }, [setNodes, setEdges]);
 
   /**
    * Start a crypto module
@@ -126,13 +134,14 @@ export const useModuleManager = (
   const startModule = useCallback((nodeId: string) => {
     audioContextManager.resume();
 
+    const module = audioGraphManager.getModule(nodeId) as CryptoModule;
+    if (module) {
+      module.start();
+    }
+
     setNodes((nds) =>
       nds.map((node) => {
         if (node.id === nodeId && node.data.type === "crypto") {
-          const module = node.data.audioModule as CryptoModule;
-          if (module) {
-            module.start();
-          }
           return { ...node, data: { ...node.data, isPlaying: true } };
         }
         return node;
@@ -144,13 +153,14 @@ export const useModuleManager = (
    * Stop a crypto module
    */
   const stopModule = useCallback((nodeId: string) => {
+    const module = audioGraphManager.getModule(nodeId) as CryptoModule;
+    if (module) {
+      module.stop();
+    }
+
     setNodes((nds) =>
       nds.map((node) => {
         if (node.id === nodeId && node.data.type === "crypto") {
-          const module = node.data.audioModule as CryptoModule;
-          if (module) {
-            module.stop();
-          }
           return { ...node, data: { ...node.data, isPlaying: false } };
         }
         return node;
@@ -162,13 +172,14 @@ export const useModuleManager = (
    * Update a module parameter
    */
   const updateParameter = useCallback((nodeId: string, param: string, value: any) => {
-    const node = nodes.find((n) => n.id === nodeId);
-    if (!node) return;
-
-    const module = node.data.audioModule as AudioModule;
+    // Update audio module directly from graph manager
+    const module = audioGraphManager.getModule(nodeId);
     if (module) {
       module.setParameter(param, value);
     }
+
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node) return;
 
     setNodes((nds) =>
       nds.map((n) => {
@@ -213,13 +224,12 @@ export const useModuleManager = (
    * Trigger a drum sound
    */
   const triggerDrum = useCallback((nodeId: string) => {
-    const drumNode = nodes.find((n) => n.id === nodeId);
-    if (drumNode?.data.audioModule) {
+    const module = audioGraphManager.getModule(nodeId) as DrumsModule;
+    if (module) {
       audioContextManager.resume();
-      const module = drumNode.data.audioModule as DrumsModule;
       module.trigger();
     }
-  }, [nodes]);
+  }, []);
 
   /**
    * Update mixer channel parameter
@@ -236,7 +246,9 @@ export const useModuleManager = (
     if (!node || node.data.type !== "sampler") return;
 
     audioContextManager.resume();
-    const module = node.data.audioModule as SamplerModule;
+    const module = audioGraphManager.getModule(nodeId) as SamplerModule;
+    if (!module) return;
+    
     module.triggerPad(padIndex);
     
     const updatedPads = [...node.data.pads];
@@ -258,7 +270,9 @@ export const useModuleManager = (
     const node = nodes.find((n) => n.id === nodeId);
     if (!node || node.data.type !== "sampler") return;
 
-    const module = node.data.audioModule as SamplerModule;
+    const module = audioGraphManager.getModule(nodeId) as SamplerModule;
+    if (!module) return;
+    
     module.stopPad(padIndex);
     
     const updatedPads = [...node.data.pads];
@@ -280,7 +294,9 @@ export const useModuleManager = (
     const node = nodes.find((n) => n.id === nodeId);
     if (!node || node.data.type !== "sampler") return;
 
-    const module = node.data.audioModule as SamplerModule;
+    const module = audioGraphManager.getModule(nodeId) as SamplerModule;
+    if (!module) return;
+    
     const success = await module.loadSampleFromFile(padIndex, file);
     
     if (success) {
@@ -306,7 +322,9 @@ export const useModuleManager = (
     const node = nodes.find((n) => n.id === nodeId);
     if (!node || node.data.type !== "sampler") return;
 
-    const module = node.data.audioModule as SamplerModule;
+    const module = audioGraphManager.getModule(nodeId) as SamplerModule;
+    if (!module) return;
+    
     await module.recordToPad(padIndex);
     
     const updatedPads = [...node.data.pads];

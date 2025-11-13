@@ -1,18 +1,47 @@
 import { Edge } from "reactflow";
 import { AudioModule } from "@/audio/AudioModule";
 import { MixerModule } from "@/audio/modules/MixerModule";
+import { audioGraphManager } from "./AudioGraphManager";
 
 /**
  * Centralized audio routing service
  * Handles all audio module connections and disconnections
+ * Uses smart diffing to only update changed connections
  */
 export class AudioRouter {
-  private connections: Set<string> = new Set();
+  private previousEdgeKeys: Set<string> = new Set();
 
   /**
-   * Rebuild all audio connections based on current edges
+   * Smart audio routing - only updates changed connections
    */
   routeAudio(nodes: any[], edges: Edge[]) {
+    // Get current connection keys
+    const currentKeys = audioGraphManager.getCurrentConnectionKeys(edges);
+    
+    // Find connections to remove (in previous but not in current)
+    const toRemove = new Set([...this.previousEdgeKeys].filter(key => !currentKeys.has(key)));
+    
+    // Find connections to add (in current but not in previous)
+    const toAdd = new Set([...currentKeys].filter(key => !this.previousEdgeKeys.has(key)));
+
+    // Only proceed if there are actual changes
+    if (toRemove.size === 0 && toAdd.size === 0) {
+      return;
+    }
+
+    console.log(`AudioRouter: Removing ${toRemove.size}, Adding ${toAdd.size} connections`);
+
+    // Disconnect removed connections
+    toRemove.forEach(key => {
+      const [source, targetWithHandle] = key.split('->');
+      const [target, handle] = targetWithHandle.split(':');
+      const sourceModule = audioGraphManager.getModule(source);
+      if (sourceModule) {
+        sourceModule.disconnect();
+        audioGraphManager.removeConnection(source, target, handle);
+      }
+    });
+
     // Track mixer channel inputs
     const mixerChannelInputs: { [key: string]: Set<number> } = {};
 
@@ -30,7 +59,7 @@ export class AudioRouter {
     // Update mixer channel active states
     nodes.forEach(node => {
       if (node.data.type && node.data.type.startsWith("mixer-")) {
-        const module = node.data.audioModule as MixerModule;
+        const module = audioGraphManager.getModule(node.id) as MixerModule;
         if (module) {
           const activeChannels = mixerChannelInputs[node.id] || new Set();
           for (let i = 0; i < module.getChannelCount(); i++) {
@@ -40,35 +69,43 @@ export class AudioRouter {
       }
     });
 
-    // Disconnect all existing connections
-    nodes.forEach(node => {
-      const module = node.data.audioModule as AudioModule;
-      if (module) {
-        module.disconnect();
+    // Add new connections
+    toAdd.forEach(key => {
+      const [source, targetWithHandle] = key.split('->');
+      const [target, handle] = targetWithHandle.split(':');
+      const edge = edges.find(e => 
+        e.source === source && 
+        e.target === target && 
+        (handle ? e.targetHandle === handle : true)
+      );
+      if (edge) {
+        this.connectModules(nodes, edge);
       }
     });
 
-    // Rebuild connections
-    edges.forEach(edge => {
-      this.connectModules(nodes, edge);
-    });
-
-    console.log(`AudioRouter: Routed ${edges.length} connections`);
+    // Update previous edge keys
+    this.previousEdgeKeys = currentKeys;
   }
 
   /**
    * Connect two modules based on an edge
    */
   private connectModules(nodes: any[], edge: Edge) {
-    const sourceNode = nodes.find(n => n.id === edge.source);
+    const sourceModule = audioGraphManager.getModule(edge.source);
+    const targetModule = audioGraphManager.getModule(edge.target);
+
+    if (!sourceModule || !targetModule) {
+      console.warn(`Cannot connect: module not found (${edge.source} -> ${edge.target})`);
+      return;
+    }
+
+    // Check if already connected
+    if (audioGraphManager.hasConnection(edge.source, edge.target, edge.targetHandle || undefined)) {
+      return;
+    }
+
     const targetNode = nodes.find(n => n.id === edge.target);
-
-    if (!sourceNode || !targetNode) return;
-
-    const sourceModule = sourceNode.data.audioModule as AudioModule;
-    const targetModule = targetNode.data.audioModule;
-
-    if (!sourceModule || !targetModule) return;
+    if (!targetNode) return;
 
     // Handle mixer channel connections
     if (targetNode.data.type && targetNode.data.type.startsWith("mixer-")) {
@@ -77,11 +114,13 @@ export class AudioRouter {
       const channelInput = mixerModule.getChannelInput(channelIndex);
       if (channelInput) {
         sourceModule.connect(channelInput);
+        audioGraphManager.addConnection(edge.source, edge.target, edge.targetHandle || undefined);
         console.log(`Connected ${edge.source} to ${edge.target} channel ${channelIndex}`);
       }
     } else {
       // Standard connection
       sourceModule.connect(targetModule);
+      audioGraphManager.addConnection(edge.source, edge.target);
       console.log(`Connected ${edge.source} to ${edge.target}`);
     }
   }
@@ -116,9 +155,11 @@ export class AudioRouter {
     console.log('Starting module chain:', nodeId, allSources.map(s => s?.id));
 
     allSources.forEach((sourceNode) => {
-      if (sourceNode?.data.audioModule) {
-        const module = sourceNode.data.audioModule as AudioModule;
-        module.start();
+      if (sourceNode?.id) {
+        const module = audioGraphManager.getModule(sourceNode.id);
+        if (module) {
+          module.start();
+        }
       }
     });
   }
@@ -131,9 +172,11 @@ export class AudioRouter {
     console.log('Stopping module chain:', nodeId, allSources.map(s => s?.id));
 
     allSources.forEach((sourceNode) => {
-      if (sourceNode?.data.audioModule) {
-        const module = sourceNode.data.audioModule as AudioModule;
-        module.stop();
+      if (sourceNode?.id) {
+        const module = audioGraphManager.getModule(sourceNode.id);
+        if (module) {
+          module.stop();
+        }
       }
     });
   }
