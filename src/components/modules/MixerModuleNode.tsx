@@ -107,7 +107,7 @@ const MixerModuleNode = ({ data, id }: NodeProps<MixerModuleData & {
           <Slider
             value={[masterVolume * 100]}
             onValueChange={(values) => onMasterVolumeChange(values[0] / 100)}
-            max={100}
+            max={200}
             step={1}
           />
         </div>
