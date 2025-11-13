@@ -10,7 +10,7 @@ export class CryptoModule extends AudioModule {
   private rootNote: string = "C";
   private octave: number = 4;
   private pitch: number = 0;
-  private volume: number = 0.3; // Phase 2: Reduced from 1.0
+  private volume: number = 0.6; // Good balance for mixing
   private antiAliasFilter: BiquadFilterNode; // Phase 4: Anti-aliasing filter
 
   constructor(ctx: AudioContext, crypto: CryptoData) {

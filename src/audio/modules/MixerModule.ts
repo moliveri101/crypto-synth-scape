@@ -12,9 +12,8 @@ export class MixerModule extends AudioModule {
     this.channelCount = channelCount;
     
     // Initialize channel data
-    // Phase 2: Reduced default channel volume from 1.0 to 0.7
     this.channels = Array.from({ length: channelCount }, () => ({
-      volume: 0.7,
+      volume: 0.85,
       pan: 0,
       muted: false
     }));
