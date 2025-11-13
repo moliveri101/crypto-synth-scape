@@ -10,8 +10,7 @@ export class CryptoModule extends AudioModule {
   private rootNote: string = "C";
   private octave: number = 4;
   private pitch: number = 0;
-  private volume: number = 0.3;
-  private antiAliasFilter: BiquadFilterNode; // Phase 4: Anti-aliasing filter
+  private volume: number = 1.0;
 
   constructor(ctx: AudioContext, crypto: CryptoData) {
     super(ctx);
@@ -21,15 +20,7 @@ export class CryptoModule extends AudioModule {
     this.gainNode = ctx.createGain();
     this.gainNode.gain.value = 0;
     
-    // Phase 4: Add anti-aliasing filter (gentle low-pass at 18kHz)
-    this.antiAliasFilter = ctx.createBiquadFilter();
-    this.antiAliasFilter.type = 'lowpass';
-    this.antiAliasFilter.frequency.value = 18000;
-    this.antiAliasFilter.Q.value = 0.7071;
-    
-    // Set up audio chain: oscillator -> antiAlias -> gain -> output
-    this.antiAliasFilter.connect(this.gainNode);
-    
+    // Set up audio chain
     this.inputNode = ctx.createGain(); // Not used for crypto, but required by base class
     this.outputNode = this.gainNode;
   }
@@ -40,15 +31,8 @@ export class CryptoModule extends AudioModule {
     this.oscillator = this.ctx.createOscillator();
     this.oscillator.type = this.waveform;
     this.oscillator.frequency.value = this.calculateFrequency();
-    
-    // Phase 3: Connect through anti-alias filter
-    this.oscillator.connect(this.antiAliasFilter);
-    
-    // Phase 3: Smooth fade-in to prevent click (5ms)
-    const now = this.ctx.currentTime;
-    this.gainNode.gain.setValueAtTime(0, now);
-    this.gainNode.gain.linearRampToValueAtTime(this.volume, now + 0.005);
-    
+    this.oscillator.connect(this.gainNode);
+    this.gainNode.gain.value = this.volume;
     this.oscillator.start();
     this.isActive = true;
   }
@@ -56,12 +40,7 @@ export class CryptoModule extends AudioModule {
   stop() {
     if (this.oscillator) {
       try {
-        // Phase 3: Smooth fade-out to prevent click (5ms)
-        const now = this.ctx.currentTime;
-        this.gainNode.gain.setValueAtTime(this.gainNode.gain.value, now);
-        this.gainNode.gain.linearRampToValueAtTime(0, now + 0.005);
-        
-        this.oscillator.stop(now + 0.005);
+        this.oscillator.stop();
         this.oscillator.disconnect();
       } catch (e) {
         console.error("Error stopping oscillator:", e);
@@ -79,47 +58,38 @@ export class CryptoModule extends AudioModule {
         break;
       case "waveform":
         this.waveform = value as OscillatorType;
-        // Phase 3: Use crossfade instead of stop/start to prevent clicks
-        if (this.isActive && this.oscillator) {
-          const now = this.ctx.currentTime;
-          const crossfadeDuration = 0.005; // 5ms crossfade
-          
-          // Create new oscillator
-          const newOsc = this.ctx.createOscillator();
-          newOsc.type = value as OscillatorType;
-          newOsc.frequency.value = this.oscillator.frequency.value;
-          newOsc.connect(this.antiAliasFilter);
-          
-          // Crossfade
-          this.gainNode.gain.setValueAtTime(this.volume, now);
-          this.gainNode.gain.exponentialRampToValueAtTime(0.001, now + crossfadeDuration);
-          
-          newOsc.start(now);
-          this.oscillator.stop(now + crossfadeDuration);
-          
-          setTimeout(() => {
-            this.gainNode.gain.setValueAtTime(0.001, this.ctx.currentTime);
-            this.gainNode.gain.exponentialRampToValueAtTime(this.volume, this.ctx.currentTime + crossfadeDuration);
-          }, crossfadeDuration * 1000);
-          
-          this.oscillator = newOsc;
+        // Need to restart oscillator for waveform change
+        if (this.isActive) {
+          this.stop();
+          this.start();
         }
         break;
       case "scale":
+        this.scale = value;
+        if (this.isActive) {
+          this.stop();
+          this.start();
+        }
+        break;
       case "rootNote":
+        this.rootNote = value;
+        if (this.isActive) {
+          this.stop();
+          this.start();
+        }
+        break;
       case "octave":
+        this.octave = value;
+        if (this.isActive) {
+          this.stop();
+          this.start();
+        }
+        break;
       case "pitch":
-        // Phase 3: Use smooth frequency transition instead of restart
-        if (name === "scale") this.scale = value;
-        if (name === "rootNote") this.rootNote = value;
-        if (name === "octave") this.octave = value;
-        if (name === "pitch") this.pitch = value;
-        
-        if (this.isActive && this.oscillator) {
-          const newFreq = this.calculateFrequency();
-          const now = this.ctx.currentTime;
-          this.oscillator.frequency.setValueAtTime(this.oscillator.frequency.value, now);
-          this.oscillator.frequency.exponentialRampToValueAtTime(newFreq, now + 0.05); // 50ms glide
+        this.pitch = value;
+        if (this.isActive) {
+          this.stop();
+          this.start();
         }
         break;
     }
@@ -154,18 +124,7 @@ export class CryptoModule extends AudioModule {
   updateCrypto(crypto: CryptoData) {
     this.crypto = crypto;
     if (this.isActive && this.oscillator) {
-      // Phase 3: Smooth frequency transition
-      const newFreq = this.calculateFrequency();
-      const now = this.ctx.currentTime;
-      this.oscillator.frequency.setValueAtTime(this.oscillator.frequency.value, now);
-      this.oscillator.frequency.exponentialRampToValueAtTime(newFreq, now + 0.05);
+      this.oscillator.frequency.value = this.calculateFrequency();
     }
-  }
-
-  dispose() {
-    this.stop();
-    this.antiAliasFilter.disconnect();
-    this.gainNode.disconnect();
-    super.dispose();
   }
 }

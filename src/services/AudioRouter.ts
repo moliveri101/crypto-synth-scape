@@ -1,7 +1,6 @@
 import { Edge } from "reactflow";
 import { AudioModule } from "@/audio/AudioModule";
 import { MixerModule } from "@/audio/modules/MixerModule";
-import { audioContextManager } from "@/audio/AudioContextManager";
 
 /**
  * Centralized audio routing service
@@ -53,50 +52,6 @@ export class AudioRouter {
     edges.forEach(edge => {
       this.connectModules(nodes, edge);
     });
-
-    // Auto-route terminal mixers to master output if they have no outgoing connections
-    try {
-      const masterGain = audioContextManager.getMasterGain();
-      if (masterGain) {
-        const nodesWithOutgoing = new Set(edges.map(e => e.source));
-        nodes.forEach(node => {
-          if (node.data?.type && typeof node.data.type === 'string' && node.data.type.startsWith('mixer-')) {
-            if (!nodesWithOutgoing.has(node.id)) {
-              const module = node.data.audioModule as AudioModule;
-              if (module) {
-                module.connect(masterGain);
-                console.log(`Connected ${node.id} to master output`);
-              }
-            }
-          }
-        });
-      } else {
-        console.warn('Master output (masterGain) not available');
-      }
-    } catch (err) {
-      console.error('Failed to auto-route mixers to master output:', err);
-    }
-
-    // Auto-route any terminal source nodes (no outgoing edges) directly to master output
-    try {
-      const masterGain = audioContextManager.getMasterGain();
-      if (masterGain) {
-        const nodesWithOutgoing = new Set(edges.map(e => e.source));
-        nodes.forEach(node => {
-          if (!nodesWithOutgoing.has(node.id) && node.data?.audioModule) {
-            const type = node.data.type;
-            // Skip mixers here (handled above) but allow all other modules
-            if (!(typeof type === 'string' && type.startsWith('mixer-'))) {
-              const module = node.data.audioModule as AudioModule;
-              module.connect(masterGain);
-              console.log(`Auto-connected terminal node ${node.id} -> master`);
-            }
-          }
-        });
-      }
-    } catch (err) {
-      console.error('Failed to auto-route terminal nodes to master output:', err);
-    }
 
     console.log(`AudioRouter: Routed ${edges.length} connections`);
   }
