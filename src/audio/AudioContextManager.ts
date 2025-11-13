@@ -17,19 +17,36 @@ class AudioContextManager {
   }
 
   initialize() {
-    if (!this.audioContext) {
+    if (!this.audioContext || this.audioContext.state === "closed") {
+      // Close any existing context first
+      if (this.audioContext) {
+        try {
+          this.audioContext.close();
+        } catch (e) {
+          console.warn('Failed to close old context:', e);
+        }
+      }
+      
       this.audioContext = new AudioContext();
       this.masterGain = this.audioContext.createGain();
       this.masterGain.connect(this.audioContext.destination);
-      this.masterGain.gain.value = 1.0;
-      console.log('AudioContext initialized:', this.audioContext, 'State:', this.audioContext.state);
+      this.masterGain.gain.value = 0.8; // Slightly lower to prevent clipping
+      console.log('AudioContext initialized:', this.audioContext.state);
+    } else if (this.audioContext.state === "suspended") {
+      this.audioContext.resume();
+      console.log('AudioContext resumed:', this.audioContext.state);
     } else {
-      console.log('AudioContext already exists:', this.audioContext, 'State:', this.audioContext.state);
+      console.log('AudioContext already running:', this.audioContext.state);
     }
+    
+    return this.audioContext;
   }
 
-  getContext(): AudioContext | null {
-    return this.audioContext;
+  getContext(): AudioContext {
+    if (!this.audioContext || this.audioContext.state === "closed") {
+      this.initialize();
+    }
+    return this.audioContext!;
   }
 
   getMasterGain(): GainNode | null {

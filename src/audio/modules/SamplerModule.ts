@@ -208,17 +208,32 @@ export class SamplerModule extends AudioModule {
   // Global controls
   setVolume(volume: number) {
     this.volume = Math.max(0, Math.min(1, volume));
-    this.gainNode.gain.value = this.volume;
+    // Smooth volume changes to prevent clicks
+    this.gainNode.gain.setTargetAtTime(
+      this.volume,
+      this.ctx.currentTime,
+      0.01 // 10ms smoothing
+    );
   }
 
   setFilterFrequency(freq: number) {
     this.filterFreq = Math.max(20, Math.min(20000, freq));
-    this.filterNode.frequency.value = this.filterFreq;
+    // Smooth frequency changes
+    this.filterNode.frequency.setTargetAtTime(
+      this.filterFreq,
+      this.ctx.currentTime,
+      0.01
+    );
   }
 
   setFilterResonance(res: number) {
     this.filterRes = Math.max(0, Math.min(30, res));
-    this.filterNode.Q.value = this.filterRes;
+    // Smooth Q changes
+    this.filterNode.Q.setTargetAtTime(
+      this.filterRes,
+      this.ctx.currentTime,
+      0.01
+    );
   }
 
   // Getters

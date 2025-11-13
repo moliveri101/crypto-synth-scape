@@ -54,13 +54,14 @@ export class MixerModule extends AudioModule {
   setChannelActive(channelIndex: number, hasInput: boolean) {
     if (channelIndex >= 0 && channelIndex < this.channelCount) {
       const channelData = this.channels[channelIndex];
-      if (!hasInput) {
-        // No input, mute channel
-        this.channelGains[channelIndex].gain.value = 0;
-      } else if (!channelData.muted) {
-        // Has input and not muted, restore volume
-        this.channelGains[channelIndex].gain.value = channelData.volume;
-      }
+      const targetVolume = !hasInput ? 0 : (channelData.muted ? 0 : channelData.volume);
+      
+      // Smooth transition to prevent clicks/pops
+      this.channelGains[channelIndex].gain.setTargetAtTime(
+        targetVolume,
+        this.ctx.currentTime,
+        0.01 // 10ms smoothing
+      );
     }
   }
 
@@ -74,7 +75,12 @@ export class MixerModule extends AudioModule {
 
   setParameter(name: string, value: any) {
     if (name === "masterVolume") {
-      this.mixGain.gain.value = value;
+      // Smooth master volume changes
+      this.mixGain.gain.setTargetAtTime(
+        Math.max(0, Math.min(1, value)),
+        this.ctx.currentTime,
+        0.01
+      );
     } else if (name.startsWith("channel_")) {
       const parts = name.split("_");
       const channelIndex = parseInt(parts[1]);
@@ -83,18 +89,33 @@ export class MixerModule extends AudioModule {
       if (channelIndex >= 0 && channelIndex < this.channelCount) {
         switch (param) {
           case "volume":
-            this.channels[channelIndex].volume = value;
+            this.channels[channelIndex].volume = Math.max(0, Math.min(1, value));
             if (!this.channels[channelIndex].muted) {
-              this.channelGains[channelIndex].gain.value = value;
+              // Smooth channel volume changes
+              this.channelGains[channelIndex].gain.setTargetAtTime(
+                this.channels[channelIndex].volume,
+                this.ctx.currentTime,
+                0.01
+              );
             }
             break;
           case "pan":
-            this.channels[channelIndex].pan = value;
-            this.channelPanners[channelIndex].pan.value = value;
+            this.channels[channelIndex].pan = Math.max(-1, Math.min(1, value));
+            // Smooth pan changes
+            this.channelPanners[channelIndex].pan.setTargetAtTime(
+              this.channels[channelIndex].pan,
+              this.ctx.currentTime,
+              0.01
+            );
             break;
           case "muted":
             this.channels[channelIndex].muted = value;
-            this.channelGains[channelIndex].gain.value = value ? 0 : this.channels[channelIndex].volume;
+            const targetVol = value ? 0 : this.channels[channelIndex].volume;
+            this.channelGains[channelIndex].gain.setTargetAtTime(
+              targetVol,
+              this.ctx.currentTime,
+              0.01
+            );
             break;
         }
       }

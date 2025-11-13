@@ -8,17 +8,17 @@ export class OutputModule extends AudioModule {
   constructor(ctx: AudioContext) {
     super(ctx);
     
-    // Create limiter to prevent clipping
+    // Create limiter to prevent clipping and distortion
     this.limiter = ctx.createDynamicsCompressor();
-    this.limiter.threshold.value = -3; // Start limiting at -3dB
-    this.limiter.knee.value = 0; // Hard knee for brick-wall limiting
-    this.limiter.ratio.value = 20; // High ratio for limiting
-    this.limiter.attack.value = 0.003; // Fast attack (3ms)
-    this.limiter.release.value = 0.25; // 250ms release
+    this.limiter.threshold.value = -6; // Start limiting at -6dB (more headroom)
+    this.limiter.knee.value = 3; // Smooth knee for natural limiting
+    this.limiter.ratio.value = 20; // High ratio for brick-wall limiting
+    this.limiter.attack.value = 0.001; // Very fast attack (1ms)
+    this.limiter.release.value = 0.1; // Fast release (100ms)
     
     // Create output gain node
     this.outputGain = ctx.createGain();
-    this.outputGain.gain.value = this.volume;
+    this.outputGain.gain.setValueAtTime(this.volume, ctx.currentTime);
     
     // Chain: input -> limiter -> gain -> destination
     this.limiter.connect(this.outputGain);
@@ -39,8 +39,13 @@ export class OutputModule extends AudioModule {
 
   setParameter(name: string, value: any) {
     if (name === "volume") {
-      this.volume = value;
-      this.outputGain.gain.value = value;
+      this.volume = Math.max(0, Math.min(1, value));
+      // Smooth volume changes to prevent clicks/pops
+      this.outputGain.gain.setTargetAtTime(
+        this.volume,
+        this.ctx.currentTime,
+        0.01 // 10ms smoothing
+      );
     }
   }
 

@@ -19,33 +19,37 @@ export abstract class AudioModule {
    * Connect this module's output to another module's input
    */
   connect(target: AudioModule | AudioNode) {
-    try {
-      const targetCtx: BaseAudioContext | null =
-        target instanceof AudioModule ? target.ctx : (target as AudioNode).context ?? null;
+    if (!this.outputNode) {
+      console.warn('No output node to connect from');
+      return;
+    }
 
-      console.log('Connecting:', {
-        sourceContext: this.ctx,
-        sourceState: this.ctx.state,
-        targetContext: targetCtx || (target instanceof AudioModule ? target.ctx : 'AudioNode'),
-        targetState: targetCtx ? targetCtx.state : (target instanceof AudioModule ? target.ctx.state : 'N/A')
-      });
-      
-      // Guard against connecting nodes from different or closed AudioContexts
-      if (!this.ctx || !targetCtx || this.ctx.state === 'closed' || targetCtx.state === 'closed' || this.ctx !== targetCtx) {
-        console.warn('Skipping connect due to mismatched or closed AudioContext', {
-          sourceState: this.ctx?.state,
-          targetState: targetCtx?.state
-        });
-        return;
-      }
-      
+    try {
       if (target instanceof AudioModule) {
+        // Verify contexts match exactly (same instance)
+        if (this.ctx !== target.ctx) {
+          console.error('AudioContext mismatch! Cannot connect modules with different contexts.');
+          return;
+        }
+        
+        // Check if contexts are closed
+        if (this.ctx.state === 'closed' || target.ctx.state === 'closed') {
+          console.error('Cannot connect - AudioContext is closed');
+          return;
+        }
+        
         this.outputNode.connect(target.inputNode);
       } else {
+        // Connecting to raw AudioNode - verify context
+        const targetContext = (target as any).context;
+        if (targetContext && targetContext !== this.ctx) {
+          console.error('AudioNode context mismatch! Cannot connect.');
+          return;
+        }
         this.outputNode.connect(target);
       }
     } catch (error) {
-      console.error("Failed to connect:", error);
+      console.error('Connection error:', error);
     }
   }
 
