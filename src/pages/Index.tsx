@@ -25,8 +25,8 @@ import SequencerModuleNode from "@/components/modules/SequencerModuleNode";
 import DrumsModuleNode from "@/components/modules/DrumsModuleNode";
 import SamplerModuleNode from "@/components/modules/SamplerModuleNode";
 import EffectModuleNode from "@/components/modules/EffectModuleNode";
-import OutputModuleNode from "@/components/modules/OutputModuleNode";
 import ModuleToolbar from "@/components/ModuleToolbar";
+import MasterOutputPanel from "@/components/MasterOutputPanel";
 import { useToast } from "@/hooks/use-toast";
 import { ModuleType } from "@/types/modules";
 import InteractiveEdge from "@/components/modules/InteractiveEdge";
@@ -44,8 +44,6 @@ const nodeTypes = {
   "mixer-8": MultiTrackMixerNode,
   "mixer-16": MultiTrackMixerNode,
   "mixer-32": MultiTrackMixerNode,
-  "output-speakers": OutputModuleNode,
-  "output-headphones": OutputModuleNode,
   sampler: SamplerModuleNode,
   sequencer: SequencerModuleNode,
   drums: DrumsModuleNode,
@@ -98,6 +96,7 @@ const Index = () => {
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [livePricesEnabled, setLivePricesEnabled] = useState(false);
+  const [masterVolume, setMasterVolume] = useState(1.0);
   const { toast } = useToast();
 
   // Use the module manager hook
@@ -424,12 +423,6 @@ const Index = () => {
                     onToggleCollapse: moduleManager.toggleCollapse,
                     onRemove: moduleManager.removeModule,
                   }
-                : node.data.type === "output-speakers" || node.data.type === "output-headphones"
-                ? {
-                    ...node.data,
-                    onVolumeChange: (vol: number) => moduleManager.updateParameter(node.id, "volume", vol),
-                    onRemove: moduleManager.removeModule,
-                  }
                 : node.data.type === "sampler"
                 ? {
                     ...node.data,
@@ -487,6 +480,11 @@ const Index = () => {
           <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
           <Controls />
         </ReactFlow>
+
+        <MasterOutputPanel 
+          masterVolume={masterVolume}
+          onMasterVolumeChange={setMasterVolume}
+        />
       </div>
     </div>
   );

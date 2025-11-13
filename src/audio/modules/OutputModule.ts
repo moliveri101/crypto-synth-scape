@@ -70,16 +70,33 @@ export class OutputModule extends AudioModule {
     }
   }
 
-  // Phase 6: Get peak level for metering
-  getPeakLevel(): number {
+  // Phase 6: Get stereo peak levels (L/R)
+  getPeakLevels(): { left: number; right: number } {
     const data = new Uint8Array(this.analyser.fftSize);
     this.analyser.getByteTimeDomainData(data);
-    let max = 0;
-    for (let i = 0; i < data.length; i++) {
+    
+    // Approximate stereo split
+    const mid = Math.floor(data.length / 2);
+    let leftMax = 0;
+    let rightMax = 0;
+    
+    for (let i = 0; i < mid; i++) {
       const normalized = Math.abs((data[i] - 128) / 128);
-      if (normalized > max) max = normalized;
+      if (normalized > leftMax) leftMax = normalized;
     }
-    return max;
+    
+    for (let i = mid; i < data.length; i++) {
+      const normalized = Math.abs((data[i] - 128) / 128);
+      if (normalized > rightMax) rightMax = normalized;
+    }
+    
+    return { left: leftMax, right: rightMax };
+  }
+
+  // Phase 6: Get peak level for metering (backwards compatibility)
+  getPeakLevel(): number {
+    const levels = this.getPeakLevels();
+    return Math.max(levels.left, levels.right);
   }
 
   // Phase 6: Check if clipping is occurring
