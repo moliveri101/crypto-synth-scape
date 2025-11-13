@@ -147,6 +147,7 @@ const CryptoModuleNode = ({ data, id }: NodeProps<CryptoModuleData & {
           <Slider
             value={[volume * 100]}
             onValueChange={(values) => onVolumeChange(id, values[0] / 100)}
+            onValueCommit={(values) => onVolumeChange(id, values[0] / 100)}
             max={200}
             step={1}
           />

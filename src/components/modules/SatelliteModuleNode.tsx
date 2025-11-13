@@ -150,6 +150,7 @@ const SatelliteModuleNode = ({ data }: NodeProps<SatelliteModuleData & {
               max={1}
               step={0.01}
               onValueChange={([value]) => onUpdate({ volume: value })}
+              onValueCommit={([value]) => onUpdate({ volume: value })}
               className="w-full"
             />
           </div>
