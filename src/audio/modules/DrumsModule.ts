@@ -108,6 +108,74 @@ export class DrumsModule extends AudioModule {
         break;
       }
 
+      case "tom":
+      case "mid-tom": {
+        this.startOsc("sine", 220 * pitchMultiplier, 0.4, env);
+        this.startNoise(0.15, "bandpass", 500, 0.5, env);
+        break;
+      }
+
+      case "low-tom": {
+        this.startOsc("sine", 150 * pitchMultiplier, 0.5, env);
+        this.startNoise(0.15, "bandpass", 400, 0.5, env);
+        break;
+      }
+
+      case "high-tom": {
+        this.startOsc("sine", 300 * pitchMultiplier, 0.35, env);
+        this.startNoise(0.15, "bandpass", 600, 0.5, env);
+        break;
+      }
+
+      case "cowbell": {
+        this.startOsc("square", 800 * pitchMultiplier, 0.2, env);
+        this.startOsc("square", 540 * pitchMultiplier, 0.2, env);
+        break;
+      }
+
+      case "ride": {
+        this.startNoise(0.3, "highpass", 6000, 0.3, env);
+        break;
+      }
+
+      case "crash": {
+        this.startNoise(1.0, "highpass", 5000, 0.2, env);
+        break;
+      }
+
+      case "shaker": {
+        this.startNoise(0.08, "highpass", 9000, 1.0, env);
+        break;
+      }
+
+      case "clave": {
+        this.startOsc("sine", 1200 * pitchMultiplier, 0.05, env);
+        break;
+      }
+
+      case "rim": {
+        this.startNoise(0.05, "highpass", 4000, 1.5, env);
+        break;
+      }
+
+      case "rimshot": {
+        this.startOsc("sine", 400 * pitchMultiplier, 0.1, env);
+        this.startNoise(0.08, "highpass", 3000, 1.0, env);
+        break;
+      }
+
+      case "bongo": {
+        this.startOsc("sine", 400 * pitchMultiplier, 0.25, env);
+        this.startNoise(0.1, "bandpass", 800, 1.0, env);
+        break;
+      }
+
+      case "conga": {
+        this.startOsc("sine", 250 * pitchMultiplier, 0.35, env);
+        this.startNoise(0.12, "bandpass", 600, 0.8, env);
+        break;
+      }
+
       default:
         // Default kick sound
         this.startOsc("sine", 150 * pitchMultiplier, 0.3, env);
