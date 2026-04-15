@@ -1,109 +1,88 @@
-import { AudioModule } from "@/audio/AudioModule";
+import { AudioModule } from "@/modules/base/AudioModule";
 import { Edge } from "reactflow";
 
 /**
- * Centralized audio graph manager
- * Stores all audio modules outside React state to prevent unnecessary re-routing
+ * Centralized audio graph manager (singleton).
+ * Stores all audio modules outside React state to prevent
+ * unnecessary re-creation on renders.
  */
 export class AudioGraphManager {
-  private modules: Map<string, AudioModule> = new Map();
-  private connections: Map<string, Set<string>> = new Map();
+  private modules = new Map<string, AudioModule>();
+  private connections = new Map<string, Set<string>>();
 
-  /**
-   * Register an audio module
-   */
-  registerModule(nodeId: string, module: AudioModule) {
+  registerModule(nodeId: string, module: AudioModule): void {
     this.modules.set(nodeId, module);
-    console.log(`AudioGraphManager: Registered module ${nodeId}`);
   }
 
-  /**
-   * Unregister and dispose an audio module
-   */
-  unregisterModule(nodeId: string) {
+  unregisterModule(nodeId: string): void {
     const module = this.modules.get(nodeId);
     if (module) {
       module.dispose();
       this.modules.delete(nodeId);
       this.connections.delete(nodeId);
-      console.log(`AudioGraphManager: Unregistered module ${nodeId}`);
     }
   }
 
-  /**
-   * Get a module by node ID
-   */
+  dispose(): void {
+    this.modules.forEach((m) => m.dispose());
+    this.modules.clear();
+    this.connections.clear();
+  }
+
   getModule(nodeId: string): AudioModule | undefined {
     return this.modules.get(nodeId);
   }
 
-  /**
-   * Get all modules
-   */
   getAllModules(): Map<string, AudioModule> {
     return this.modules;
   }
 
-  /**
-   * Check if connection already exists
-   */
-  hasConnection(sourceId: string, targetId: string, targetHandle?: string): boolean {
-    const key = targetHandle ? `${sourceId}->${targetId}:${targetHandle}` : `${sourceId}->${targetId}`;
-    const sourceConnections = this.connections.get(sourceId);
-    return sourceConnections ? sourceConnections.has(key) : false;
+  // ── Connection tracking ────────────────────────────────────────────────
+
+  private connectionKey(sourceId: string, targetId: string, targetHandle?: string): string {
+    return targetHandle
+      ? `${sourceId}->${targetId}:${targetHandle}`
+      : `${sourceId}->${targetId}`;
   }
 
-  /**
-   * Track a new connection
-   */
-  addConnection(sourceId: string, targetId: string, targetHandle?: string) {
-    const key = targetHandle ? `${sourceId}->${targetId}:${targetHandle}` : `${sourceId}->${targetId}`;
+  hasConnection(sourceId: string, targetId: string, targetHandle?: string): boolean {
+    const key = this.connectionKey(sourceId, targetId, targetHandle);
+    return this.connections.get(sourceId)?.has(key) ?? false;
+  }
+
+  addConnection(sourceId: string, targetId: string, targetHandle?: string): void {
+    const key = this.connectionKey(sourceId, targetId, targetHandle);
     if (!this.connections.has(sourceId)) {
       this.connections.set(sourceId, new Set());
     }
     this.connections.get(sourceId)!.add(key);
   }
 
-  /**
-   * Remove connection tracking
-   */
-  removeConnection(sourceId: string, targetId: string, targetHandle?: string) {
-    const key = targetHandle ? `${sourceId}->${targetId}:${targetHandle}` : `${sourceId}->${targetId}`;
-    const sourceConnections = this.connections.get(sourceId);
-    if (sourceConnections) {
-      sourceConnections.delete(key);
-    }
+  removeConnection(sourceId: string, targetId: string, targetHandle?: string): void {
+    const key = this.connectionKey(sourceId, targetId, targetHandle);
+    this.connections.get(sourceId)?.delete(key);
   }
 
-  /**
-   * Get all current connection keys
-   */
   getCurrentConnectionKeys(edges: Edge[]): Set<string> {
     const keys = new Set<string>();
-    edges.forEach(edge => {
-      const key = edge.targetHandle 
-        ? `${edge.source}->${edge.target}:${edge.targetHandle}` 
-        : `${edge.source}->${edge.target}`;
-      keys.add(key);
-    });
+    for (const edge of edges) {
+      keys.add(
+        edge.targetHandle
+          ? `${edge.source}->${edge.target}:${edge.targetHandle}`
+          : `${edge.source}->${edge.target}`,
+      );
+    }
     return keys;
   }
 
-  /**
-   * Clear all connections tracking
-   */
-  clearConnections() {
+  clearConnections(): void {
     this.connections.clear();
   }
 
-  /**
-   * Dispose all modules and clear
-   */
-  dispose() {
-    this.modules.forEach(module => module.dispose());
+  dispose(): void {
+    this.modules.forEach((m) => m.dispose());
     this.modules.clear();
     this.connections.clear();
-    console.log('AudioGraphManager: Disposed all modules');
   }
 }
 

@@ -1,374 +1,199 @@
 import { useCallback } from "react";
+import { Node, Edge } from "reactflow";
 import { audioContextManager } from "@/audio/AudioContextManager";
 import { audioGraphManager } from "@/services/AudioGraphManager";
-import { CryptoModule } from "@/audio/modules/CryptoModule";
-import { SatelliteModule } from "@/audio/modules/SatelliteModule";
-import { DrumsModule } from "@/audio/modules/DrumsModule";
-import { MixerModule } from "@/audio/modules/MixerModule";
-import { SamplerModule } from "@/audio/modules/SamplerModule";
-import { moduleFactory } from "@/services/ModuleFactory";
-import { CryptoData } from "@/types/crypto";
-import { ModuleType, SatelliteData } from "@/types/modules";
-
-const EFFECT_TYPES = [
-  "reverb", "delay", "chorus", "flanger", "phaser", "pingpong-delay",
-  "compressor", "limiter", "gate", "de-esser",
-  "eq", "lpf", "hpf", "bandpass", "resonant-filter",
-  "overdrive", "distortion", "fuzz", "bitcrusher", "tape-saturation",
-  "vibrato", "tremolo", "ring-mod", "pitch-shifter", "octaver",
-  "granular", "vocoder", "auto-pan", "stereo-widener"
-];
+import { audioRouter } from "@/services/AudioRouter";
+import { getDescriptor } from "@/modules/registry";
 
 /**
- * Hook for managing module state and operations
+ * Generic module manager hook.
+ * Reads from the module registry — zero module-specific code.
  */
 export const useModuleManager = (
-  nodes: any[],
-  setNodes: (nodes: any[] | ((nodes: any[]) => any[])) => void,
-  setEdges: (edges: any[] | ((edges: any[]) => any[])) => void
+  nodes: Node[],
+  edges: Edge[],
+  setNodes: (updater: Node[] | ((prev: Node[]) => Node[])) => void,
+  setEdges: (updater: Edge[] | ((prev: Edge[]) => Edge[])) => void,
 ) => {
   /**
-   * Add a crypto module
+   * Add any module by type. Extra data is merged into the node data.
+   * The descriptor's createAudio + defaultData handle everything.
    */
-  const addCryptoModule = useCallback((crypto: CryptoData) => {
-    const id = `crypto-${crypto.id}`;
+  const addModule = useCallback(
+    (type: string, extraData?: Record<string, any>) => {
+      const desc = getDescriptor(type);
+      if (!desc) {
+        return { success: false, message: `Unknown module type: ${type}` };
+      }
 
-    if (nodes.find((n) => n.id === id)) {
-      return { success: false, message: `${crypto.name} module is already on the canvas` };
-    }
+      // Generate a stable id — include a suffix for uniqueness
+      const idBase = extraData?.id ?? type;
+      const id = `${type}-${idBase}-${Date.now()}`;
 
-    const ctx = audioContextManager.getContext();
-    if (!ctx) return { success: false, message: "Audio context not available" };
-
-    const newNode = moduleFactory.createCryptoModule(ctx, crypto, nodes.length);
-    
-    // Register module in graph manager
-    audioGraphManager.registerModule(newNode.id, newNode.data.audioModule);
-    
-    setNodes((nds) => [...nds, newNode]);
-
-    return { success: true, message: `${crypto.name} added to canvas` };
-  }, [nodes, setNodes]);
-
-  /**
-   * Add a satellite module
-   */
-  const addSatelliteModule = useCallback((satellite: SatelliteData) => {
-    const id = `satellite-${satellite.id}`;
-
-    if (nodes.find((n) => n.id === id)) {
-      return { success: false, message: `${satellite.name} module is already on the canvas` };
-    }
-
-    const ctx = audioContextManager.getContext();
-    if (!ctx) return { success: false, message: "Audio context not available" };
-
-    // Create callback to update node data with satellite values
-    const dataUpdateCallback = (data: { speed: number; altitude: number; latitude: number; longitude: number }) => {
-      setNodes((nds) =>
-        nds.map((n) =>
-          n.id === id
-            ? { ...n, data: { ...n.data, ...data } }
-            : n
-        )
-      );
-    };
-
-    const newNode = moduleFactory.createSatelliteModule(ctx, satellite, nodes.length, dataUpdateCallback);
-    
-    // Register module in graph manager
-    audioGraphManager.registerModule(newNode.id, newNode.data.audioModule);
-    
-    setNodes((nds) => [...nds, newNode]);
-
-    return { success: true, message: `${satellite.name} added to canvas` };
-  }, [nodes, setNodes]);
-
-  /**
-   * Add a plugin module
-   */
-  const addPluginModule = useCallback((type: ModuleType) => {
-    const ctx = audioContextManager.getContext();
-    if (!ctx) return { success: false, message: "Audio context not available" };
-
-    let newNode: any;
-
-    if (type === "sequencer") {
-      // Set up step callback for sequencer
-      const stepCallback = (step: number, isActive: boolean) => {
-        setNodes((nds) =>
-          nds.map((n) => {
-            if (n.data.type === "sequencer") {
-              return { ...n, data: { ...n.data, currentStep: step } };
-            }
-            return n;
-          })
+      // Prevent duplicate crypto/satellite modules by checking the source id
+      if (extraData?.id) {
+        const existing = nodes.find(
+          (n) => n.data.type === type && n.data[type]?.id === extraData.id,
         );
+        if (existing) {
+          return { success: false, message: `${desc.label} module already on canvas` };
+        }
+      }
+
+      const ctx = audioContextManager.getContext();
+      const data = desc.defaultData(extraData);
+      const audioModule = desc.createAudio(ctx, data);
+
+      audioGraphManager.registerModule(id, audioModule);
+
+      // Always drop new nodes in the top-left so the user sees them immediately.
+      // A tiny per-add stagger keeps successive adds from stacking pixel-perfect.
+      const stagger = (nodes.length % 8) * 24;
+
+      const newNode: Node = {
+        id,
+        type: desc.type,
+        position: { x: 40 + stagger, y: 40 + stagger },
+        data: { ...data, type: desc.type, collapsed: false, isPlaying: false },
       };
-      newNode = moduleFactory.createModule(ctx, type, nodes.length, { stepCallback });
-    } else {
-      newNode = moduleFactory.createModule(ctx, type, nodes.length);
-    }
 
-    // Register module in graph manager
-    audioGraphManager.registerModule(newNode.id, newNode.data.audioModule);
-
-    setNodes((nds) => [...nds, newNode]);
-    return { success: true, message: `${type} module added` };
-  }, [nodes.length, setNodes]);
+      setNodes((prev) => [...prev, newNode]);
+      return { success: true, message: `${desc.label} added to canvas` };
+    },
+    [nodes, setNodes],
+  );
 
   /**
-   * Remove a module
+   * Remove a module (dispose audio + remove node + remove edges).
    */
-  const removeModule = useCallback((id: string) => {
-    // Unregister from graph manager (handles disposal)
-    audioGraphManager.unregisterModule(id);
-
-    setNodes((nds) => nds.filter((n) => n.id !== id));
-    setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
-  }, [setNodes, setEdges]);
+  const removeModule = useCallback(
+    (id: string) => {
+      audioGraphManager.unregisterModule(id);
+      setNodes((nds) => nds.filter((n) => n.id !== id));
+      setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
+    },
+    [setNodes, setEdges],
+  );
 
   /**
-   * Start a crypto module
+   * Start a module's audio playback.
    */
-  const startModule = useCallback((nodeId: string) => {
-    audioContextManager.resume();
-
-    const module = audioGraphManager.getModule(nodeId) as CryptoModule;
-    if (module) {
-      module.start();
-    }
-
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (node.id === nodeId && node.data.type === "crypto") {
-          return { ...node, data: { ...node.data, isPlaying: true } };
-        }
-        return node;
-      })
-    );
-  }, [setNodes]);
-
-  /**
-   * Stop a crypto module
-   */
-  const stopModule = useCallback((nodeId: string) => {
-    const module = audioGraphManager.getModule(nodeId) as CryptoModule;
-    if (module) {
-      module.stop();
-    }
-
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (node.id === nodeId && node.data.type === "crypto") {
-          return { ...node, data: { ...node.data, isPlaying: false } };
-        }
-        return node;
-      })
-    );
-  }, [setNodes]);
-
-  /**
-   * Update a module parameter
-   */
-  const updateParameter = useCallback((nodeId: string, param: string, value: any) => {
-    // Update audio module directly from graph manager
-    const module = audioGraphManager.getModule(nodeId);
-    if (module) {
-      module.setParameter(param, value);
-    }
-
-    const node = nodes.find((n) => n.id === nodeId);
-    if (!node) return;
-
-    setNodes((nds) =>
-      nds.map((n) => {
-        if (n.id === nodeId) {
-          if (n.data.type === "crypto") {
-            return { ...n, data: { ...n.data, [param]: value } };
-          } else if (EFFECT_TYPES.includes(n.data.type)) {
-            if (param === "intensity" || param === "mix" || param === "isActive") {
-              return { ...n, data: { ...n.data, [param]: value } };
-            } else {
-              return {
-                ...n,
-                data: {
-                  ...n.data,
-                  parameters: { ...n.data.parameters, [param]: value },
-                },
-              };
-            }
-          } else {
-            return { ...n, data: { ...n.data, [param]: value } };
-          }
-        }
-        return n;
-      })
-    );
-  }, [nodes, setNodes]);
-
-  /**
-   * Toggle collapse state
-   */
-  const toggleCollapse = useCallback((nodeId: string) => {
-    setNodes((nds) =>
-      nds.map((node) =>
-        node.id === nodeId
-          ? { ...node, data: { ...node.data, collapsed: !node.data.collapsed } }
-          : node
-      )
-    );
-  }, [setNodes]);
-
-  /**
-   * Trigger a drum sound
-   */
-  const triggerDrum = useCallback((nodeId: string) => {
-    const module = audioGraphManager.getModule(nodeId) as DrumsModule;
-    if (module) {
+  const startModule = useCallback(
+    (id: string) => {
       audioContextManager.resume();
-      module.trigger();
-    }
-  }, []);
-
-  /**
-   * Update mixer channel parameter
-   */
-  const updateMixerChannel = useCallback((mixerId: string, channel: number, param: string, value: any) => {
-    updateParameter(mixerId, `channel_${channel}_${param}`, value);
-  }, [updateParameter]);
-
-  /**
-   * Sampler controls
-   */
-  const triggerSamplerPad = useCallback((nodeId: string, padIndex: number) => {
-    const node = nodes.find((n) => n.id === nodeId);
-    if (!node || node.data.type !== "sampler") return;
-
-    audioContextManager.resume();
-    const module = audioGraphManager.getModule(nodeId) as SamplerModule;
-    if (!module) return;
-    
-    module.triggerPad(padIndex);
-    
-    const updatedPads = [...node.data.pads];
-    updatedPads[padIndex] = {
-      ...updatedPads[padIndex],
-      isPlaying: true,
-    };
-    
-    setNodes((nds) =>
-      nds.map((n) =>
-        n.id === nodeId
-          ? { ...n, data: { ...n.data, pads: updatedPads } }
-          : n
-      )
-    );
-  }, [nodes, setNodes]);
-
-  const stopSamplerPad = useCallback((nodeId: string, padIndex: number) => {
-    const node = nodes.find((n) => n.id === nodeId);
-    if (!node || node.data.type !== "sampler") return;
-
-    const module = audioGraphManager.getModule(nodeId) as SamplerModule;
-    if (!module) return;
-    
-    module.stopPad(padIndex);
-    
-    const updatedPads = [...node.data.pads];
-    updatedPads[padIndex] = {
-      ...updatedPads[padIndex],
-      isPlaying: false,
-    };
-    
-    setNodes((nds) =>
-      nds.map((n) =>
-        n.id === nodeId
-          ? { ...n, data: { ...n.data, pads: updatedPads } }
-          : n
-      )
-    );
-  }, [nodes, setNodes]);
-
-  const loadSamplerSample = useCallback(async (nodeId: string, padIndex: number, file: File) => {
-    const node = nodes.find((n) => n.id === nodeId);
-    if (!node || node.data.type !== "sampler") return;
-
-    const module = audioGraphManager.getModule(nodeId) as SamplerModule;
-    if (!module) return;
-    
-    const success = await module.loadSampleFromFile(padIndex, file);
-    
-    if (success) {
-      const updatedPads = [...node.data.pads];
-      updatedPads[padIndex] = {
-        ...updatedPads[padIndex],
-        hasSample: true,
-        duration: module.getPadDuration(padIndex),
-        loopEnd: module.getPadLoopEnd(padIndex),
-      };
-      
+      audioGraphManager.getModule(id)?.start();
       setNodes((nds) =>
         nds.map((n) =>
-          n.id === nodeId
-            ? { ...n, data: { ...n.data, pads: updatedPads } }
-            : n
-        )
+          n.id === id ? { ...n, data: { ...n.data, isPlaying: true } } : n,
+        ),
       );
-    }
-  }, [nodes, setNodes]);
+    },
+    [setNodes],
+  );
 
-  const recordSamplerPad = useCallback(async (nodeId: string, padIndex: number) => {
-    const node = nodes.find((n) => n.id === nodeId);
-    if (!node || node.data.type !== "sampler") return;
+  const stopModule = useCallback(
+    (id: string) => {
+      audioGraphManager.getModule(id)?.stop();
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === id ? { ...n, data: { ...n.data, isPlaying: false } } : n,
+        ),
+      );
+    },
+    [setNodes],
+  );
 
-    const module = audioGraphManager.getModule(nodeId) as SamplerModule;
-    if (!module) return;
-    
-    await module.recordToPad(padIndex);
-    
-    const updatedPads = [...node.data.pads];
-    updatedPads[padIndex] = {
-      ...updatedPads[padIndex],
-      hasSample: true,
-      duration: module.getPadDuration(padIndex),
-      loopEnd: module.getPadLoopEnd(padIndex),
-    };
-    
-    setNodes((nds) =>
-      nds.map((n) =>
-        n.id === nodeId
-          ? { ...n, data: { ...n.data, pads: updatedPads } }
-          : n
-      )
-    );
-  }, [nodes, setNodes]);
+  /**
+   * Update a single parameter on an audio module + React state.
+   */
+  const updateParameter = useCallback(
+    (id: string, param: string, value: any) => {
+      // Push to audio engine
+      const module = audioGraphManager.getModule(id);
+      module?.setParameter(param, value);
 
-  const selectSamplerPad = useCallback((nodeId: string, padIndex: number) => {
-    setNodes((nds) =>
-      nds.map((n) =>
-        n.id === nodeId && n.data.type === "sampler"
-          ? { ...n, data: { ...n.data, selectedPad: padIndex } }
-          : n
-      )
-    );
-  }, [setNodes]);
+      // Push to React state
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id !== id) return n;
+
+          const desc = getDescriptor(n.data.type);
+
+          // Nested track updates — read back the authoritative tracks array
+          // from the audio module (which may have regenerated patterns).
+          if (param === "trackStep" || param === "trackConfig" || param === "tracks") {
+            const getTracks = (module as any)?.getTracks;
+            const tracks = typeof getTracks === "function"
+              ? JSON.parse(JSON.stringify(getTracks.call(module)))
+              : n.data.tracks;
+            return { ...n, data: { ...n.data, tracks } };
+          }
+
+          // Effect modules store custom params in a nested `parameters` map
+          if (
+            desc?.category === "effect" &&
+            param !== "intensity" &&
+            param !== "mix" &&
+            param !== "isActive"
+          ) {
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                parameters: { ...n.data.parameters, [param]: value },
+              },
+            };
+          }
+
+          return { ...n, data: { ...n.data, [param]: value } };
+        }),
+      );
+    },
+    [setNodes],
+  );
+
+  /**
+   * Toggle collapse state.
+   */
+  const toggleCollapse = useCallback(
+    (id: string) => {
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === id ? { ...n, data: { ...n.data, collapsed: !n.data.collapsed } } : n,
+        ),
+      );
+    },
+    [setNodes],
+  );
+
+  /**
+   * Generic action dispatcher — delegates to the audio module's handleAction().
+   * Merges any returned data updates into the React node.
+   */
+  const sendAction = useCallback(
+    async (id: string, action: string, payload?: any) => {
+      audioContextManager.resume();
+      const module = audioGraphManager.getModule(id);
+      if (!module) return;
+
+      const updates = await Promise.resolve(module.handleAction(action, payload));
+
+      if (updates && typeof updates === "object") {
+        setNodes((nds) =>
+          nds.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...updates } } : n)),
+        );
+      }
+    },
+    [setNodes],
+  );
 
   return {
-    addCryptoModule,
-    addSatelliteModule,
-    addPluginModule,
+    addModule,
     removeModule,
     startModule,
     stopModule,
     updateParameter,
     toggleCollapse,
-    triggerDrum,
-    updateMixerChannel,
-    triggerSamplerPad,
-    stopSamplerPad,
-    loadSamplerSample,
-    recordSamplerPad,
-    selectSamplerPad,
+    sendAction,
   };
 };

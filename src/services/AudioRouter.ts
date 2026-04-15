@@ -1,184 +1,202 @@
-import { Edge } from "reactflow";
-import { AudioModule } from "@/audio/AudioModule";
-import { MixerModule } from "@/audio/modules/MixerModule";
+import { Edge, Node } from "reactflow";
 import { audioGraphManager } from "./AudioGraphManager";
+import { getDescriptor } from "@/modules/registry";
 
 /**
- * Centralized audio routing service
- * Handles all audio module connections and disconnections
- * Uses smart diffing to only update changed connections
+ * Centralized audio routing service.
+ * Uses smart diffing — only adds/removes connections that actually changed.
+ * Reads from the module registry so it never needs module-specific code.
  */
 export class AudioRouter {
-  private previousEdgeKeys: Set<string> = new Set();
+  private previousEdgeKeys = new Set<string>();
 
-  /**
-   * Smart audio routing - only updates changed connections
-   */
-  routeAudio(nodes: any[], edges: Edge[]) {
-    // Get current connection keys
+  routeAudio(nodes: Node[], edges: Edge[]): void {
     const currentKeys = audioGraphManager.getCurrentConnectionKeys(edges);
-    
-    // Find connections to remove (in previous but not in current)
-    const toRemove = new Set([...this.previousEdgeKeys].filter(key => !currentKeys.has(key)));
-    
-    // Find connections to add (in current but not in previous)
-    const toAdd = new Set([...currentKeys].filter(key => !this.previousEdgeKeys.has(key)));
 
-    // Only proceed if there are actual changes
-    if (toRemove.size === 0 && toAdd.size === 0) {
-      return;
-    }
+    const toRemove = new Set([...this.previousEdgeKeys].filter((k) => !currentKeys.has(k)));
+    const toAdd = new Set([...currentKeys].filter((k) => !this.previousEdgeKeys.has(k)));
 
-    console.log(`AudioRouter: Removing ${toRemove.size}, Adding ${toAdd.size} connections`);
+    if (toRemove.size === 0 && toAdd.size === 0) return;
 
-    // Disconnect removed connections
-    toRemove.forEach(key => {
-      const [source, targetWithHandle] = key.split('->');
-      const [target, handle] = targetWithHandle.split(':');
+    // Disconnect removed edges
+    for (const key of toRemove) {
+      const [source, targetWithHandle] = key.split("->");
+      const [target, handle] = targetWithHandle.split(":");
       const sourceModule = audioGraphManager.getModule(source);
       if (sourceModule) {
         sourceModule.disconnect();
         audioGraphManager.removeConnection(source, target, handle);
       }
-    });
+    }
 
-    // Track mixer channel inputs
-    const mixerChannelInputs: { [key: string]: Set<number> } = {};
+    // Determine which mixer channels have active inputs
+    this.updateMixerChannels(nodes, edges);
 
-    edges.forEach(edge => {
-      const targetNode = nodes.find(n => n.id === edge.target);
-      if (targetNode && targetNode.data.type && targetNode.data.type.startsWith("mixer-")) {
-        const channelIndex = edge.targetHandle ? parseInt(edge.targetHandle.split("-")[1]) : 0;
-        if (!mixerChannelInputs[edge.target]) {
-          mixerChannelInputs[edge.target] = new Set();
-        }
-        mixerChannelInputs[edge.target].add(channelIndex);
-      }
-    });
-
-    // Update mixer channel active states
-    nodes.forEach(node => {
-      if (node.data.type && node.data.type.startsWith("mixer-")) {
-        const module = audioGraphManager.getModule(node.id) as MixerModule;
-        if (module) {
-          const activeChannels = mixerChannelInputs[node.id] || new Set();
-          for (let i = 0; i < module.getChannelCount(); i++) {
-            module.setChannelActive(i, activeChannels.has(i));
-          }
-        }
-      }
-    });
-
-    // Add new connections
-    toAdd.forEach(key => {
-      const [source, targetWithHandle] = key.split('->');
-      const [target, handle] = targetWithHandle.split(':');
-      const edge = edges.find(e => 
-        e.source === source && 
-        e.target === target && 
-        (handle ? e.targetHandle === handle : true)
+    // Connect new edges
+    for (const key of toAdd) {
+      const [source, targetWithHandle] = key.split("->");
+      const [target, handle] = targetWithHandle.split(":");
+      const edge = edges.find(
+        (e) =>
+          e.source === source &&
+          e.target === target &&
+          (handle ? e.targetHandle === handle : true),
       );
       if (edge) {
         this.connectModules(nodes, edge);
       }
-    });
+    }
 
-    // Update previous edge keys
     this.previousEdgeKeys = currentKeys;
+
+    // Forward data from data-producing modules to data-consuming modules
+    this.forwardData(nodes, edges);
   }
 
   /**
-   * Connect two modules based on an edge
+   * For every edge where the source module has getDataOutput() and the
+   * target module has onDataInput(), push the data through.
+   * Returns an array of {nodeId, updates} for the caller to merge into React state.
    */
-  private connectModules(nodes: any[], edge: Edge) {
+  forwardData(_nodes: Node[], edges: Edge[]): Array<{ nodeId: string; updates: Record<string, any> }> {
+    const result: Array<{ nodeId: string; updates: Record<string, any> }> = [];
+    // Dedupe per (source, target, handle) so each distinct data edge fires once
+    const seen = new Set<string>();
+
+    for (const edge of edges) {
+      const handleKey = edge.targetHandle ?? "__default";
+      const pairKey = `${edge.source}->${edge.target}:${handleKey}`;
+      if (seen.has(pairKey)) continue;
+      seen.add(pairKey);
+
+      const srcModule = audioGraphManager.getModule(edge.source);
+      const tgtModule = audioGraphManager.getModule(edge.target);
+      if (!srcModule || !tgtModule) continue;
+
+      const fullData = srcModule.getDataOutput();
+      if (!fullData) continue;
+
+      // Always forward the FULL dataset to consumers. Consumers that want
+      // to auto-select a single field (e.g. translators) can use the
+      // `sourceHandle` argument below — the handle id encodes which field
+      // was patched. This keeps the drum machine's field dropdown populated
+      // with every available field regardless of which source handle was used.
+      tgtModule.onDataInput(fullData, edge.targetHandle ?? undefined, edge.sourceHandle ?? undefined);
+      result.push({
+        nodeId: edge.target,
+        updates: {
+          dataValues: { ...fullData },
+          tracks: (tgtModule as any).getTracks
+            ? JSON.parse(JSON.stringify((tgtModule as any).getTracks()))
+            : undefined,
+        },
+      });
+    }
+    return result;
+  }
+
+  /**
+   * For any node whose descriptor defines `inputHandles`,
+   * look up mixer-style channel inputs and activate/deactivate them.
+   */
+  private updateMixerChannels(nodes: Node[], edges: Edge[]): void {
+    // Build a map: nodeId → set of connected channel indices
+    const channelInputs = new Map<string, Set<number>>();
+
+    for (const edge of edges) {
+      const targetNode = nodes.find((n) => n.id === edge.target);
+      if (!targetNode) continue;
+
+      const desc = getDescriptor(targetNode.data.type);
+      if (!desc?.inputHandles) continue; // only process multi-input modules
+
+      if (!channelInputs.has(edge.target)) {
+        channelInputs.set(edge.target, new Set());
+      }
+      const channelIndex = edge.targetHandle
+        ? parseInt(edge.targetHandle.split("-")[1])
+        : 0;
+      channelInputs.get(edge.target)!.add(channelIndex);
+    }
+
+    // Tell each multi-input module which channels are active
+    for (const node of nodes) {
+      const desc = getDescriptor(node.data.type);
+      if (!desc?.inputHandles) continue;
+
+      const module = audioGraphManager.getModule(node.id);
+      if (!module || typeof (module as any).setChannelActive !== "function") continue;
+
+      const mixer = module as any;
+      const activeChannels = channelInputs.get(node.id) ?? new Set<number>();
+      const numChannels = typeof mixer.getChannelCount === "function" ? mixer.getChannelCount() : 0;
+
+      for (let i = 0; i < numChannels; i++) {
+        mixer.setChannelActive(i, activeChannels.has(i));
+      }
+    }
+  }
+
+  private connectModules(nodes: Node[], edge: Edge): void {
     const sourceModule = audioGraphManager.getModule(edge.source);
     const targetModule = audioGraphManager.getModule(edge.target);
+    if (!sourceModule || !targetModule) return;
 
-    if (!sourceModule || !targetModule) {
-      console.warn(`Cannot connect: module not found (${edge.source} -> ${edge.target})`);
+    if (audioGraphManager.hasConnection(edge.source, edge.target, edge.targetHandle ?? undefined)) {
       return;
     }
 
-    // Check if already connected
-    if (audioGraphManager.hasConnection(edge.source, edge.target, edge.targetHandle || undefined)) {
-      return;
-    }
-
-    const targetNode = nodes.find(n => n.id === edge.target);
+    const targetNode = nodes.find((n) => n.id === edge.target);
     if (!targetNode) return;
 
-    // Handle mixer channel connections
-    if (targetNode.data.type && targetNode.data.type.startsWith("mixer-")) {
-      const mixerModule = targetModule as MixerModule;
-      const channelIndex = edge.targetHandle ? parseInt(edge.targetHandle.split("-")[1]) : 0;
-      const channelInput = mixerModule.getChannelInput(channelIndex);
+    const desc = getDescriptor(targetNode.data.type);
+
+    // If the target has named input handles (mixer channels), connect to the specific channel
+    if (desc?.inputHandles && typeof (targetModule as any).getChannelInput === "function") {
+      const channelIndex = edge.targetHandle
+        ? parseInt(edge.targetHandle.split("-")[1])
+        : 0;
+      const channelInput = (targetModule as any).getChannelInput(channelIndex);
       if (channelInput) {
         sourceModule.connect(channelInput);
-        audioGraphManager.addConnection(edge.source, edge.target, edge.targetHandle || undefined);
-        console.log(`Connected ${edge.source} to ${edge.target} channel ${channelIndex}`);
+        audioGraphManager.addConnection(edge.source, edge.target, edge.targetHandle ?? undefined);
       }
     } else {
-      // Standard connection
       sourceModule.connect(targetModule);
       audioGraphManager.addConnection(edge.source, edge.target);
-      console.log(`Connected ${edge.source} to ${edge.target}`);
     }
   }
 
-  /**
-   * Get all upstream source nodes recursively
-   */
-  getUpstreamSources(nodeId: string, nodes: any[], edges: Edge[], visited = new Set<string>()): any[] {
+  // ── Chain helpers ────────────────────────────────────────────────────
+
+  getUpstreamSources(nodeId: string, nodes: Node[], edges: Edge[], visited = new Set<string>()): Node[] {
     if (visited.has(nodeId)) return [];
     visited.add(nodeId);
 
     const directSources = edges
       .filter((e) => e.target === nodeId)
       .map((e) => nodes.find((n) => n.id === e.source))
-      .filter(Boolean);
+      .filter(Boolean) as Node[];
 
-    const allSources = [...directSources];
-    directSources.forEach((source) => {
-      if (source) {
-        allSources.push(...this.getUpstreamSources(source.id, nodes, edges, visited));
-      }
-    });
-
-    return allSources;
+    const all = [...directSources];
+    for (const src of directSources) {
+      all.push(...this.getUpstreamSources(src.id, nodes, edges, visited));
+    }
+    return all;
   }
 
-  /**
-   * Start a module and all its upstream sources
-   */
-  startModuleChain(nodeId: string, nodes: any[], edges: Edge[]) {
-    const allSources = this.getUpstreamSources(nodeId, nodes, edges);
-    console.log('Starting module chain:', nodeId, allSources.map(s => s?.id));
-
-    allSources.forEach((sourceNode) => {
-      if (sourceNode?.id) {
-        const module = audioGraphManager.getModule(sourceNode.id);
-        if (module) {
-          module.start();
-        }
-      }
-    });
+  startModuleChain(nodeId: string, nodes: Node[], edges: Edge[]): void {
+    const sources = this.getUpstreamSources(nodeId, nodes, edges);
+    for (const src of sources) {
+      audioGraphManager.getModule(src.id)?.start();
+    }
   }
 
-  /**
-   * Stop a module and all its upstream sources
-   */
-  stopModuleChain(nodeId: string, nodes: any[], edges: Edge[]) {
-    const allSources = this.getUpstreamSources(nodeId, nodes, edges);
-    console.log('Stopping module chain:', nodeId, allSources.map(s => s?.id));
-
-    allSources.forEach((sourceNode) => {
-      if (sourceNode?.id) {
-        const module = audioGraphManager.getModule(sourceNode.id);
-        if (module) {
-          module.stop();
-        }
-      }
-    });
+  stopModuleChain(nodeId: string, nodes: Node[], edges: Edge[]): void {
+    const sources = this.getUpstreamSources(nodeId, nodes, edges);
+    for (const src of sources) {
+      audioGraphManager.getModule(src.id)?.stop();
+    }
   }
 }
 

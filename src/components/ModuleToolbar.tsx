@@ -1,287 +1,455 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, Sparkles, Satellite } from "lucide-react";
+import {
+  Search, Plus, Sparkles, Satellite, Bitcoin, CloudSun,
+  TrendingUp, HeartPulse, Fish, Radio, Lock, Zap, Building2, Brain,
+} from "lucide-react";
 import { CryptoData } from "@/types/crypto";
-import { SatelliteData } from "@/types/modules";
 import { useToast } from "@/hooks/use-toast";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ModuleType } from "@/types/modules";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { InfoDialog } from "@/components/InfoDialog";
 
 interface ModuleToolbarProps {
-  onAddCrypto: (crypto: CryptoData) => void;
-  onAddSatellite: (satellite: SatelliteData) => void;
-  onAddPlugin: (type: ModuleType) => void;
+  onAddModule: (type: string, extraData?: Record<string, any>) => void;
   livePricesEnabled: boolean;
   onToggleLivePrices: () => void;
 }
 
+// Verified active NORAD IDs (as of 2025). Some of Lovable's defaults pointed
+// to wrong or deorbited satellites — these are the corrected ones.
 const POPULAR_SATELLITES = [
   { id: 25544, name: "ISS (International Space Station)" },
-  { id: 48274, name: "Starlink-1007" },
-  { id: 43013, name: "Hubble Space Telescope" },
-  { id: 41859, name: "Tiangong Space Station" },
-  { id: 37820, name: "NOAA 18 Weather Satellite" },
-  { id: 33591, name: "GPS BIIR-11" },
+  { id: 48274, name: "CSS Tianhe (Chinese Space Station)" },
+  { id: 20580, name: "Hubble Space Telescope" },
+  { id: 43013, name: "NOAA 20 (JPSS-1 Weather)" },
+  { id: 54234, name: "NOAA 21 (JPSS-2 Weather)" },
+  { id: 33591, name: "NOAA 19 (Weather)" },
   { id: 25994, name: "Terra (EOS AM-1)" },
   { id: 27424, name: "Aqua (EOS PM-1)" },
+  { id: 39084, name: "Landsat 8" },
+  { id: 49260, name: "Landsat 9" },
+  { id: 41859, name: "Galileo 15 (GPS-like)" },
 ];
 
-const PLUGIN_CATEGORIES = {
-  "Outputs": [
-    { type: "output-speakers" as ModuleType, label: "Speakers" },
+const PLUGIN_CATEGORIES: Record<string, Array<{ type: string; label: string }>> = {
+  Outputs: [
+    { type: "output-speakers", label: "Speakers" },
   ],
-  "Mixers": [
-    { type: "mixer-4" as ModuleType, label: "4-Track Mixer" },
-    { type: "mixer-8" as ModuleType, label: "8-Track Mixer" },
-    { type: "mixer-16" as ModuleType, label: "16-Track Mixer" },
-    { type: "mixer-32" as ModuleType, label: "32-Track Mixer" },
+  Mixers: [
+    { type: "mixer-4", label: "4-Track Mixer" },
+    { type: "mixer-8", label: "8-Track Mixer" },
+    { type: "mixer-16", label: "16-Track Mixer" },
+    { type: "mixer-32", label: "32-Track Mixer" },
   ],
   "Audio Sources": [
-    { type: "sampler" as ModuleType, label: "Sampler" },
-    { type: "sequencer" as ModuleType, label: "Sequencer" },
-    { type: "drums" as ModuleType, label: "Drum Machine" },
+    { type: "data-drum-machine", label: "Data Drum Machine" },
+    { type: "sampler", label: "Sampler" },
+    { type: "sequencer", label: "Sequencer" },
+    { type: "drums", label: "Drum Machine" },
+  ],
+  Translators: [
+    { type: "tone-translator", label: "Tone Translator" },
+    { type: "pulse-translator", label: "Pulse Translator" },
+    { type: "melody-translator", label: "Melody Translator" },
   ],
   "Time Effects": [
-    { type: "reverb" as ModuleType, label: "Reverb" },
-    { type: "delay" as ModuleType, label: "Delay" },
-    { type: "chorus" as ModuleType, label: "Chorus" },
-    { type: "flanger" as ModuleType, label: "Flanger" },
-    { type: "phaser" as ModuleType, label: "Phaser" },
-    { type: "pingpong-delay" as ModuleType, label: "Ping-Pong Delay" },
+    { type: "reverb", label: "Reverb" },
+    { type: "delay", label: "Delay" },
+    { type: "chorus", label: "Chorus" },
+    { type: "flanger", label: "Flanger" },
+    { type: "phaser", label: "Phaser" },
+    { type: "pingpong-delay", label: "Ping-Pong Delay" },
   ],
-  "Dynamics": [
-    { type: "compressor" as ModuleType, label: "Compressor" },
-    { type: "limiter" as ModuleType, label: "Limiter" },
-    { type: "gate" as ModuleType, label: "Gate" },
-    { type: "de-esser" as ModuleType, label: "De-esser" },
+  Dynamics: [
+    { type: "compressor", label: "Compressor" },
+    { type: "limiter", label: "Limiter" },
+    { type: "gate", label: "Gate" },
+    { type: "de-esser", label: "De-esser" },
   ],
   "Filters & EQ": [
-    { type: "eq" as ModuleType, label: "EQ" },
-    { type: "lpf" as ModuleType, label: "Low-Pass Filter" },
-    { type: "hpf" as ModuleType, label: "High-Pass Filter" },
-    { type: "bandpass" as ModuleType, label: "Band-Pass" },
-    { type: "resonant-filter" as ModuleType, label: "Resonant Filter" },
+    { type: "eq", label: "EQ" },
+    { type: "lpf", label: "Low-Pass Filter" },
+    { type: "hpf", label: "High-Pass Filter" },
+    { type: "bandpass", label: "Band-Pass" },
+    { type: "resonant-filter", label: "Resonant Filter" },
   ],
-  "Distortion": [
-    { type: "overdrive" as ModuleType, label: "Overdrive" },
-    { type: "distortion" as ModuleType, label: "Distortion" },
-    { type: "fuzz" as ModuleType, label: "Fuzz" },
-    { type: "bitcrusher" as ModuleType, label: "Bitcrusher" },
-    { type: "tape-saturation" as ModuleType, label: "Tape Saturation" },
+  Distortion: [
+    { type: "overdrive", label: "Overdrive" },
+    { type: "distortion", label: "Distortion" },
+    { type: "fuzz", label: "Fuzz" },
+    { type: "bitcrusher", label: "Bitcrusher" },
+    { type: "tape-saturation", label: "Tape Saturation" },
   ],
-  "Modulation": [
-    { type: "vibrato" as ModuleType, label: "Vibrato" },
-    { type: "tremolo" as ModuleType, label: "Tremolo" },
-    { type: "ring-mod" as ModuleType, label: "Ring Modulator" },
-    { type: "pitch-shifter" as ModuleType, label: "Pitch Shifter" },
-    { type: "octaver" as ModuleType, label: "Octaver" },
+  Modulation: [
+    { type: "vibrato", label: "Vibrato" },
+    { type: "tremolo", label: "Tremolo" },
+    { type: "ring-mod", label: "Ring Modulator" },
+    { type: "pitch-shifter", label: "Pitch Shifter" },
+    { type: "octaver", label: "Octaver" },
   ],
-  "Advanced": [
-    { type: "granular" as ModuleType, label: "Granular" },
-    { type: "vocoder" as ModuleType, label: "Vocoder" },
-    { type: "auto-pan" as ModuleType, label: "Auto-Pan" },
-    { type: "stereo-widener" as ModuleType, label: "Stereo Widener" },
+  Advanced: [
+    { type: "granular", label: "Granular" },
+    { type: "vocoder", label: "Vocoder" },
+    { type: "auto-pan", label: "Auto-Pan" },
+    { type: "stereo-widener", label: "Stereo Widener" },
   ],
 };
 
-const ModuleToolbar = ({ onAddCrypto, onAddSatellite, onAddPlugin, livePricesEnabled, onToggleLivePrices }: ModuleToolbarProps) => {
+// ── Data input source categories shown inside the "Data Inputs" dropdown ────
+type InputView = "menu" | "crypto" | "satellite";
+
+const ModuleToolbar = ({ onAddModule, livePricesEnabled, onToggleLivePrices }: ModuleToolbarProps) => {
+  // Data inputs popover
+  const [isInputOpen, setIsInputOpen] = useState(false);
+  const [inputView, setInputView] = useState<InputView>("menu");
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<CryptoData[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [isCryptoOpen, setIsCryptoOpen] = useState(false);
-  const [isSatelliteOpen, setIsSatelliteOpen] = useState(false);
-  const [isPluginOpen, setIsPluginOpen] = useState(false);
   const [isFetchingSatellite, setIsFetchingSatellite] = useState(false);
+
+  // Plugins popover
+  const [isPluginOpen, setIsPluginOpen] = useState(false);
+
   const { toast } = useToast();
+
+  // Reset input popover to menu when closed
+  const handleInputOpenChange = (open: boolean) => {
+    setIsInputOpen(open);
+    if (!open) {
+      setInputView("menu");
+      setSearch("");
+      setResults([]);
+    }
+  };
+
+  // ── Crypto ──────────────────────────────────────────────────────────────
 
   const searchCrypto = async () => {
     if (!search.trim()) return;
-
     setIsSearching(true);
     try {
-      const response = await fetch(
-        `https://api.coingecko.com/api/v3/search?query=${search}`
-      );
-      const data = await response.json();
-
-      if (data.coins && data.coins.length > 0) {
+      const resp = await fetch(`https://api.coingecko.com/api/v3/search?query=${search}`);
+      const data = await resp.json();
+      if (data.coins?.length) {
         const ids = data.coins.slice(0, 5).map((c: any) => c.id).join(",");
-        const priceResponse = await fetch(
-          `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}`
+        const priceResp = await fetch(
+          `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}`,
         );
-        const priceData = await priceResponse.json();
-        setResults(priceData);
+        setResults(await priceResp.json());
       } else {
         setResults([]);
-        toast({
-          title: "No results",
-          description: "Try searching for a different cryptocurrency",
-        });
+        toast({ title: "No results", description: "Try a different search term" });
       }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to search cryptocurrencies",
-        variant: "destructive",
-      });
+    } catch {
+      toast({ title: "Error", description: "Failed to search cryptocurrencies", variant: "destructive" });
     } finally {
       setIsSearching(false);
     }
   };
 
-  const handleAdd = (crypto: CryptoData) => {
-    onAddCrypto(crypto);
+  const handleAddCrypto = (crypto: CryptoData) => {
+    onAddModule("crypto", { crypto, id: crypto.id });
     setSearch("");
     setResults([]);
-    setIsCryptoOpen(false);
-    toast({
-      title: "Module added",
-      description: `${crypto.name} module added to canvas`,
-    });
+    setIsInputOpen(false);
   };
+
+  // ── Satellite ───────────────────────────────────────────────────────────
 
   const handleAddSatellite = async (satelliteId: number, satelliteName: string) => {
     setIsFetchingSatellite(true);
     try {
-      const { data, error } = await supabase.functions.invoke('fetch-satellite-data', {
-        body: { satelliteId }
+      const { data, error } = await supabase.functions.invoke("fetch-satellite-data", {
+        body: { satelliteId },
       });
-
       if (error) throw error;
-
-      onAddSatellite(data);
-      setIsSatelliteOpen(false);
-      toast({
-        title: "Satellite added",
-        description: `${satelliteName} module added to canvas`,
-      });
-    } catch (error) {
-      console.error('Error fetching satellite:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch satellite data",
-        variant: "destructive",
-      });
+      onAddModule("satellite", { satellite: data, id: data.id });
+      setIsInputOpen(false);
+    } catch {
+      toast({ title: "Error", description: "Failed to fetch satellite data", variant: "destructive" });
     } finally {
       setIsFetchingSatellite(false);
     }
   };
 
-  const handleAddPlugin = (type: ModuleType, label: string) => {
-    onAddPlugin(type);
-    setIsPluginOpen(false);
-    toast({
-      title: "Plugin added",
-      description: `${label} added to canvas`,
-    });
-  };
+  // ── Render ──────────────────────────────────────────────────────────────
 
   return (
     <div className="fixed top-4 left-4 z-10 flex gap-2">
-        <Popover open={isCryptoOpen} onOpenChange={setIsCryptoOpen}>
+      {/* ── Data Inputs dropdown ─────────────────────────────────────── */}
+      <Popover open={isInputOpen} onOpenChange={handleInputOpenChange}>
         <PopoverTrigger asChild>
           <Button size="lg" className="shadow-glow gap-2">
             <Plus className="w-5 h-5" />
-            Add Crypto Module
+            Data Inputs
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-96 bg-card border-border" align="start">
-          <div className="space-y-4">
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search cryptocurrency..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && searchCrypto()}
-                  className="pl-9 bg-secondary border-border"
-                />
-              </div>
-              <Button onClick={searchCrypto} disabled={isSearching}>
-                {isSearching ? "..." : "Search"}
-              </Button>
-            </div>
+          {inputView === "menu" && (
+            <ScrollArea className="h-[420px] pr-4">
+              <div className="space-y-1">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                  Live Data Sources
+                </h4>
 
-            {results.length > 0 && (
-              <div className="max-h-64 overflow-y-auto space-y-2">
-                {results.map((crypto) => (
-                  <div
-                    key={crypto.id}
-                    className="flex items-center justify-between p-2 bg-secondary border border-border rounded hover:border-primary transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      <img
-                        src={crypto.image}
-                        alt={crypto.name}
-                        className="w-6 h-6"
-                      />
-                      <div>
-                        <p className="font-medium text-sm text-foreground">
-                          {crypto.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {crypto.symbol.toUpperCase()}
-                        </p>
-                      </div>
-                    </div>
-                    <Button size="sm" onClick={() => handleAdd(crypto)}>
-                      Add
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </PopoverContent>
-      </Popover>
-
-      <Popover open={isSatelliteOpen} onOpenChange={setIsSatelliteOpen}>
-        <PopoverTrigger asChild>
-          <Button size="lg" variant="secondary" className="shadow-glow gap-2">
-            <Satellite className="w-5 h-5" />
-            Add Satellite
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-96 bg-card border-border" align="start">
-          <ScrollArea className="h-[400px] pr-4">
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold text-muted-foreground mb-3">
-                Popular Satellites
-              </h4>
-              {POPULAR_SATELLITES.map((satellite) => (
+                {/* Crypto */}
                 <Button
-                  key={satellite.id}
                   variant="ghost"
-                  className="w-full justify-between text-left h-auto py-2"
-                  onClick={() => handleAddSatellite(satellite.id, satellite.name)}
-                  disabled={isFetchingSatellite}
+                  className="w-full justify-start gap-3 h-auto py-3"
+                  onClick={() => setInputView("crypto")}
                 >
-                  <span className="flex-1">{satellite.name}</span>
-                  <span className="text-xs text-muted-foreground ml-2">
-                    ID: {satellite.id}
-                  </span>
+                  <Bitcoin className="w-5 h-5 text-orange-400 shrink-0" />
+                  <div className="text-left">
+                    <p className="font-medium">Cryptocurrency</p>
+                    <p className="text-xs text-muted-foreground">Price data mapped to oscillators</p>
+                  </div>
                 </Button>
-              ))}
+
+                {/* Satellite */}
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-3 h-auto py-3"
+                  onClick={() => setInputView("satellite")}
+                >
+                  <Satellite className="w-5 h-5 text-blue-400 shrink-0" />
+                  <div className="text-left">
+                    <p className="font-medium">Satellite Tracking</p>
+                    <p className="text-xs text-muted-foreground">Orbital data mapped to rhythm & pitch</p>
+                  </div>
+                </Button>
+
+                {/* Weather — live */}
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-3 h-auto py-3"
+                  onClick={() => {
+                    onAddModule("weather");
+                    setIsInputOpen(false);
+                  }}
+                >
+                  <CloudSun className="w-5 h-5 text-cyan-400 shrink-0" />
+                  <div className="text-left">
+                    <p className="font-medium">Weather</p>
+                    <p className="text-xs text-muted-foreground">Temperature, wind, pressure via Open-Meteo</p>
+                  </div>
+                </Button>
+
+                {/* Earthquakes — live */}
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-3 h-auto py-3"
+                  onClick={() => {
+                    onAddModule("earthquakes");
+                    setIsInputOpen(false);
+                  }}
+                >
+                  <Zap className="w-5 h-5 text-red-400 shrink-0" />
+                  <div className="text-left">
+                    <p className="font-medium">Earthquakes</p>
+                    <p className="text-xs text-muted-foreground">USGS live feed &rarr; pulse triggers on new quakes</p>
+                  </div>
+                </Button>
+
+                {/* US Debt — live */}
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-3 h-auto py-3"
+                  onClick={() => {
+                    onAddModule("us-debt");
+                    setIsInputOpen(false);
+                  }}
+                >
+                  <Building2 className="w-5 h-5 text-amber-400 shrink-0" />
+                  <div className="text-left">
+                    <p className="font-medium">US Debt</p>
+                    <p className="text-xs text-muted-foreground">Treasury fiscal data &rarr; ticking debt clock</p>
+                  </div>
+                </Button>
+
+                <Separator className="my-3" />
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                  Coming Soon
+                </h4>
+
+                {/* Stocks */}
+                <div className="flex items-center gap-3 px-3 py-3 opacity-50 cursor-default">
+                  <TrendingUp className="w-5 h-5 text-green-400 shrink-0" />
+                  <div className="text-left flex-1">
+                    <p className="font-medium">Stock Market</p>
+                    <p className="text-xs text-muted-foreground">Equities, indices, forex &rarr; sound</p>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] shrink-0">Soon</Badge>
+                </div>
+
+                {/* Vitals — Hume Health (mock) */}
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-3 h-auto py-3"
+                  onClick={() => {
+                    onAddModule("vitals");
+                    setIsInputOpen(false);
+                  }}
+                >
+                  <HeartPulse className="w-5 h-5 text-pink-400 shrink-0" />
+                  <div className="text-left">
+                    <p className="font-medium">Vitals (Hume Health)</p>
+                    <p className="text-xs text-muted-foreground">Heart rate, HRV, breathing &rarr; pulse triggers</p>
+                  </div>
+                </Button>
+
+                {/* Emotiv EEG — 14-channel brain signal */}
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-3 h-auto py-3"
+                  onClick={() => {
+                    onAddModule("emotiv");
+                    setIsInputOpen(false);
+                  }}
+                >
+                  <Brain className="w-5 h-5 text-cyan-400 shrink-0" />
+                  <div className="text-left">
+                    <p className="font-medium">Emotiv EEG (14-ch)</p>
+                    <p className="text-xs text-muted-foreground">EPOC X brainwaves via Cortex &rarr; sound</p>
+                  </div>
+                </Button>
+
+                {/* Vitals (placeholder removed — replaced by live module above) */}
+                <div className="flex items-center gap-3 px-3 py-3 opacity-50 cursor-default hidden">
+                  <HeartPulse className="w-5 h-5 text-red-400 shrink-0" />
+                  <div className="text-left flex-1">
+                    <p className="font-medium">Biometric / Vitals</p>
+                    <p className="text-xs text-muted-foreground">Heart rate, HRV, SpO2 &rarr; sound</p>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] shrink-0">Soon</Badge>
+                </div>
+
+                {/* Whale tracking */}
+                <div className="flex items-center gap-3 px-3 py-3 opacity-50 cursor-default">
+                  <Fish className="w-5 h-5 text-teal-400 shrink-0" />
+                  <div className="text-left flex-1">
+                    <p className="font-medium">Whale Tracking</p>
+                    <p className="text-xs text-muted-foreground">Migration patterns &rarr; sound</p>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] shrink-0">Soon</Badge>
+                </div>
+
+                {/* Radio signals */}
+                <div className="flex items-center gap-3 px-3 py-3 opacity-50 cursor-default">
+                  <Radio className="w-5 h-5 text-purple-400 shrink-0" />
+                  <div className="text-left flex-1">
+                    <p className="font-medium">Radio Signals</p>
+                    <p className="text-xs text-muted-foreground">SDR / space radio &rarr; sound</p>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] shrink-0">Soon</Badge>
+                </div>
+
+                {/* Blockchain */}
+                <div className="flex items-center gap-3 px-3 py-3 opacity-50 cursor-default">
+                  <Lock className="w-5 h-5 text-amber-400 shrink-0" />
+                  <div className="text-left flex-1">
+                    <p className="font-medium">Blockchain Activity</p>
+                    <p className="text-xs text-muted-foreground">Transactions, gas, mempool &rarr; sound</p>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] shrink-0">Soon</Badge>
+                </div>
+              </div>
+            </ScrollArea>
+          )}
+
+          {/* ── Crypto sub-view ──────────────────────────────────────── */}
+          {inputView === "crypto" && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setInputView("menu")} aria-label="Back">
+                  &larr;
+                </Button>
+                <Bitcoin className="w-5 h-5 text-orange-400" />
+                <h4 className="font-semibold text-sm">Cryptocurrency</h4>
+              </div>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search cryptocurrency..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && searchCrypto()}
+                    className="pl-9 bg-secondary border-border"
+                    aria-label="Search cryptocurrency"
+                  />
+                </div>
+                <Button onClick={searchCrypto} disabled={isSearching}>
+                  {isSearching ? "..." : "Search"}
+                </Button>
+              </div>
+              {results.length > 0 && (
+                <div className="max-h-64 overflow-y-auto space-y-2">
+                  {results.map((crypto) => (
+                    <div
+                      key={crypto.id}
+                      className="flex items-center justify-between p-2 bg-secondary border border-border rounded hover:border-primary transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <img src={crypto.image} alt={`${crypto.name} icon`} className="w-6 h-6" />
+                        <div>
+                          <p className="font-medium text-sm text-foreground">{crypto.name}</p>
+                          <p className="text-xs text-muted-foreground">{crypto.symbol.toUpperCase()}</p>
+                        </div>
+                      </div>
+                      <Button size="sm" onClick={() => handleAddCrypto(crypto)}>Add</Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          </ScrollArea>
+          )}
+
+          {/* ── Satellite sub-view ───────────────────────────────────── */}
+          {inputView === "satellite" && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setInputView("menu")} aria-label="Back">
+                  &larr;
+                </Button>
+                <Satellite className="w-5 h-5 text-blue-400" />
+                <h4 className="font-semibold text-sm">Satellite Tracking</h4>
+              </div>
+              <ScrollArea className="h-[350px] pr-4">
+                <div className="space-y-1">
+                  {POPULAR_SATELLITES.map((sat) => (
+                    <Button
+                      key={sat.id}
+                      variant="ghost"
+                      className="w-full justify-between text-left h-auto py-2"
+                      onClick={() => handleAddSatellite(sat.id, sat.name)}
+                      disabled={isFetchingSatellite}
+                    >
+                      <span className="flex-1">{sat.name}</span>
+                      <span className="text-xs text-muted-foreground ml-2">ID: {sat.id}</span>
+                    </Button>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
         </PopoverContent>
       </Popover>
 
+      {/* ── Plugins / Effects dropdown ───────────────────────────────── */}
       <Popover open={isPluginOpen} onOpenChange={setIsPluginOpen}>
         <PopoverTrigger asChild>
           <Button size="lg" variant="secondary" className="shadow-glow gap-2">
             <Sparkles className="w-5 h-5" />
-            Add Effect
+            Add Plugin
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-96 bg-card border-border" align="start">
@@ -289,18 +457,19 @@ const ModuleToolbar = ({ onAddCrypto, onAddSatellite, onAddPlugin, livePricesEna
             <div className="space-y-4">
               {Object.entries(PLUGIN_CATEGORIES).map(([category, plugins]) => (
                 <div key={category}>
-                  <h4 className="text-sm font-semibold text-muted-foreground mb-2">
-                    {category}
-                  </h4>
+                  <h4 className="text-sm font-semibold text-muted-foreground mb-2">{category}</h4>
                   <div className="space-y-1">
-                    {plugins.map((plugin) => (
+                    {plugins.map((p) => (
                       <Button
-                        key={plugin.type}
+                        key={p.type}
                         variant="ghost"
                         className="w-full justify-start text-left"
-                        onClick={() => handleAddPlugin(plugin.type, plugin.label)}
+                        onClick={() => {
+                          onAddModule(p.type);
+                          setIsPluginOpen(false);
+                        }}
                       >
-                        {plugin.label}
+                        {p.label}
                       </Button>
                     ))}
                   </div>
@@ -314,8 +483,8 @@ const ModuleToolbar = ({ onAddCrypto, onAddSatellite, onAddPlugin, livePricesEna
 
       <InfoDialog />
 
-      <Button 
-        size="lg" 
+      <Button
+        size="lg"
         variant={livePricesEnabled ? "default" : "outline"}
         onClick={onToggleLivePrices}
         className="gap-2"
