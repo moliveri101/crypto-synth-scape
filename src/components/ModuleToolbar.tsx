@@ -43,6 +43,7 @@ const POPULAR_SATELLITES = [
 const PLUGIN_CATEGORIES: Record<string, Array<{ type: string; label: string }>> = {
   Outputs: [
     { type: "output-speakers", label: "Speakers" },
+    { type: "visualizer", label: "Fractal Visualizer" },
   ],
   Mixers: [
     { type: "mixer-4", label: "4-Track Mixer" },

@@ -14,4 +14,5 @@ import "./emotiv";
 import "./tone-translator";
 import "./pulse-translator";
 import "./melody-translator";
+import "./visualizer";
 import "./output";
