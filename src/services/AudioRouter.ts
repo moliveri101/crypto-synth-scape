@@ -16,7 +16,20 @@ export class AudioRouter {
     const toRemove = new Set([...this.previousEdgeKeys].filter((k) => !currentKeys.has(k)));
     const toAdd = new Set([...currentKeys].filter((k) => !this.previousEdgeKeys.has(k)));
 
-    if (toRemove.size === 0 && toAdd.size === 0) return;
+    // Always re-evaluate mixer/multi-input channel activation. This covers:
+    //   - existing connections from a prior session (hot-reload, zombie
+    //     recovery) where `previousEdgeKeys` already includes everything and
+    //     the diff is empty, so setChannelActive would never run otherwise
+    //   - modules whose inputHandles list changes at runtime
+    // The call itself is idempotent — each setChannelActive() is a no-op
+    // when the requested state matches the current one.
+    this.updateMixerChannels(nodes, edges);
+
+    if (toRemove.size === 0 && toAdd.size === 0) {
+      // Topology unchanged — still forward data, but skip the connect/disconnect churn
+      this.forwardData(nodes, edges);
+      return;
+    }
 
     // Disconnect removed edges
     for (const key of toRemove) {
@@ -28,9 +41,6 @@ export class AudioRouter {
         audioGraphManager.removeConnection(source, target, handle);
       }
     }
-
-    // Determine which mixer channels have active inputs
-    this.updateMixerChannels(nodes, edges);
 
     // Connect new edges
     for (const key of toAdd) {
@@ -180,7 +190,8 @@ export class AudioRouter {
   private resolveChannelIndex(node: Node, handle: string | null | undefined): number {
     if (!handle) return 0;
 
-    const numMatch = handle.match(/^in-(\d+)$/);
+    // Numeric handle id: "in-3" or legacy "input-3" → 3
+    const numMatch = handle.match(/^(?:in|input)-(\d+)$/);
     if (numMatch) return parseInt(numMatch[1], 10);
 
     const desc = getDescriptor(node.data.type);

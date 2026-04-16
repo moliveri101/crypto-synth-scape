@@ -9,7 +9,8 @@
       "Bash(npm run:*)",
       "WebFetch(domain:humehealth.com)",
       "WebSearch",
-      "mcp__aa98bde6-6ca6-4ed9-b11e-3faf1fe79f3f__list_projects"
+      "mcp__aa98bde6-6ca6-4ed9-b11e-3faf1fe79f3f__list_projects",
+      "Bash(grep -n \"onDataInput\\\\|StereoHandles\\\\|in-L\\\\|in-R\" src/modules/tone-translator/*.ts src/modules/tone-translator/*.tsx src/modules/pulse-translator/*.ts src/modules/pulse-translator/*.tsx)"
     ]
   }
 }

@@ -143,8 +143,8 @@ const Index = () => {
         const handle = e.targetHandle;
         if (!handle) continue;
 
-        // Numeric handle: "in-3" → index 3
-        const numMatch = handle.match(/^in-(\d+)$/);
+        // Numeric handle: "in-3" or legacy "input-3" → index 3
+        const numMatch = handle.match(/^(?:in|input)-(\d+)$/);
         if (numMatch) {
           (voicesByNode[e.target] ??= new Set()).add(parseInt(numMatch[1], 10));
           continue;
