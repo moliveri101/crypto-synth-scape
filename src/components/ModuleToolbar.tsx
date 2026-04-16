@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Search, Plus, Sparkles, Satellite, Bitcoin, CloudSun,
-  TrendingUp, HeartPulse, Fish, Radio, Lock, Zap, Building2, Brain,
+  TrendingUp, HeartPulse, Fish, Radio, Lock, Zap, Building2, Brain, AlertTriangle,
 } from "lucide-react";
 import { CryptoData } from "@/types/crypto";
 import { useToast } from "@/hooks/use-toast";
@@ -22,6 +22,8 @@ interface ModuleToolbarProps {
   onAddModule: (type: string, extraData?: Record<string, any>) => void;
   livePricesEnabled: boolean;
   onToggleLivePrices: () => void;
+  /** Optional slot for the Layouts menu (save/load canvas state). */
+  layoutsMenu?: React.ReactNode;
 }
 
 // Verified active NORAD IDs (as of 2025). Some of Lovable's defaults pointed
@@ -119,7 +121,7 @@ const PLUGIN_CATEGORIES: Record<string, Array<{ type: string; label: string }>> 
 // ── Data input source categories shown inside the "Data Inputs" dropdown ────
 type InputView = "menu" | "crypto" | "satellite";
 
-const ModuleToolbar = ({ onAddModule, livePricesEnabled, onToggleLivePrices }: ModuleToolbarProps) => {
+const ModuleToolbar = ({ onAddModule, livePricesEnabled, onToggleLivePrices, layoutsMenu }: ModuleToolbarProps) => {
   // Data inputs popover
   const [isInputOpen, setIsInputOpen] = useState(false);
   const [inputView, setInputView] = useState<InputView>("menu");
@@ -333,6 +335,22 @@ const ModuleToolbar = ({ onAddModule, livePricesEnabled, onToggleLivePrices }: M
                   </div>
                 </Button>
 
+                {/* Deportation Tracker — aggregate + rate + geographic data */}
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-3 h-auto py-3 rounded-none hover:bg-neutral-700 hover:text-neutral-100"
+                  onClick={() => {
+                    onAddModule("deportation");
+                    setIsInputOpen(false);
+                  }}
+                >
+                  <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
+                  <div className="text-left">
+                    <p className="font-medium">Deportation Tracker</p>
+                    <p className="text-xs text-muted-foreground">ICE enforcement scale, rate &amp; geographic data &rarr; sound</p>
+                  </div>
+                </Button>
+
                 {/* Vitals (placeholder removed — replaced by live module above) */}
                 <div className="flex items-center gap-3 px-3 py-3 opacity-50 cursor-default hidden">
                   <HeartPulse className="w-5 h-5 text-red-400 shrink-0" />
@@ -493,6 +511,9 @@ const ModuleToolbar = ({ onAddModule, livePricesEnabled, onToggleLivePrices }: M
 
       {/* ── Spacer pushes utilities to the right ─────────────────────── */}
       <div className="flex-1" />
+
+      {/* Layouts menu slot — save/load/export canvas state */}
+      {layoutsMenu}
 
       <InfoDialog />
 

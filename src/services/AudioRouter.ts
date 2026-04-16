@@ -10,6 +10,17 @@ import { getDescriptor } from "@/modules/registry";
 export class AudioRouter {
   private previousEdgeKeys = new Set<string>();
 
+  /**
+   * Invalidate the router's cache of which edges have been connected.
+   * Call this after zombie recovery or any other event that replaces a
+   * live audio module with a fresh one — the old connections are stale and
+   * the new module has no audio routing yet, so the next routeAudio() must
+   * do a full reconnect.
+   */
+  invalidate(): void {
+    this.previousEdgeKeys.clear();
+  }
+
   routeAudio(nodes: Node[], edges: Edge[]): void {
     const currentKeys = audioGraphManager.getCurrentConnectionKeys(edges);
 

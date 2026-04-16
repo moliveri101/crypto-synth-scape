@@ -26,6 +26,7 @@ import { buildNodeTypes, getDescriptor } from "@/modules/registry";
 import "@/modules"; // triggers all registerModule() calls
 
 import ModuleToolbar from "@/components/ModuleToolbar";
+import { LayoutsMenu } from "@/components/LayoutsMenu";
 import InteractiveEdge from "@/components/modules/InteractiveEdge";
 import { ModuleProvider } from "@/modules/base/ModuleContext";
 
@@ -49,6 +50,8 @@ const Index = () => {
     updateParameter,
     toggleCollapse,
     sendAction,
+    clearAll,
+    loadLayout,
   } = useModuleManager(nodes, edges, setNodes, setEdges);
 
   // ── Live crypto price polling ──────────────────────────────────────────
@@ -107,6 +110,7 @@ const Index = () => {
   // automatically without the user having to remove and re-add nodes.
   useEffect(() => {
     const ctx = audioContextManager.getContext();
+    let recovered = 0;
     for (const node of nodes) {
       if (audioGraphManager.getModule(node.id)) continue;
       const desc = getDescriptor(node.data.type);
@@ -114,9 +118,17 @@ const Index = () => {
       try {
         const m = desc.createAudio(ctx, node.data);
         audioGraphManager.registerModule(node.id, m);
+        recovered++;
       } catch (err) {
         console.error("[zombie recovery] failed to recreate", node.id, err);
       }
+    }
+    // Any newly-recreated module has no audio connections — its entries in
+    // the router's edge cache and the graph manager's connection set are
+    // stale. Invalidate both so the next routeAudio() fully reconnects.
+    if (recovered > 0) {
+      audioGraphManager.clearConnections();
+      audioRouter.invalidate();
     }
   }, [nodes]);
 
@@ -342,6 +354,14 @@ const Index = () => {
                 : "Price tracking stopped",
             });
           }}
+          layoutsMenu={
+            <LayoutsMenu
+              getNodes={() => nodes}
+              getEdges={() => edges}
+              onLoad={(n, e) => loadLayout(n, e)}
+              onClear={() => clearAll()}
+            />
+          }
         />
 
         <ModuleProvider value={moduleActions}>

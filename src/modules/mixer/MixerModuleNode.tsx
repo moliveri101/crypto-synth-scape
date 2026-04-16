@@ -1,44 +1,54 @@
-import React from "react";
 import { Handle, Position, NodeProps } from "reactflow";
 import StereoHandles from "@/modules/base/StereoHandles";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Play, Pause, Volume2, VolumeX } from "lucide-react";
+import { VerticalSlider } from "@/components/ui/vertical-slider";
+import { Volume2, VolumeX } from "lucide-react";
 import ModuleHeader from "@/modules/base/ModuleHeader";
 import { useModuleActions } from "@/modules/base/ModuleContext";
 
 interface ChannelData {
-  volume: number;
-  pan: number;
+  volume: number;  // 0..3 (0% to 300%)
+  pan: number;     // -1..+1
   muted: boolean;
 }
 
 interface MixerData {
   type: "mixer-4" | "mixer-8" | "mixer-16" | "mixer-32";
-  masterVolume: number;
-  isPlaying: boolean;
+  masterVolume: number; // 0..3
   inputCount: number;
   collapsed: boolean;
   channels: ChannelData[];
+}
+
+// Wider-range volume: linear gain 0..3 (300%). In dB terms this is
+// -∞ → +9.5 dB, giving plenty of headroom to bring quiet sources up.
+const VOLUME_MAX = 3;
+
+/** Convert linear gain (0..∞) to a dB string. Handles silence gracefully. */
+function volumeToDb(v: number): string {
+  if (v <= 0.001) return "-∞";
+  const db = 20 * Math.log10(v);
+  const sign = db >= 0 ? "+" : "";
+  return `${sign}${db.toFixed(1)}dB`;
 }
 
 function MixerModuleNode({ data, id }: NodeProps<MixerData>) {
   const {
     type,
     masterVolume,
-    isPlaying,
     inputCount,
     collapsed,
     channels,
   } = data;
-  const { onRemove, onToggleCollapse, onUpdateParameter, onAction, onStart, onStop } = useModuleActions();
+  const { onRemove, onToggleCollapse, onUpdateParameter } = useModuleActions();
 
   const trackCount = parseInt(type.split("-")[1], 10);
 
   return (
-    <Card className="bg-background border border-border shadow-lg rounded-xl overflow-hidden" style={{ minWidth: 320 }}>
-      {/* Input handles — one per track along the left side.
+    <Card className="bg-background border border-border shadow-lg rounded-xl overflow-hidden" style={{ minWidth: 340 }}>
+      {/* Per-channel input handles on the left edge.
           Handle IDs MUST match the descriptor's inputHandles() entries
           (`in-0`, `in-1`, …) so the AudioRouter can resolve them. */}
       {Array.from({ length: trackCount }).map((_, i) => (
@@ -63,23 +73,13 @@ function MixerModuleNode({ data, id }: NodeProps<MixerData>) {
           collapsed={collapsed}
           onToggleCollapse={onToggleCollapse}
           onRemove={onRemove}
-        >
-          {/* Play / Pause button in header row */}
-          <Button
-            size="icon"
-            variant={isPlaying ? "destructive" : "default"}
-            className="h-12 w-12 rounded-full shrink-0"
-            aria-label={isPlaying ? "Pause mixer" : "Play mixer"}
-            onClick={() => (isPlaying ? onStop(id) : onStart(id))}
-          >
-            {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-          </Button>
-        </ModuleHeader>
+        />
 
         {!collapsed && (
           <>
-            {/* Channel strips */}
-            <div className="grid grid-cols-4 gap-2 max-h-[400px] overflow-y-auto pr-1">
+            {/* Channel strips. nodrag/nopan keeps ReactFlow from stealing
+                pointer events from the sliders while the user drags. */}
+            <div className="grid grid-cols-4 gap-2 max-h-[440px] overflow-y-auto pr-1 nodrag nopan">
               {channels.map((channel, i) => (
                 <div
                   key={i}
@@ -107,26 +107,44 @@ function MixerModuleNode({ data, id }: NodeProps<MixerData>) {
                     )}
                   </Button>
 
-                  {/* Volume fader (vertical via rotation) */}
-                  <div className="h-24 flex items-center justify-center">
-                    <div className="-rotate-90 w-20">
-                      <Slider
-                        min={0}
-                        max={200}
-                        step={1}
-                        value={[Math.round(channel.volume * 100)]}
-                        onValueChange={([v]) =>
-                          onUpdateParameter(id, `channel_${i}_volume`, v / 100)
-                        }
-                        aria-label={`Channel ${i + 1} volume`}
-                      />
-                    </div>
+                  {/* dB readout — lives above the fader so it doesn't rotate */}
+                  <span className="text-[9px] font-mono tabular-nums text-muted-foreground">
+                    {volumeToDb(channel.volume)}
+                  </span>
+
+                  {/* Volume fader — proper vertical slider (Radix native
+                      orientation). Taller travel distance + native pointer
+                      mapping makes drag feel smooth. */}
+                  <div className="h-32 flex items-center justify-center nodrag nopan">
+                    <VerticalSlider
+                      min={0}
+                      max={VOLUME_MAX * 100}
+                      step={1}
+                      value={[Math.round(channel.volume * 100)]}
+                      onValueChange={([v]) =>
+                        onUpdateParameter(id, `channel_${i}_volume`, v / 100)
+                      }
+                      aria-label={`Channel ${i + 1} volume`}
+                    />
                   </div>
 
-                  {/* Pan slider with L/R labels */}
-                  <div className="w-full space-y-0.5">
+                  {/* % readout below fader */}
+                  <span className="text-[9px] font-mono tabular-nums text-foreground">
+                    {Math.round(channel.volume * 100)}%
+                  </span>
+
+                  {/* Pan slider with L/R labels. Double-click anywhere on
+                      the pan row snaps the channel back to center (pan=0),
+                      which is especially useful when the slider drifted
+                      off-center while dragging. */}
+                  <div
+                    className="w-full space-y-0.5 nodrag nopan cursor-pointer"
+                    onDoubleClick={() => onUpdateParameter(id, `channel_${i}_pan`, 0)}
+                    title="Double-click to center"
+                  >
                     <div className="flex justify-between">
                       <span className="text-[8px] text-muted-foreground">L</span>
+                      <span className="text-[8px] text-muted-foreground">C</span>
                       <span className="text-[8px] text-muted-foreground">R</span>
                     </div>
                     <Slider
@@ -144,15 +162,16 @@ function MixerModuleNode({ data, id }: NodeProps<MixerData>) {
               ))}
             </div>
 
-            {/* Master section */}
-            <div className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-2">
+            {/* Master section — also wider range. nodrag/nopan so the
+                master fader doesn't fight ReactFlow pan. */}
+            <div className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-2 nodrag nopan">
               <Volume2 className="w-4 h-4 text-muted-foreground shrink-0" />
               <span className="text-xs font-medium text-muted-foreground shrink-0">
                 Master
               </span>
               <Slider
                 min={0}
-                max={200}
+                max={VOLUME_MAX * 100}
                 step={1}
                 value={[Math.round(masterVolume * 100)]}
                 onValueChange={([v]) =>
@@ -161,8 +180,8 @@ function MixerModuleNode({ data, id }: NodeProps<MixerData>) {
                 className="flex-1"
                 aria-label="Master volume"
               />
-              <span className="text-[10px] text-muted-foreground w-8 text-right">
-                {Math.round(masterVolume * 100)}%
+              <span className="text-[10px] font-mono tabular-nums text-muted-foreground w-20 text-right">
+                {Math.round(masterVolume * 100)}% · {volumeToDb(masterVolume)}
               </span>
             </div>
           </>

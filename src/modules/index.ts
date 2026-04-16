@@ -11,6 +11,7 @@ import "./weather";
 import "./us-debt";
 import "./vitals";
 import "./emotiv";
+import "./deportation";
 import "./tone-translator";
 import "./pulse-translator";
 import "./melody-translator";

@@ -201,6 +201,34 @@ export const useModuleManager = (
     [setNodes],
   );
 
+  /**
+   * Wipe the current canvas — dispose every audio module, clear connection
+   * tracking, clear router cache, then drop all React state nodes + edges.
+   * Used before loading a saved layout so we start from a clean slate.
+   */
+  const clearAll = useCallback(() => {
+    audioGraphManager.dispose();
+    audioRouter.invalidate();
+    setNodes([]);
+    setEdges([]);
+  }, [setNodes, setEdges]);
+
+  /**
+   * Replace the canvas with a saved layout's nodes + edges. Audio modules
+   * are not created here — zombie recovery will rebuild them from the
+   * descriptors once React commits the new node state.
+   */
+  const loadLayout = useCallback(
+    (savedNodes: Node[], savedEdges: Edge[]) => {
+      audioGraphManager.dispose();
+      audioRouter.invalidate();
+      // Deep-clone so the caller's copy isn't mutated by ReactFlow
+      setNodes(JSON.parse(JSON.stringify(savedNodes)));
+      setEdges(JSON.parse(JSON.stringify(savedEdges)));
+    },
+    [setNodes, setEdges],
+  );
+
   return {
     addModule,
     removeModule,
@@ -209,5 +237,7 @@ export const useModuleManager = (
     updateParameter,
     toggleCollapse,
     sendAction,
+    clearAll,
+    loadLayout,
   };
 };
