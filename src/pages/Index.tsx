@@ -132,15 +132,31 @@ const Index = () => {
       if (mixerIds.size === 0) return nds;
 
       const counts: Record<string, number> = {};
-      // Per-module set of voice indices currently connected (parsed from `in-N` handles)
+      // Per-module set of voice indices currently connected. Handles may be
+      // either numeric (`in-0`, `in-1` — mixers, drum machine) or named
+      // (`in-note`, `in-volume` — translators). For named handles we look up
+      // the position in the module's inputHandles() descriptor to get an index.
       const voicesByNode: Record<string, Set<number>> = {};
       for (const e of edges) {
         if (!mixerIds.has(e.target)) continue;
         counts[e.target] = (counts[e.target] || 0) + 1;
-        const match = e.targetHandle?.match(/^in-(\d+)$/);
-        if (match) {
-          const idx = parseInt(match[1], 10);
-          (voicesByNode[e.target] ??= new Set()).add(idx);
+        const handle = e.targetHandle;
+        if (!handle) continue;
+
+        // Numeric handle: "in-3" → index 3
+        const numMatch = handle.match(/^in-(\d+)$/);
+        if (numMatch) {
+          (voicesByNode[e.target] ??= new Set()).add(parseInt(numMatch[1], 10));
+          continue;
+        }
+
+        // Named handle: look up its position in the descriptor's handle list
+        const targetNode = nds.find((n) => n.id === e.target);
+        const desc = targetNode ? getDescriptor(targetNode.data.type) : undefined;
+        if (desc?.inputHandles) {
+          const handles = desc.inputHandles(targetNode!.data);
+          const idx = handles.findIndex((h) => h.id === handle);
+          if (idx >= 0) (voicesByNode[e.target] ??= new Set()).add(idx);
         }
       }
 
@@ -222,7 +238,7 @@ const Index = () => {
         });
         return changed ? next : nds;
       });
-    }, 1000);
+    }, 250); // 4×/sec — smoother downstream visuals; setNodes is guarded above
     return () => clearInterval(handle);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [edges]);

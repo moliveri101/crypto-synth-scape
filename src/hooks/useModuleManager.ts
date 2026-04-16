@@ -48,12 +48,13 @@ export const useModuleManager = (
 
       // Always drop new nodes in the top-left so the user sees them immediately.
       // A tiny per-add stagger keeps successive adds from stacking pixel-perfect.
+      // y-offset clears the fixed top menu bar (~50px) so modules aren't hidden.
       const stagger = (nodes.length % 8) * 24;
 
       const newNode: Node = {
         id,
         type: desc.type,
-        position: { x: 40 + stagger, y: 40 + stagger },
+        position: { x: 40 + stagger, y: 80 + stagger },
         data: { ...data, type: desc.type, collapsed: false, isPlaying: false },
       };
 
@@ -143,6 +144,19 @@ export const useModuleManager = (
                 parameters: { ...n.data.parameters, [param]: value },
               },
             };
+          }
+
+          // Mixer channel params (`channel_3_volume`, `channel_0_pan`,
+          // `channel_2_muted`) update the nested `data.channels[i]` array
+          // so the UI re-renders with the new value.
+          const chMatch = param.match(/^channel_(\d+)_(volume|pan|muted)$/);
+          if (chMatch && Array.isArray(n.data.channels)) {
+            const idx = parseInt(chMatch[1], 10);
+            const field = chMatch[2];
+            const nextChannels = n.data.channels.map((ch: any, i: number) =>
+              i === idx ? { ...ch, [field]: value } : ch,
+            );
+            return { ...n, data: { ...n.data, channels: nextChannels } };
           }
 
           return { ...n, data: { ...n.data, [param]: value } };

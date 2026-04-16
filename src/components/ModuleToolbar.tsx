@@ -43,7 +43,17 @@ const POPULAR_SATELLITES = [
 const PLUGIN_CATEGORIES: Record<string, Array<{ type: string; label: string }>> = {
   Outputs: [
     { type: "output-speakers", label: "Speakers" },
-    { type: "visualizer", label: "Fractal Visualizer" },
+  ],
+  Visualizers: [
+    { type: "visualizer", label: "Fractal (Julia)" },
+    { type: "visualizer-mandelbulb", label: "Mandelbulb 3D" },
+    { type: "visualizer-particles", label: "Particles" },
+    { type: "visualizer-lissajous", label: "Lissajous" },
+    { type: "visualizer-network", label: "Network Graph" },
+    { type: "visualizer-terrain", label: "Terrain" },
+    { type: "visualizer-starfield", label: "Starfield" },
+    { type: "visualizer-tunnel", label: "Tunnel" },
+    { type: "visualizer-shadertoy", label: "Shader Toy" },
   ],
   Mixers: [
     { type: "mixer-4", label: "4-Track Mixer" },
@@ -71,6 +81,7 @@ const PLUGIN_CATEGORIES: Record<string, Array<{ type: string; label: string }>> 
     { type: "pingpong-delay", label: "Ping-Pong Delay" },
   ],
   Dynamics: [
+    { type: "preamp", label: "Preamp" },
     { type: "compressor", label: "Compressor" },
     { type: "limiter", label: "Limiter" },
     { type: "gate", label: "Gate" },
@@ -117,8 +128,8 @@ const ModuleToolbar = ({ onAddModule, livePricesEnabled, onToggleLivePrices }: M
   const [isSearching, setIsSearching] = useState(false);
   const [isFetchingSatellite, setIsFetchingSatellite] = useState(false);
 
-  // Plugins popover
-  const [isPluginOpen, setIsPluginOpen] = useState(false);
+  // Which category popover is open (null = none). Only one opens at a time.
+  const [openCategory, setOpenCategory] = useState<string | null>(null);
 
   const { toast } = useToast();
 
@@ -185,16 +196,15 @@ const ModuleToolbar = ({ onAddModule, livePricesEnabled, onToggleLivePrices }: M
   // ── Render ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="fixed top-4 left-4 z-10 flex gap-2">
+    <div className="fixed top-0 left-0 right-0 z-10 bg-background/90 backdrop-blur-sm border-b border-border px-3 py-2 flex items-center gap-1.5 flex-wrap">
       {/* ── Data Inputs dropdown ─────────────────────────────────────── */}
       <Popover open={isInputOpen} onOpenChange={handleInputOpenChange}>
         <PopoverTrigger asChild>
-          <Button size="lg" className="shadow-glow gap-2">
-            <Plus className="w-5 h-5" />
+          <Button size="sm" variant="ghost" className="h-8 text-xs font-medium rounded-none hover:bg-neutral-700 hover:text-neutral-100">
             Data Inputs
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-96 bg-card border-border" align="start">
+        <PopoverContent className="w-96 bg-card border-border rounded-none" align="start">
           {inputView === "menu" && (
             <ScrollArea className="h-[420px] pr-4">
               <div className="space-y-1">
@@ -205,7 +215,7 @@ const ModuleToolbar = ({ onAddModule, livePricesEnabled, onToggleLivePrices }: M
                 {/* Crypto */}
                 <Button
                   variant="ghost"
-                  className="w-full justify-start gap-3 h-auto py-3"
+                  className="w-full justify-start gap-3 h-auto py-3 rounded-none hover:bg-neutral-700 hover:text-neutral-100"
                   onClick={() => setInputView("crypto")}
                 >
                   <Bitcoin className="w-5 h-5 text-orange-400 shrink-0" />
@@ -218,7 +228,7 @@ const ModuleToolbar = ({ onAddModule, livePricesEnabled, onToggleLivePrices }: M
                 {/* Satellite */}
                 <Button
                   variant="ghost"
-                  className="w-full justify-start gap-3 h-auto py-3"
+                  className="w-full justify-start gap-3 h-auto py-3 rounded-none hover:bg-neutral-700 hover:text-neutral-100"
                   onClick={() => setInputView("satellite")}
                 >
                   <Satellite className="w-5 h-5 text-blue-400 shrink-0" />
@@ -231,7 +241,7 @@ const ModuleToolbar = ({ onAddModule, livePricesEnabled, onToggleLivePrices }: M
                 {/* Weather — live */}
                 <Button
                   variant="ghost"
-                  className="w-full justify-start gap-3 h-auto py-3"
+                  className="w-full justify-start gap-3 h-auto py-3 rounded-none hover:bg-neutral-700 hover:text-neutral-100"
                   onClick={() => {
                     onAddModule("weather");
                     setIsInputOpen(false);
@@ -247,7 +257,7 @@ const ModuleToolbar = ({ onAddModule, livePricesEnabled, onToggleLivePrices }: M
                 {/* Earthquakes — live */}
                 <Button
                   variant="ghost"
-                  className="w-full justify-start gap-3 h-auto py-3"
+                  className="w-full justify-start gap-3 h-auto py-3 rounded-none hover:bg-neutral-700 hover:text-neutral-100"
                   onClick={() => {
                     onAddModule("earthquakes");
                     setIsInputOpen(false);
@@ -263,7 +273,7 @@ const ModuleToolbar = ({ onAddModule, livePricesEnabled, onToggleLivePrices }: M
                 {/* US Debt — live */}
                 <Button
                   variant="ghost"
-                  className="w-full justify-start gap-3 h-auto py-3"
+                  className="w-full justify-start gap-3 h-auto py-3 rounded-none hover:bg-neutral-700 hover:text-neutral-100"
                   onClick={() => {
                     onAddModule("us-debt");
                     setIsInputOpen(false);
@@ -294,7 +304,7 @@ const ModuleToolbar = ({ onAddModule, livePricesEnabled, onToggleLivePrices }: M
                 {/* Vitals — Hume Health (mock) */}
                 <Button
                   variant="ghost"
-                  className="w-full justify-start gap-3 h-auto py-3"
+                  className="w-full justify-start gap-3 h-auto py-3 rounded-none hover:bg-neutral-700 hover:text-neutral-100"
                   onClick={() => {
                     onAddModule("vitals");
                     setIsInputOpen(false);
@@ -310,7 +320,7 @@ const ModuleToolbar = ({ onAddModule, livePricesEnabled, onToggleLivePrices }: M
                 {/* Emotiv EEG — 14-channel brain signal */}
                 <Button
                   variant="ghost"
-                  className="w-full justify-start gap-3 h-auto py-3"
+                  className="w-full justify-start gap-3 h-auto py-3 rounded-none hover:bg-neutral-700 hover:text-neutral-100"
                   onClick={() => {
                     onAddModule("emotiv");
                     setIsInputOpen(false);
@@ -430,7 +440,7 @@ const ModuleToolbar = ({ onAddModule, livePricesEnabled, onToggleLivePrices }: M
                     <Button
                       key={sat.id}
                       variant="ghost"
-                      className="w-full justify-between text-left h-auto py-2"
+                      className="w-full justify-between text-left h-auto py-2 rounded-none hover:bg-neutral-700 hover:text-neutral-100"
                       onClick={() => handleAddSatellite(sat.id, sat.name)}
                       disabled={isFetchingSatellite}
                     >
@@ -445,52 +455,54 @@ const ModuleToolbar = ({ onAddModule, livePricesEnabled, onToggleLivePrices }: M
         </PopoverContent>
       </Popover>
 
-      {/* ── Plugins / Effects dropdown ───────────────────────────────── */}
-      <Popover open={isPluginOpen} onOpenChange={setIsPluginOpen}>
-        <PopoverTrigger asChild>
-          <Button size="lg" variant="secondary" className="shadow-glow gap-2">
-            <Sparkles className="w-5 h-5" />
-            Add Plugin
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-96 bg-card border-border" align="start">
-          <ScrollArea className="h-[500px] pr-4">
-            <div className="space-y-4">
-              {Object.entries(PLUGIN_CATEGORIES).map(([category, plugins]) => (
-                <div key={category}>
-                  <h4 className="text-sm font-semibold text-muted-foreground mb-2">{category}</h4>
-                  <div className="space-y-1">
-                    {plugins.map((p) => (
-                      <Button
-                        key={p.type}
-                        variant="ghost"
-                        className="w-full justify-start text-left"
-                        onClick={() => {
-                          onAddModule(p.type);
-                          setIsPluginOpen(false);
-                        }}
-                      >
-                        {p.label}
-                      </Button>
-                    ))}
-                  </div>
-                  <Separator className="mt-3" />
-                </div>
+      {/* ── Category separator ───────────────────────────────────────── */}
+      <div className="w-px h-6 bg-border mx-1" />
+
+      {/* ── One dropdown per category — each opens its own popover ───── */}
+      {Object.entries(PLUGIN_CATEGORIES).map(([category, plugins]) => (
+        <Popover
+          key={category}
+          open={openCategory === category}
+          onOpenChange={(open) => setOpenCategory(open ? category : null)}
+        >
+          <PopoverTrigger asChild>
+            <Button size="sm" variant="ghost" className="h-8 text-xs font-medium rounded-none hover:bg-neutral-700 hover:text-neutral-100">
+              {category}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 bg-card border-border p-1 rounded-none" align="start">
+            <div className="flex flex-col">
+              {plugins.map((p) => (
+                <Button
+                  key={p.type}
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start h-8 text-xs rounded-none hover:bg-neutral-700 hover:text-neutral-100"
+                  onClick={() => {
+                    onAddModule(p.type);
+                    setOpenCategory(null);
+                  }}
+                >
+                  {p.label}
+                </Button>
               ))}
             </div>
-          </ScrollArea>
-        </PopoverContent>
-      </Popover>
+          </PopoverContent>
+        </Popover>
+      ))}
+
+      {/* ── Spacer pushes utilities to the right ─────────────────────── */}
+      <div className="flex-1" />
 
       <InfoDialog />
 
       <Button
-        size="lg"
+        size="sm"
         variant={livePricesEnabled ? "default" : "outline"}
         onClick={onToggleLivePrices}
-        className="gap-2"
+        className="gap-1.5 h-8 text-xs rounded-none hover:bg-neutral-700 hover:text-neutral-100"
       >
-        <Sparkles className="w-5 h-5" />
+        <Sparkles className="w-4 h-4" />
         {livePricesEnabled ? "Live Prices ON" : "Live Prices OFF"}
       </Button>
     </div>

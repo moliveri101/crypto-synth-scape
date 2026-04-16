@@ -113,10 +113,10 @@ export class AudioRouter {
       if (!channelInputs.has(edge.target)) {
         channelInputs.set(edge.target, new Set());
       }
-      const channelIndex = edge.targetHandle
-        ? parseInt(edge.targetHandle.split("-")[1])
-        : 0;
-      channelInputs.get(edge.target)!.add(channelIndex);
+      const channelIndex = this.resolveChannelIndex(targetNode, edge.targetHandle);
+      if (channelIndex >= 0) {
+        channelInputs.get(edge.target)!.add(channelIndex);
+      }
     }
 
     // Tell each multi-input module which channels are active
@@ -153,18 +153,43 @@ export class AudioRouter {
 
     // If the target has named input handles (mixer channels), connect to the specific channel
     if (desc?.inputHandles && typeof (targetModule as any).getChannelInput === "function") {
-      const channelIndex = edge.targetHandle
-        ? parseInt(edge.targetHandle.split("-")[1])
-        : 0;
-      const channelInput = (targetModule as any).getChannelInput(channelIndex);
-      if (channelInput) {
-        sourceModule.connect(channelInput);
-        audioGraphManager.addConnection(edge.source, edge.target, edge.targetHandle ?? undefined);
+      const channelIndex = this.resolveChannelIndex(targetNode, edge.targetHandle);
+      if (channelIndex >= 0) {
+        const channelInput = (targetModule as any).getChannelInput(channelIndex);
+        if (channelInput) {
+          sourceModule.connect(channelInput);
+          audioGraphManager.addConnection(edge.source, edge.target, edge.targetHandle ?? undefined);
+        }
       }
     } else {
       sourceModule.connect(targetModule);
       audioGraphManager.addConnection(edge.source, edge.target);
     }
+  }
+
+  /**
+   * Resolve a target handle id to its integer channel index.
+   *
+   * Supports two handle-naming styles:
+   *   - numeric: "in-0", "in-3"          → 0, 3   (mixer, drum machine)
+   *   - named:   "in-volume", "in-pitch" → looked up by position in the
+   *              module's inputHandles() descriptor list (translators)
+   *
+   * Returns -1 if the handle can't be resolved.
+   */
+  private resolveChannelIndex(node: Node, handle: string | null | undefined): number {
+    if (!handle) return 0;
+
+    const numMatch = handle.match(/^in-(\d+)$/);
+    if (numMatch) return parseInt(numMatch[1], 10);
+
+    const desc = getDescriptor(node.data.type);
+    if (desc?.inputHandles) {
+      const handles = desc.inputHandles(node.data);
+      const idx = handles.findIndex((h) => h.id === handle);
+      if (idx >= 0) return idx;
+    }
+    return -1;
   }
 
   // ── Chain helpers ────────────────────────────────────────────────────

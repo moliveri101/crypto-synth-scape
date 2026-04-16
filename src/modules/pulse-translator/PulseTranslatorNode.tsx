@@ -1,4 +1,5 @@
-import { Position, NodeProps } from "reactflow";
+import { useEffect, useState } from "react";
+import { Handle, Position, NodeProps } from "reactflow";
 import StereoHandles from "@/modules/base/StereoHandles";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,8 @@ import {
 import { Play, Square, Zap } from "lucide-react";
 import ModuleHeader from "@/modules/base/ModuleHeader";
 import { useModuleActions } from "@/modules/base/ModuleContext";
-import type { TriggerMode } from "./PulseTranslator";
+import { audioGraphManager } from "@/services/AudioGraphManager";
+import { PulseTranslator, type TriggerMode } from "./PulseTranslator";
 
 interface PulseTranslatorData {
   type: "pulse-translator";
@@ -24,31 +26,54 @@ interface PulseTranslatorData {
   volume: number;
   isPlaying: boolean;
   collapsed: boolean;
+  connectedVoices?: number[];
   dataValues?: Record<string, number>;
 }
 
-const MODES: { value: TriggerMode; label: string; hint: string }[] = [
-  { value: "threshold", label: "Threshold", hint: "Fire on rising edge above level" },
-  { value: "rate", label: "Rate", hint: "Continuous pulses, rate = value × max" },
-  { value: "onChange", label: "On-Change", hint: "Fire when value changes by ≥ delta" },
+const MODES: { value: TriggerMode; label: string }[] = [
+  { value: "threshold", label: "Threshold" },
+  { value: "rate", label: "Rate" },
+  { value: "onChange", label: "On-Change" },
 ];
 
 function PulseTranslatorNode({ data, id }: NodeProps<PulseTranslatorData>) {
   const { onRemove, onToggleCollapse, onUpdateParameter, onAction, onStart, onStop } = useModuleActions();
   const {
     field, mode, threshold, delta, maxRate, pitch, decay, volume,
-    isPlaying, collapsed, dataValues,
+    isPlaying, collapsed, connectedVoices, dataValues,
   } = data;
 
   const availableFields = Object.keys(dataValues ?? {});
-  const modeInfo = MODES.find((m) => m.value === mode);
+  const connected = new Set(connectedVoices ?? []);
+  const isPatched = (ctlIdx: number) => connected.has(ctlIdx);
+
+  // Subscribe to modulation values for live slider animation
+  const [modVals, setModVals] = useState<Record<string, number | null>>({});
+  useEffect(() => {
+    const mod = audioGraphManager.getModule(id) as PulseTranslator | undefined;
+    if (!mod) return;
+    const update = () => setModVals(mod.getModValues() as Record<string, number | null>);
+    mod.setOnModUpdate(update);
+    update();
+    return () => { mod.setOnModUpdate(null); };
+  }, [id]);
+
+  const effThreshold = typeof modVals.threshold === "number" ? modVals.threshold                  : threshold;
+  const effDelta     = typeof modVals.delta     === "number" ? 0.001 + modVals.delta * 0.999      : delta;
+  const effMaxRate   = typeof modVals.maxRate   === "number" ? 0.1 + modVals.maxRate * 49.9       : maxRate;
+  const effPitch     = typeof modVals.pitch     === "number" ? 20 * Math.pow(2, modVals.pitch * 8.6) : pitch;
+  const effDecay     = typeof modVals.decay     === "number" ? 0.01 + modVals.decay * 1.99        : decay;
+  const effVolume    = typeof modVals.volume    === "number" ? modVals.volume                      : volume;
 
   return (
-    <Card className="bg-background border border-yellow-500/40 shadow-lg rounded-xl overflow-hidden" style={{ minWidth: 280 }}>
-      <StereoHandles type="target" position={Position.Left} className="!bg-yellow-400" />
+    <Card
+      className="bg-background border border-yellow-500/40 shadow-lg rounded-xl overflow-hidden relative"
+      style={{ minWidth: 320 }}
+    >
+      {/* Stereo audio output on the right */}
       <StereoHandles type="source" position={Position.Right} className="!bg-yellow-400" />
 
-      <div className="p-3 space-y-3">
+      <div className="p-3 space-y-2 pr-5">
         <ModuleHeader
           id={id}
           title="PULSE TRANSLATOR"
@@ -70,138 +95,207 @@ function PulseTranslatorNode({ data, id }: NodeProps<PulseTranslatorData>) {
 
         {!collapsed && (
           <>
-            {/* Field selector */}
-            <div className="nodrag nopan">
-              <Label className="text-[10px] text-muted-foreground">
-                Data Field {availableFields.length === 0 && <span className="text-yellow-400">(connect a source)</span>}
-              </Label>
-              <Select
-                value={field ?? "__none"}
-                onValueChange={(v) => onUpdateParameter(id, "field", v === "__none" ? null : v)}
-              >
-                <SelectTrigger className="h-7 text-[11px]" onPointerDown={(e) => e.stopPropagation()}>
-                  <SelectValue placeholder="select field..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none">— none —</SelectItem>
-                  {availableFields.map((f) => (
-                    <SelectItem key={f} value={f}>{f}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Trigger mode */}
-            <div className="nodrag nopan">
-              <Label className="text-[10px] text-muted-foreground">Trigger Mode</Label>
-              <Select
-                value={mode}
-                onValueChange={(v) => onUpdateParameter(id, "mode", v)}
-              >
-                <SelectTrigger className="h-7 text-[11px]" onPointerDown={(e) => e.stopPropagation()}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MODES.map((m) => (
-                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {modeInfo && (
-                <div className="text-[9px] text-muted-foreground italic mt-1">{modeInfo.hint}</div>
+            {/* Row 0: Trigger */}
+            <ControlRow label="Trigger" patched={isPatched(0)} handleId="in-trigger">
+              {isPatched(0) ? (
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-yellow-400 transition-all duration-75"
+                      style={{ width: `${(typeof modVals.trigger === "number" ? modVals.trigger : 0) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] font-bold text-yellow-300 w-10 text-right">
+                    {((typeof modVals.trigger === "number" ? modVals.trigger : 0) * 100).toFixed(0)}%
+                  </span>
+                </div>
+              ) : (
+                <Select
+                  value={field ?? "__none"}
+                  onValueChange={(v) => onUpdateParameter(id, "field", v === "__none" ? null : v)}
+                >
+                  <SelectTrigger className="h-7 text-[11px]" onPointerDown={(e) => e.stopPropagation()}>
+                    <SelectValue placeholder="pick field..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">— none —</SelectItem>
+                    {availableFields.map((f) => (
+                      <SelectItem key={f} value={f}>{f}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
-            </div>
+            </ControlRow>
 
-            {/* Mode-specific control */}
-            {mode === "threshold" && (
-              <div className="nodrag nopan">
-                <Label className="text-[10px] text-muted-foreground">
-                  Threshold: {threshold.toFixed(2)}
-                </Label>
+            {/* Row 1: Threshold */}
+            <ControlRow label="Thresh" patched={isPatched(1)} handleId="in-threshold">
+              <div className="flex items-center gap-2">
                 <Slider
-                  value={[threshold]}
-                  onValueChange={([v]) => onUpdateParameter(id, "threshold", v)}
+                  value={[effThreshold]}
+                  onValueChange={([v]) => !isPatched(1) && onUpdateParameter(id, "threshold", v)}
                   min={0} max={1} step={0.01}
+                  className={`flex-1 ${isPatched(1) ? "pointer-events-none [&_[role=slider]]:bg-yellow-400 [&_[role=slider]]:border-yellow-300" : ""}`}
                   aria-label="Threshold"
                 />
+                <span className={`text-[10px] w-12 text-right ${isPatched(1) ? "text-yellow-300 font-bold" : "text-muted-foreground"}`}>
+                  {effThreshold.toFixed(2)}
+                </span>
               </div>
-            )}
-            {mode === "onChange" && (
-              <div className="nodrag nopan">
-                <Label className="text-[10px] text-muted-foreground">
-                  Delta: {delta.toFixed(2)}
-                </Label>
+            </ControlRow>
+
+            {/* Row 2: Delta */}
+            <ControlRow label="Delta" patched={isPatched(2)} handleId="in-delta">
+              <div className="flex items-center gap-2">
                 <Slider
-                  value={[delta]}
-                  onValueChange={([v]) => onUpdateParameter(id, "delta", v)}
+                  value={[effDelta]}
+                  onValueChange={([v]) => !isPatched(2) && onUpdateParameter(id, "delta", v)}
                   min={0.001} max={1} step={0.001}
+                  className={`flex-1 ${isPatched(2) ? "pointer-events-none [&_[role=slider]]:bg-yellow-400 [&_[role=slider]]:border-yellow-300" : ""}`}
                   aria-label="Delta"
                 />
+                <span className={`text-[10px] w-12 text-right ${isPatched(2) ? "text-yellow-300 font-bold" : "text-muted-foreground"}`}>
+                  {effDelta.toFixed(3)}
+                </span>
               </div>
-            )}
-            {mode === "rate" && (
-              <div className="nodrag nopan">
-                <Label className="text-[10px] text-muted-foreground">
-                  Max Rate: {maxRate.toFixed(1)} Hz (at value=1)
-                </Label>
+            </ControlRow>
+
+            {/* Row 3: Max Rate */}
+            <ControlRow label="Rate" patched={isPatched(3)} handleId="in-maxRate">
+              <div className="flex items-center gap-2">
                 <Slider
-                  value={[maxRate]}
-                  onValueChange={([v]) => onUpdateParameter(id, "maxRate", v)}
-                  min={0.1} max={30} step={0.1}
+                  value={[effMaxRate]}
+                  onValueChange={([v]) => !isPatched(3) && onUpdateParameter(id, "maxRate", v)}
+                  min={0.1} max={50} step={0.1}
+                  className={`flex-1 ${isPatched(3) ? "pointer-events-none [&_[role=slider]]:bg-yellow-400 [&_[role=slider]]:border-yellow-300" : ""}`}
                   aria-label="Max rate"
                 />
+                <span className={`text-[10px] w-12 text-right ${isPatched(3) ? "text-yellow-300 font-bold" : "text-muted-foreground"}`}>
+                  {effMaxRate.toFixed(1)}Hz
+                </span>
               </div>
-            )}
+            </ControlRow>
 
-            {/* Pulse character */}
-            <div className="border-t border-border pt-2 space-y-2">
-              <div className="nodrag nopan">
-                <Label className="text-[10px] text-muted-foreground">Pulse Pitch: {Math.round(pitch)} Hz</Label>
+            {/* Row 4: Pitch */}
+            <ControlRow label="Pitch" patched={isPatched(4)} handleId="in-pitch">
+              <div className="flex items-center gap-2">
                 <Slider
-                  value={[pitch]}
-                  onValueChange={([v]) => onUpdateParameter(id, "pitch", v)}
+                  value={[effPitch]}
+                  onValueChange={([v]) => !isPatched(4) && onUpdateParameter(id, "pitch", v)}
                   min={20} max={2000} step={1}
+                  className={`flex-1 ${isPatched(4) ? "pointer-events-none [&_[role=slider]]:bg-yellow-400 [&_[role=slider]]:border-yellow-300" : ""}`}
                   aria-label="Pulse pitch"
                 />
+                <span className={`text-[10px] w-12 text-right ${isPatched(4) ? "text-yellow-300 font-bold" : "text-muted-foreground"}`}>
+                  {Math.round(effPitch)}Hz
+                </span>
               </div>
-              <div className="nodrag nopan">
-                <Label className="text-[10px] text-muted-foreground">Decay: {decay.toFixed(2)}s</Label>
+            </ControlRow>
+
+            {/* Row 5: Decay */}
+            <ControlRow label="Decay" patched={isPatched(5)} handleId="in-decay">
+              <div className="flex items-center gap-2">
                 <Slider
-                  value={[decay]}
-                  onValueChange={([v]) => onUpdateParameter(id, "decay", v)}
-                  min={0.01} max={1} step={0.01}
+                  value={[effDecay]}
+                  onValueChange={([v]) => !isPatched(5) && onUpdateParameter(id, "decay", v)}
+                  min={0.01} max={2} step={0.01}
+                  className={`flex-1 ${isPatched(5) ? "pointer-events-none [&_[role=slider]]:bg-yellow-400 [&_[role=slider]]:border-yellow-300" : ""}`}
                   aria-label="Decay"
                 />
+                <span className={`text-[10px] w-12 text-right ${isPatched(5) ? "text-yellow-300 font-bold" : "text-muted-foreground"}`}>
+                  {effDecay.toFixed(2)}s
+                </span>
               </div>
-              <div className="nodrag nopan">
-                <Label className="text-[10px] text-muted-foreground">Volume: {Math.round(volume * 100)}%</Label>
+            </ControlRow>
+
+            {/* Row 6: Volume */}
+            <ControlRow label="Volume" patched={isPatched(6)} handleId="in-volume">
+              <div className="flex items-center gap-2">
                 <Slider
-                  value={[volume]}
-                  onValueChange={([v]) => onUpdateParameter(id, "volume", v)}
+                  value={[effVolume]}
+                  onValueChange={([v]) => !isPatched(6) && onUpdateParameter(id, "volume", v)}
                   min={0} max={1} step={0.01}
+                  className={`flex-1 ${isPatched(6) ? "pointer-events-none [&_[role=slider]]:bg-yellow-400 [&_[role=slider]]:border-yellow-300" : ""}`}
                   aria-label="Volume"
                 />
+                <span className={`text-[10px] w-12 text-right ${isPatched(6) ? "text-yellow-300 font-bold" : "text-muted-foreground"}`}>
+                  {Math.round(effVolume * 100)}%
+                </span>
               </div>
-            </div>
+            </ControlRow>
 
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-full h-7 text-[10px] gap-1"
-              onClick={() => onAction(id, "triggerPulse")}
-            >
-              <Zap className="w-3 h-3" />
-              Test Pulse
-            </Button>
-
-            <div className="text-[9px] text-muted-foreground italic border-t border-border pt-2">
-              Translates a data field into pulses. Patch into a Drum voice input to trigger drums,
-              or directly to a Mixer / Speakers.
+            {/* Mode + Test — manual only */}
+            <div className="pt-2 border-t border-border nodrag nopan space-y-2">
+              <div>
+                <Label className="text-[10px] text-muted-foreground">Trigger Mode</Label>
+                <Select
+                  value={mode}
+                  onValueChange={(v) => onUpdateParameter(id, "mode", v)}
+                >
+                  <SelectTrigger className="h-7 text-[11px]" onPointerDown={(e) => e.stopPropagation()}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MODES.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full h-7 text-[10px] gap-1"
+                onClick={() => onAction(id, "triggerPulse")}
+              >
+                <Zap className="w-3 h-3" />
+                Test Pulse
+              </Button>
             </div>
           </>
         )}
       </div>
+
     </Card>
+  );
+}
+
+/**
+ * Single row that renders its own Handle inside, auto-aligning with the
+ * row's vertical center no matter the actual row height.
+ */
+function ControlRow({
+  label, patched, handleId, children,
+}: {
+  label: string;
+  patched: boolean;
+  handleId: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="relative flex items-center gap-2 nodrag nopan"
+      style={{ minHeight: 36 }}
+    >
+      <Handle
+        id={handleId}
+        type="target"
+        position={Position.Left}
+        className={`!border-2 !border-background !w-3.5 !h-3.5 !top-1/2 !-translate-y-1/2 ${
+          patched ? "!bg-yellow-300" : "!bg-yellow-400"
+        }`}
+        style={{ left: -18 }}
+      />
+      <div className="w-14 shrink-0 flex items-center gap-1">
+        <span
+          className={`text-[10px] font-semibold uppercase tracking-wide ${
+            patched ? "text-yellow-300" : "text-muted-foreground"
+          }`}
+        >
+          {label}
+        </span>
+      </div>
+      <div className="flex-1 min-w-0">{children}</div>
+    </div>
   );
 }
 

@@ -38,13 +38,15 @@ function MixerModuleNode({ data, id }: NodeProps<MixerData>) {
 
   return (
     <Card className="bg-background border border-border shadow-lg rounded-xl overflow-hidden" style={{ minWidth: 320 }}>
-      {/* Input handles — one per track along the left side */}
+      {/* Input handles — one per track along the left side.
+          Handle IDs MUST match the descriptor's inputHandles() entries
+          (`in-0`, `in-1`, …) so the AudioRouter can resolve them. */}
       {Array.from({ length: trackCount }).map((_, i) => (
         <Handle
           key={`in-${i}`}
           type="target"
           position={Position.Left}
-          id={`input-${i}`}
+          id={`in-${i}`}
           style={{ top: `${((i + 1) / (trackCount + 1)) * 100}%` }}
           className="!w-3 !h-3"
         />

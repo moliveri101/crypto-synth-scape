@@ -1,0 +1,167 @@
+// Library of fragment shaders for the Shader-Toy visualizer. Every shader
+// shares the same uniform set so the same 6 patch cords work on any preset.
+// Built as joined-array strings to avoid backtick-inside-backtick template
+// issues with the Vite SWC parser.
+
+export const VERT_SRC = "attribute vec2 a_pos; void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }";
+
+const COMMON_HEADER = [
+  "precision highp float;",
+  "uniform vec2  u_resolution;",
+  "uniform float u_time;",
+  "uniform float u_speed;",
+  "uniform float u_zoom;",
+  "uniform float u_warp;",
+  "uniform float u_intensity;",
+  "uniform float u_color;",
+  "uniform float u_detail;",
+  "",
+  "vec3 palette(float t, float offset) {",
+  "  vec3 a = vec3(0.5, 0.5, 0.5);",
+  "  vec3 b = vec3(0.5, 0.5, 0.5);",
+  "  vec3 c = vec3(1.0, 1.0, 1.0);",
+  "  vec3 d = vec3(0.00, 0.33, 0.67) + offset;",
+  "  return a + b * cos(6.2831 * (c * t + d));",
+  "}",
+  "",
+  "float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }",
+  "",
+  "float noise(vec2 p) {",
+  "  vec2 i = floor(p); vec2 f = fract(p);",
+  "  float a = hash(i);",
+  "  float b = hash(i + vec2(1,0));",
+  "  float c = hash(i + vec2(0,1));",
+  "  float d = hash(i + vec2(1,1));",
+  "  vec2 u = f*f*(3.0-2.0*f);",
+  "  return mix(mix(a,b,u.x), mix(c,d,u.x), u.y);",
+  "}",
+  "",
+].join("\n");
+
+export const SHADER_SOURCES: Record<string, string> = {
+  // Classic domain-warp plasma
+  plasma: COMMON_HEADER + [
+    "void main() {",
+    "  vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / min(u_resolution.x, u_resolution.y);",
+    "  uv *= (0.5 + u_zoom * 4.0);",
+    "  float t = u_time * (0.1 + u_speed * 1.5);",
+    "  for (float i = 1.0; i < 6.0; i++) {",
+    "    if (i > u_detail * 6.0 + 1.0) break;",
+    "    uv.x += u_warp * sin(uv.y * i + t) / i;",
+    "    uv.y += u_warp * cos(uv.x * i + t) / i;",
+    "  }",
+    "  float v = sin(uv.x) + sin(uv.y);",
+    "  vec3 col = palette(v * 0.2 + t * 0.05, u_color) * u_intensity;",
+    "  gl_FragColor = vec4(col, 1.0);",
+    "}",
+  ].join("\n"),
+
+  // Neon wave-grid (TRON-style)
+  wavegrid: COMMON_HEADER + [
+    "void main() {",
+    "  vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / min(u_resolution.x, u_resolution.y);",
+    "  float t = u_time * (0.2 + u_speed * 2.0);",
+    "  float grid = (0.5 + u_zoom * 20.0);",
+    "  float wave = sin(uv.x * grid + t) * 0.15 * u_warp;",
+    "  uv.y += wave;",
+    "  float gx = abs(fract(uv.x * grid) - 0.5);",
+    "  float gy = abs(fract(uv.y * grid) - 0.5);",
+    "  float line = smoothstep(0.45, 0.5, max(gx, gy));",
+    "  vec3 col = palette(uv.y + t * 0.1, u_color);",
+    "  col *= 0.2 + line * 2.5 * u_intensity;",
+    "  gl_FragColor = vec4(col, 1.0);",
+    "}",
+  ].join("\n"),
+
+  // Liquid domain-warped layers
+  liquid: COMMON_HEADER + [
+    "void main() {",
+    "  vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / min(u_resolution.x, u_resolution.y);",
+    "  uv *= (1.0 + u_zoom * 3.0);",
+    "  float t = u_time * (0.1 + u_speed * 1.0);",
+    "  vec2 q; q.x = noise(uv + t);",
+    "  q.y = noise(uv + vec2(1.0));",
+    "  vec2 r; r.x = noise(uv + 4.0 * q + vec2(t, 0.0));",
+    "  r.y = noise(uv + 4.0 * q + vec2(0.0, t * 0.5));",
+    "  float f = noise(uv + u_warp * 3.0 * r);",
+    "  vec3 col = palette(f + t * 0.05, u_color) * (0.3 + u_intensity);",
+    "  gl_FragColor = vec4(col, 1.0);",
+    "}",
+  ].join("\n"),
+
+  // Voronoi cells pulsing
+  voronoi: COMMON_HEADER + [
+    "void main() {",
+    "  vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / min(u_resolution.x, u_resolution.y);",
+    "  uv *= (2.0 + u_zoom * 10.0);",
+    "  float t = u_time * (0.2 + u_speed * 1.5);",
+    "  vec2 cell = floor(uv); vec2 frc = fract(uv);",
+    "  float minD = 8.0;",
+    "  for (int j = -1; j <= 1; j++) {",
+    "    for (int i = -1; i <= 1; i++) {",
+    "      vec2 neighbor = vec2(float(i), float(j));",
+    "      vec2 pt = vec2(hash(cell + neighbor), hash(cell + neighbor + 3.4));",
+    "      pt = 0.5 + 0.5 * sin(t + 6.2831 * pt);",
+    "      float d = length(neighbor + pt - frc);",
+    "      minD = min(minD, d);",
+    "    }",
+    "  }",
+    "  minD = mix(minD, smoothstep(0.0, 0.8, minD), u_warp);",
+    "  vec3 col = palette(minD + t * 0.1, u_color) * (0.2 + u_intensity * minD * 1.5);",
+    "  gl_FragColor = vec4(col, 1.0);",
+    "}",
+  ].join("\n"),
+
+  // Kaleidoscope
+  kaleido: COMMON_HEADER + [
+    "void main() {",
+    "  vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / min(u_resolution.x, u_resolution.y);",
+    "  uv *= (0.5 + u_zoom * 2.5);",
+    "  float t = u_time * (0.1 + u_speed * 0.8);",
+    "  float a = atan(uv.y, uv.x);",
+    "  float r = length(uv);",
+    "  float slices = floor(3.0 + u_detail * 9.0);",
+    "  float segA = 6.2831 / slices;",
+    "  a = mod(a + t * 0.3, segA) - segA * 0.5;",
+    "  vec2 p = vec2(cos(a), sin(a)) * r;",
+    "  p += vec2(sin(t + p.y * 5.0 * u_warp), cos(t + p.x * 5.0 * u_warp)) * 0.12;",
+    "  float v = length(p) + 0.3 * sin(p.x * 8.0 + t);",
+    "  vec3 col = palette(v * 0.4 + t * 0.05, u_color) * u_intensity;",
+    "  gl_FragColor = vec4(col, 1.0);",
+    "}",
+  ].join("\n"),
+
+  // Radial rays of god
+  rays: COMMON_HEADER + [
+    "void main() {",
+    "  vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / min(u_resolution.x, u_resolution.y);",
+    "  float t = u_time * (0.05 + u_speed * 0.8);",
+    "  float r = length(uv);",
+    "  float a = atan(uv.y, uv.x);",
+    "  float rays = floor(8.0 + u_detail * 40.0);",
+    "  float ray = cos(a * rays + t + sin(r * 10.0 * u_warp + t));",
+    "  float fall = pow(1.0 - r, 2.0);",
+    "  float val = max(0.0, ray) * fall;",
+    "  vec3 col = palette(r + t * 0.1, u_color) * (val * 1.5 + 0.05) * (0.3 + u_intensity);",
+    "  col += palette(0.1, u_color) * pow(max(0.0, 1.0 - r * 2.0), 4.0) * 1.2;",
+    "  gl_FragColor = vec4(col, 1.0);",
+    "}",
+  ].join("\n"),
+
+  // Starburst / mandala-ish bloom
+  starburst: COMMON_HEADER + [
+    "void main() {",
+    "  vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / min(u_resolution.x, u_resolution.y);",
+    "  uv *= (0.8 + u_zoom * 2.0);",
+    "  float t = u_time * (0.1 + u_speed * 1.2);",
+    "  float r = length(uv);",
+    "  float a = atan(uv.y, uv.x);",
+    "  float petals = floor(3.0 + u_detail * 12.0);",
+    "  float shape = cos(a * petals + t) * 0.5 + 0.5;",
+    "  float ring = abs(fract(r * 3.0 - t * 0.3 + shape * u_warp) - 0.5);",
+    "  float v = smoothstep(0.3, 0.45, 0.5 - ring) * (1.0 - r * 0.7);",
+    "  vec3 col = palette(shape * 0.5 + r * 0.2, u_color) * (v * 2.0 + 0.05) * u_intensity;",
+    "  gl_FragColor = vec4(col, 1.0);",
+    "}",
+  ].join("\n"),
+};

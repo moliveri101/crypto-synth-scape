@@ -2,12 +2,25 @@ import { registerModule } from "../registry";
 import { PulseTranslator } from "./PulseTranslator";
 import PulseTranslatorNode from "./PulseTranslatorNode";
 
+// Per-control input handles — `trigger` is the primary pulse-driver; the rest
+// modulate the pulse character. Order must match INPUT_CONTROLS in PulseTranslator.ts
+const PULSE_INPUTS: Array<{ id: string; label: string }> = [
+  { id: "in-trigger",   label: "Trigger" },
+  { id: "in-threshold", label: "Threshold" },
+  { id: "in-delta",     label: "Delta" },
+  { id: "in-maxRate",   label: "Rate" },
+  { id: "in-pitch",     label: "Pitch" },
+  { id: "in-decay",     label: "Decay" },
+  { id: "in-volume",    label: "Volume" },
+];
+
 registerModule({
   type: "pulse-translator",
   category: "processor",
   label: "Pulse Translator",
   hasInput: true,
   hasOutput: true,
+  inputHandles: () => PULSE_INPUTS,
   defaultData: () => ({
     field: null as string | null,
     mode: "threshold" as const,

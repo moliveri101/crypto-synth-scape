@@ -5,22 +5,22 @@ export type TriggerMode = "threshold" | "rate" | "onChange";
 /**
  * Translates a normalized data field (0..1) into discrete audio pulses.
  *
+ * Per-control input handles: `trigger` is the primary signal; threshold,
+ * delta, maxRate, pitch, decay, and volume can each be patched.
+ *
  * Modes:
  *   threshold — fires once each time the value crosses `level` going UP
  *   rate      — fires repeatedly at `maxRate * value` pulses/sec while data is flowing
  *   onChange  — fires when |value - lastValue| > `delta`
- *
- * Pulse: short sine burst with envelope. pitch / decay / volume are user-set.
- * Route the output to a Drum Machine voice input or directly to a Mixer.
  */
 export class PulseTranslator extends AudioModule {
   private field: string | null = null;
   private mode: TriggerMode = "threshold";
-  private threshold = 0.5;     // for threshold mode
-  private delta = 0.1;         // for on-change mode
-  private maxRate = 8;         // for rate mode (pulses/sec at value=1)
-  private pitch = 100;         // pulse pitch in Hz
-  private decay = 0.1;         // pulse decay in seconds
+  private threshold = 0.5;
+  private delta = 0.1;
+  private maxRate = 8;
+  private pitch = 100;
+  private decay = 0.1;
   private volume = 0.7;
 
   private lastValue = 0;
@@ -29,8 +29,50 @@ export class PulseTranslator extends AudioModule {
   private rateTimerHandle: ReturnType<typeof setInterval> | null = null;
   private lastDataPool: Record<string, number> = {};
 
+  // Modulation values — one per patchable control
+  private modValues: {
+    threshold: number | null;
+    delta: number | null;
+    maxRate: number | null;
+    pitch: number | null;
+    decay: number | null;
+    volume: number | null;
+  } = { threshold: null, delta: null, maxRate: null, pitch: null, decay: null, volume: null };
+
+  private voiceInputs: Record<string, GainNode> = {};
+
+  // Ordered input-control names matching PULSE_INPUTS in index.ts
+  static readonly INPUT_CONTROLS = [
+    "trigger", "threshold", "delta", "maxRate", "pitch", "decay", "volume",
+  ] as const;
+
+  private onModUpdate: (() => void) | null = null;
+
   constructor(ctx: AudioContext) {
     super(ctx);
+    for (const name of PulseTranslator.INPUT_CONTROLS) {
+      this.voiceInputs[name] = this.createStereoGain(1);
+    }
+  }
+
+  // ── Per-voice input API ─────────────────────────────────────────────────
+
+  getChannelInput(index: number): GainNode | null {
+    const name = PulseTranslator.INPUT_CONTROLS[index];
+    return name ? this.voiceInputs[name] : null;
+  }
+
+  getChannelCount(): number {
+    return PulseTranslator.INPUT_CONTROLS.length;
+  }
+
+  setChannelActive(index: number, hasInput: boolean): void {
+    const name = PulseTranslator.INPUT_CONTROLS[index];
+    if (!name || name === "trigger") return;
+    if (!hasInput && name in this.modValues) {
+      (this.modValues as Record<string, number | null>)[name] = null;
+      this.onModUpdate?.();
+    }
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────────
@@ -40,7 +82,6 @@ export class PulseTranslator extends AudioModule {
     this.isActive = true;
     this.rateNextTime = this.ctx.currentTime + 0.05;
 
-    // For rate mode, run a scheduler loop
     if (this.rateTimerHandle === null) {
       this.rateTimerHandle = setInterval(() => this.scheduleRatePulses(), 25);
     }
@@ -59,7 +100,6 @@ export class PulseTranslator extends AudioModule {
     switch (name) {
       case "field":
         this.field = value || null;
-        // Reset edge-detection state when field changes
         this.lastValue = 0;
         this.applyFromCurrentPool();
         break;
@@ -91,54 +131,116 @@ export class PulseTranslator extends AudioModule {
 
   // ── Data input ─────────────────────────────────────────────────────────
 
-  onDataInput(data: Record<string, number>, _targetHandle?: string, sourceHandle?: string): void {
+  onDataInput(data: Record<string, number>, targetHandle?: string, sourceHandle?: string): void {
     this.lastDataPool = { ...this.lastDataPool, ...data };
-    // Auto-select a field when none is set yet:
-    //   1. Prefer the source handle's field name (e.g. "out-heart_rate" → "heart_rate")
-    //   2. Fallback: if only one field is incoming, use that
-    if (!this.field) {
-      const match = sourceHandle?.match(/^out-(.+)$/);
-      const handleField = match?.[1];
-      if (handleField && handleField !== "L" && handleField !== "R" && handleField !== "all" && handleField in data) {
-        this.field = handleField;
-      } else {
-        const keys = Object.keys(data);
-        if (keys.length === 1) this.field = keys[0];
+
+    const fieldName = this.pickFieldName(data, sourceHandle);
+    const value = fieldName ? data[fieldName] : undefined;
+    if (typeof value !== "number") return;
+    const normalized = Math.max(0, Math.min(1, value));
+
+    const match = targetHandle?.match(/^in-(.+)$/);
+    const control = match?.[1];
+
+    switch (control) {
+      case "trigger":
+        this.updateTriggerValue(normalized);
+        if (fieldName && !this.field) this.field = fieldName;
+        break;
+      case "threshold":
+      case "delta":
+      case "maxRate":
+      case "pitch":
+      case "decay":
+      case "volume":
+        (this.modValues as Record<string, number | null>)[control] = normalized;
+        this.onModUpdate?.();
+        break;
+      default:
+        this.updateTriggerValue(normalized);
+        if (fieldName && !this.field) this.field = fieldName;
+    }
+  }
+
+  private pickFieldName(data: Record<string, number>, sourceHandle?: string): string | null {
+    const match = sourceHandle?.match(/^out-(.+)$/);
+    const handleField = match?.[1];
+    if (handleField && handleField !== "L" && handleField !== "R" && handleField !== "all" && handleField in data) {
+      return handleField;
+    }
+    const keys = Object.keys(data);
+    if (keys.length === 1) return keys[0];
+    if (this.field && this.field in data) return this.field;
+    return keys[0] ?? null;
+  }
+
+  private updateTriggerValue(normalized: number): void {
+    const prev = this.currentValue;
+    this.currentValue = normalized;
+
+    if (!this.isActive) {
+      this.lastValue = this.currentValue;
+      this.onModUpdate?.();
+      return;
+    }
+
+    if (this.mode === "threshold") {
+      if (this.lastValue < this.effectiveThreshold() && this.currentValue >= this.effectiveThreshold()) {
+        this.emitPulse(this.currentValue);
+      }
+    } else if (this.mode === "onChange") {
+      if (Math.abs(this.currentValue - this.lastValue) >= this.effectiveDelta()) {
+        this.emitPulse(this.currentValue);
       }
     }
-    this.applyFromCurrentPool();
+
+    this.lastValue = prev;
+    this.lastValue = this.currentValue;
+    this.onModUpdate?.();
   }
 
   private applyFromCurrentPool(): void {
     if (!this.field) return;
     const v = this.lastDataPool[this.field];
     if (typeof v !== "number") return;
-    const prev = this.currentValue;
-    this.currentValue = Math.max(0, Math.min(1, v));
-
-    if (!this.isActive) {
-      this.lastValue = this.currentValue;
-      return;
-    }
-
-    // Threshold mode: rising-edge detection
-    if (this.mode === "threshold") {
-      if (this.lastValue < this.threshold && this.currentValue >= this.threshold) {
-        this.emitPulse(this.currentValue);
-      }
-    }
-    // On-change mode: emit when the value moved more than delta in either direction
-    else if (this.mode === "onChange") {
-      if (Math.abs(this.currentValue - this.lastValue) >= this.delta) {
-        this.emitPulse(this.currentValue);
-      }
-    }
-    // Rate mode is handled by the scheduler — no per-update fire
-    // but we still update lastValue below
-
-    this.lastValue = prev; // keep prev as last for edge detection (avoid double-fires from same data)
-    this.lastValue = this.currentValue;
+    this.updateTriggerValue(Math.max(0, Math.min(1, v)));
   }
+
+  // ── Effective values (manual or modulated) ────────────────────────────────
+
+  private effectiveThreshold(): number {
+    const m = this.modValues.threshold;
+    return m !== null ? m : this.threshold;
+  }
+  private effectiveDelta(): number {
+    const m = this.modValues.delta;
+    return m !== null ? 0.001 + m * 0.999 : this.delta;
+  }
+  private effectiveMaxRate(): number {
+    const m = this.modValues.maxRate;
+    return m !== null ? 0.1 + m * 49.9 : this.maxRate;
+  }
+  private effectivePitch(): number {
+    const m = this.modValues.pitch;
+    return m !== null ? 20 * Math.pow(2, m * 8.6) : this.pitch;
+  }
+  private effectiveDecay(): number {
+    const m = this.modValues.decay;
+    return m !== null ? 0.01 + m * 1.99 : this.decay;
+  }
+  private effectiveVolume(): number {
+    const m = this.modValues.volume;
+    return m !== null ? m : this.volume;
+  }
+
+  getModValues() {
+    return {
+      ...this.modValues,
+      trigger: this.currentValue,
+    };
+  }
+
+  setOnModUpdate(cb: (() => void) | null): void { this.onModUpdate = cb; }
 
   // ── Rate-mode scheduler ────────────────────────────────────────────────
 
@@ -148,12 +250,11 @@ export class PulseTranslator extends AudioModule {
 
     const ctx = this.ctx;
     const horizon = ctx.currentTime + 0.1;
-    const interval = 1 / (this.maxRate * this.currentValue);
+    const interval = 1 / (this.effectiveMaxRate() * this.currentValue);
     while (this.rateNextTime < horizon) {
       this.emitPulseAt(this.rateNextTime, this.currentValue);
       this.rateNextTime += interval;
     }
-    // If rateNextTime drifted far behind (e.g. value just rose), reset
     if (this.rateNextTime < ctx.currentTime - 0.5) {
       this.rateNextTime = ctx.currentTime + 0.05;
     }
@@ -169,32 +270,30 @@ export class PulseTranslator extends AudioModule {
     const ctx = this.ctx;
     if (ctx.state === "closed") return;
 
-    const peak = this.volume * Math.max(0.1, velocity);
+    const peak = this.effectiveVolume() * Math.max(0.1, velocity);
+    const pitch = this.effectivePitch();
+    const decay = this.effectiveDecay();
     const osc = ctx.createOscillator();
     const env = this.createStereoGain(0);
     osc.type = "sine";
-    osc.frequency.setValueAtTime(this.pitch, time);
-    // Slight pitch sweep for character
-    osc.frequency.exponentialRampToValueAtTime(Math.max(20, this.pitch * 0.6), time + this.decay);
+    osc.frequency.setValueAtTime(pitch, time);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(20, pitch * 0.6), time + decay);
 
     env.gain.setValueAtTime(0, time);
     env.gain.linearRampToValueAtTime(peak, time + 0.005);
-    env.gain.exponentialRampToValueAtTime(0.001, time + this.decay);
+    env.gain.exponentialRampToValueAtTime(0.001, time + decay);
 
     osc.connect(env);
     env.connect(this.outputNode);
     osc.start(time);
-    osc.stop(time + this.decay + 0.02);
+    osc.stop(time + decay + 0.02);
   }
 
-  // Action for manual test from UI
   handleAction(action: string, _payload?: any): Record<string, any> | void {
     if (action === "triggerPulse") {
       this.emitPulse(0.8);
     }
   }
-
-  // ── Cleanup ───────────────────────────────────────────────────────────
 
   dispose(): void {
     this.stop();

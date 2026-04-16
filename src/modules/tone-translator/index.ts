@@ -2,12 +2,23 @@ import { registerModule } from "../registry";
 import { ToneTranslator } from "./ToneTranslator";
 import ToneTranslatorNode from "./ToneTranslatorNode";
 
+// Per-control input handles — same pattern as Melody Translator.
+// `note` is the primary pitch-drive input; the rest modulate their controls.
+const TONE_INPUTS: Array<{ id: string; label: string }> = [
+  { id: "in-note",     label: "Note" },
+  { id: "in-baseFreq", label: "Base Freq" },
+  { id: "in-range",    label: "Range" },
+  { id: "in-volume",   label: "Volume" },
+  { id: "in-glide",    label: "Glide" },
+];
+
 registerModule({
   type: "tone-translator",
   category: "processor",
   label: "Tone Translator",
   hasInput: true,
   hasOutput: true,
+  inputHandles: () => TONE_INPUTS,
   defaultData: () => ({
     field: null as string | null,
     waveform: "sine" as OscillatorType,

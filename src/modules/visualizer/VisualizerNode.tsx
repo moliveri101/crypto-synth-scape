@@ -136,21 +136,48 @@ function VisualizerNode({ data, id }: NodeProps<VisualizerData>) {
       detail: gl.getUniformLocation(prog, "u_detail"),
     };
 
-    // Smoothed state so visuals don't jitter on every data tick
-    const smoothed: Record<VisualizerKnob, number> = {
+    // Two-stage smoothing: incoming `values[k]` is the raw (stepped) target.
+    // Stage 1: `target[k]` eases toward `values[k]` with a long time constant
+    //          — this fills the dead time between data router ticks.
+    // Stage 2: `smoothed[k]` eases toward `target[k]` faster so visuals still
+    //          track the slider when the user drags a manual control.
+    // Using time-constants makes it frame-rate independent and feel natural.
+    const target: Record<VisualizerKnob, number> = {
       shapeX: -0.7, shapeY: 0.27, zoom: 1.0,
       rotation: 0, color: 0, detail: 96,
     };
-    const LERP = 0.12;
+    const smoothed: Record<VisualizerKnob, number> = { ...target };
+    // Time constants (seconds). Bigger = slower / smoother.
+    const TAU_TARGET: Record<VisualizerKnob, number> = {
+      shapeX: 1.2, shapeY: 1.2, zoom: 0.8,
+      rotation: 1.0, color: 0.6, detail: 1.0,
+    };
+    const TAU_SMOOTH: Record<VisualizerKnob, number> = {
+      shapeX: 0.25, shapeY: 0.25, zoom: 0.2,
+      rotation: 0.2, color: 0.15, detail: 0.3,
+    };
+    let lastT = performance.now();
 
     const render = () => {
       const mod = moduleRef.current;
       if (!mod) { rafRef.current = requestAnimationFrame(render); return; }
       const { values } = mod.getSnapshot();
 
+      const now = performance.now();
+      const dt = Math.min(0.1, (now - lastT) / 1000); // clamp to 100ms to survive stalls
+      lastT = now;
+
+      // Frame-rate-independent exponential smoothing: alpha = 1 - exp(-dt / tau)
       for (const k of VISUALIZER_KNOBS) {
-        smoothed[k] += (values[k] - smoothed[k]) * LERP;
+        const aT = 1 - Math.exp(-dt / TAU_TARGET[k]);
+        const aS = 1 - Math.exp(-dt / TAU_SMOOTH[k]);
+        target[k] += (values[k] - target[k]) * aT;
+        smoothed[k] += (target[k] - smoothed[k]) * aS;
       }
+
+      // Cap detail to keep shader cost steady — high iteration counts tank
+      // the framerate and make motion look jerky during transitions.
+      const detailCapped = Math.min(smoothed.detail, 160);
 
       const w = canvas.clientWidth;
       const h = canvas.clientHeight;
@@ -163,7 +190,7 @@ function VisualizerNode({ data, id }: NodeProps<VisualizerData>) {
       gl.uniform1f(uniformsRef.current.zoom!, smoothed.zoom);
       gl.uniform1f(uniformsRef.current.rot!, smoothed.rotation);
       gl.uniform1f(uniformsRef.current.color!, smoothed.color);
-      gl.uniform1f(uniformsRef.current.detail!, smoothed.detail);
+      gl.uniform1f(uniformsRef.current.detail!, detailCapped);
 
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       rafRef.current = requestAnimationFrame(render);
