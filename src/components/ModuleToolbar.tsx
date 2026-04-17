@@ -57,6 +57,12 @@ const PLUGIN_CATEGORIES: Record<string, Array<{ type: string; label: string }>> 
     { type: "visualizer-shadertoy", label: "Shader Toy" },
     { type: "visualizer-splats", label: "Video Splats" },
     { type: "visualizer-strobe", label: "Strobe" },
+    { type: "visualizer-strobe-simple", label: "Simple Strobe" },
+  ],
+  TOPs: [
+    { type: "top-kaleidoscope", label: "Kaleidoscope" },
+    { type: "top-plasma", label: "Plasma" },
+    { type: "top-feedback", label: "Feedback" },
   ],
   Mixers: [
     { type: "mixer-4", label: "4-Track Mixer" },
@@ -74,6 +80,24 @@ const PLUGIN_CATEGORIES: Record<string, Array<{ type: string; label: string }>> 
     { type: "tone-translator", label: "Tone Translator" },
     { type: "pulse-translator", label: "Pulse Translator" },
     { type: "melody-translator", label: "Melody Translator" },
+  ],
+  CHOPs: [
+    { type: "chop-lfo", label: "LFO" },
+    { type: "chop-clock", label: "Clock" },
+    { type: "chop-noise", label: "Noise" },
+    { type: "chop-random", label: "Random (S&H)" },
+    { type: "chop-envelope", label: "Envelope (ADSR)" },
+    { type: "chop-trigger", label: "Trigger" },
+    { type: "chop-counter", label: "Counter" },
+    { type: "chop-sequence", label: "Sequence" },
+  ],
+  Utilities: [
+    { type: "util-math", label: "Math" },
+    { type: "util-lag", label: "Lag / Smooth" },
+    { type: "util-scale", label: "Scale / Remap" },
+    { type: "util-switch", label: "Switch (A/B)" },
+    { type: "util-logic", label: "Logic" },
+    { type: "util-peak", label: "Peak" },
   ],
   "Time Effects": [
     { type: "reverb", label: "Reverb" },

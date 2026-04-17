@@ -7,12 +7,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Trash2, Save, Upload, Download, FolderOpen, Plus } from "lucide-react";
+import { Trash2, Save, Upload, Download, FolderOpen, Plus, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   saveLayout, loadLayout, deleteLayout, listLayouts,
   exportLayoutString, importLayoutString,
 } from "@/services/LayoutStore";
+import { PRESET_LAYOUTS, type PresetLayout } from "@/services/PresetLayouts";
 
 interface LayoutsMenuProps {
   /** Current canvas nodes — captured when the user saves. */
@@ -147,8 +148,47 @@ export const LayoutsMenu = ({ getNodes, getEdges, onLoad, onClear }: LayoutsMenu
             </div>
           </div>
 
-          {/* Saved layouts list */}
+          {/* Built-in presets — curated examples demonstrating how the
+              modules fit together. Same load path as user-saved layouts. */}
           <div className="space-y-1">
+            <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-1">
+              <Sparkles className="w-3 h-3" />
+              Presets ({PRESET_LAYOUTS.length})
+            </div>
+            <div className="max-h-64 overflow-y-auto space-y-0.5">
+              {PRESET_LAYOUTS.map((p: PresetLayout) => (
+                <button
+                  key={p.id}
+                  className="w-full text-left py-1.5 px-2 hover:bg-neutral-700/60 text-foreground group"
+                  onClick={() => {
+                    onLoad(p.nodes, p.edges);
+                    setOpen(false);
+                    toast({ title: "Preset loaded", description: p.name });
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium flex-1 truncate">{p.name}</span>
+                    <span
+                      className={
+                        "text-[8px] font-bold uppercase tracking-wider shrink-0 " +
+                        (p.difficulty === "Easy" ? "text-green-400"
+                          : p.difficulty === "Medium" ? "text-yellow-400"
+                          : "text-rose-400")
+                      }
+                    >
+                      {p.difficulty}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                    {p.description}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Saved layouts list */}
+          <div className="space-y-1 border-t border-border pt-3">
             <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-1">
               Saved ({layouts.length})
             </div>
