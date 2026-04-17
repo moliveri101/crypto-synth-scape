@@ -67,7 +67,7 @@ function PulseTranslatorNode({ data, id }: NodeProps<PulseTranslatorData>) {
 
   return (
     <Card
-      className="bg-background border border-yellow-500/40 shadow-lg rounded-xl overflow-hidden relative"
+      className="bg-background border border-yellow-500/40 shadow-lg rounded-none overflow-hidden relative"
       style={{ minWidth: 320 }}
     >
       {/* Stereo audio output on the right */}

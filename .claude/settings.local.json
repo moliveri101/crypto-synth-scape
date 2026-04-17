@@ -10,7 +10,13 @@
       "WebFetch(domain:humehealth.com)",
       "WebSearch",
       "mcp__aa98bde6-6ca6-4ed9-b11e-3faf1fe79f3f__list_projects",
-      "Bash(grep -n \"onDataInput\\\\|StereoHandles\\\\|in-L\\\\|in-R\" src/modules/tone-translator/*.ts src/modules/tone-translator/*.tsx src/modules/pulse-translator/*.ts src/modules/pulse-translator/*.tsx)"
+      "Bash(grep -n \"onDataInput\\\\|StereoHandles\\\\|in-L\\\\|in-R\" src/modules/tone-translator/*.ts src/modules/tone-translator/*.tsx src/modules/pulse-translator/*.ts src/modules/pulse-translator/*.tsx)",
+      "WebFetch(domain:deportationtracker.live)",
+      "Bash(curl -s -I https://deportationtracker.live/)",
+      "Bash(curl -s https://deportationtracker.live/)",
+      "Bash(grep -oE '\\(fetch|api/|\\\\.json|endpoint\\)[^\"]{0,80}')",
+      "Bash(grep -oE '[0-9]{2,}[,.]*[0-9]*')",
+      "Bash(find src/modules -name \"*Node.tsx\" -exec sed -i 's/rounded-xl/rounded-none/g; s/rounded-md/rounded-none/g; s/rounded-lg/rounded-none/g; s/rounded-sm/rounded-none/g' {} +)"
     ]
   }
 }

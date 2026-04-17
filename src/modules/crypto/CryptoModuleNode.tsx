@@ -85,7 +85,7 @@ function CryptoModuleNode({ data, id }: NodeProps<CryptoData>) {
   const isPriceUp = priceChange >= 0;
 
   return (
-    <Card className="w-72 bg-background border border-border shadow-lg rounded-xl overflow-hidden">
+    <Card className="w-72 bg-background border border-border shadow-lg rounded-none overflow-hidden">
       <ModuleHeader
         icon={
           <img
@@ -125,7 +125,7 @@ function CryptoModuleNode({ data, id }: NodeProps<CryptoData>) {
           </div>
 
           {/* Price info */}
-          <div className="flex items-center justify-between text-xs bg-muted/50 rounded-lg px-2.5 py-2">
+          <div className="flex items-center justify-between text-xs bg-muted/50 rounded-none px-2.5 py-2">
             <span className="font-medium">
               ${crypto.current_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
             </span>

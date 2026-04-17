@@ -80,7 +80,7 @@ export const EFFECT_INFO: Record<string, EffectMeta> = {
       { name: "tape", min: 0, max: 1, step: 0.01 },
     ],
   },
-  "pingpong-delay": {
+  "ping-pong-delay": {
     label: "Ping-Pong Delay",
     icon: Clock,
     color: "text-sky-400",
@@ -176,7 +176,7 @@ export const EFFECT_INFO: Record<string, EffectMeta> = {
   },
 
   // ---------- EQ / Filter Effects ----------
-  eq: {
+  eq3: {
     label: "3-Band EQ",
     icon: Sliders,
     color: "text-purple-400",
@@ -190,7 +190,7 @@ export const EFFECT_INFO: Record<string, EffectMeta> = {
       { name: "highGain", min: -24, max: 24, step: 0.5, unit: "dB" },
     ],
   },
-  lpf: {
+  lowpass: {
     label: "Low-Pass Filter",
     icon: TrendingDown,
     color: "text-indigo-400",
@@ -201,7 +201,7 @@ export const EFFECT_INFO: Record<string, EffectMeta> = {
       { name: "envAmount", min: 0, max: 1, step: 0.01 },
     ],
   },
-  hpf: {
+  highpass: {
     label: "High-Pass Filter",
     icon: TrendingUp,
     color: "text-violet-400",
@@ -326,7 +326,7 @@ export const EFFECT_INFO: Record<string, EffectMeta> = {
       { name: "pitch", min: 0, max: 50, step: 1, unit: "cents" },
     ],
   },
-  "ring-mod": {
+  "ring-modulator": {
     label: "Ring Modulator",
     icon: Radio,
     color: "text-yellow-400",

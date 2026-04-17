@@ -65,7 +65,7 @@ function ToneTranslatorNode({ data, id }: NodeProps<ToneTranslatorData>) {
 
   return (
     <Card
-      className="bg-background border border-violet-500/40 shadow-lg rounded-xl overflow-hidden relative"
+      className="bg-background border border-violet-500/40 shadow-lg rounded-none overflow-hidden relative"
       style={{ minWidth: 320 }}
     >
       {/* Stereo audio output on the right */}

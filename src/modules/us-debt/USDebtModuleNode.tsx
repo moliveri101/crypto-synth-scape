@@ -79,7 +79,7 @@ function USDebtModuleNode({ data, id }: NodeProps<USDebtData>) {
 
   return (
     <Card
-      className="bg-background border border-amber-500/40 shadow-lg rounded-xl overflow-hidden relative"
+      className="bg-background border border-amber-500/40 shadow-lg rounded-none overflow-hidden relative"
       style={{ minWidth: 280 }}
     >
       <style>{`
@@ -177,7 +177,7 @@ function USDebtModuleNode({ data, id }: NodeProps<USDebtData>) {
               position={Position.Right}
               className={`!border-2 !border-background ${
                 h.isBundle
-                  ? "!w-5 !h-5 !bg-amber-300 !rounded-sm"
+                  ? "!w-5 !h-5 !bg-amber-300 !rounded-none"
                   : "!w-4 !h-4 !bg-amber-400"
               }`}
               style={{ top: "auto", bottom }}

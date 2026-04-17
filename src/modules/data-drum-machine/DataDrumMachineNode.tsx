@@ -142,7 +142,7 @@ const TrackRow = React.memo(({ nodeId, trackIndex, track, currentStep, isPlaying
           return (
             <button
               key={si}
-              className={`w-5 h-5 rounded-sm border transition-all nodrag ${
+              className={`w-5 h-5 rounded-none border transition-all nodrag ${
                 step.active
                   ? "border-green-500"
                   : "border-border"
@@ -185,7 +185,7 @@ function DataDrumMachineNode({ data, id }: NodeProps<DataDrumData>) {
   const connectedSet = new Set(connectedVoices ?? []);
 
   return (
-    <Card className="bg-background border border-green-500/40 shadow-lg rounded-xl overflow-hidden" style={{ minWidth: 520 }}>
+    <Card className="bg-background border border-green-500/40 shadow-lg rounded-none overflow-hidden" style={{ minWidth: 520 }}>
       {/* Per-voice input handles are rendered inside each TrackRow on the left.
           The right side still exposes a single stereo pair for audio output. */}
       <StereoHandles type="source" position={Position.Right} className="!bg-green-500" />

@@ -208,7 +208,7 @@ function TerrainNode({ data, id }: NodeProps<TerrainData>) {
 
   return (
     <Card
-      className="bg-background border border-lime-500/40 shadow-lg rounded-xl overflow-hidden relative"
+      className="bg-background border border-lime-500/40 shadow-lg rounded-none overflow-hidden relative"
       style={{ minWidth: 360 }}
     >
       <div className="p-3 space-y-2 pl-5">
@@ -236,7 +236,7 @@ function TerrainNode({ data, id }: NodeProps<TerrainData>) {
           <>
             <canvas
               ref={canvasRef}
-              className="w-full rounded-md bg-black nodrag nopan"
+              className="w-full rounded-none bg-black nodrag nopan"
               style={{ height: 240, display: "block" }}
               onDoubleClick={openFullscreen}
             />

@@ -87,7 +87,7 @@ function SatelliteModuleNode({ data, id }: NodeProps<SatelliteData>) {
   const satId = satellite?.id != null ? String(satellite.id) : "--";
 
   return (
-    <Card className="w-72 bg-background border border-border shadow-lg rounded-xl overflow-hidden">
+    <Card className="w-72 bg-background border border-border shadow-lg rounded-none overflow-hidden">
 
       <ModuleHeader
         icon={<Satellite className="w-5 h-5" />}
@@ -121,7 +121,7 @@ function SatelliteModuleNode({ data, id }: NodeProps<SatelliteData>) {
 
           {/* Data display 2x2 grid */}
           <div className="grid grid-cols-2 gap-1.5">
-            <div className="flex flex-col items-center bg-muted/50 rounded-lg py-1.5 px-1">
+            <div className="flex flex-col items-center bg-muted/50 rounded-none py-1.5 px-1">
               <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
                 Speed
               </span>
@@ -129,7 +129,7 @@ function SatelliteModuleNode({ data, id }: NodeProps<SatelliteData>) {
                 {speed.toFixed(1)} km/s
               </Badge>
             </div>
-            <div className="flex flex-col items-center bg-muted/50 rounded-lg py-1.5 px-1">
+            <div className="flex flex-col items-center bg-muted/50 rounded-none py-1.5 px-1">
               <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
                 Altitude
               </span>
@@ -137,7 +137,7 @@ function SatelliteModuleNode({ data, id }: NodeProps<SatelliteData>) {
                 {altitude.toFixed(1)} km
               </Badge>
             </div>
-            <div className="flex flex-col items-center bg-muted/50 rounded-lg py-1.5 px-1">
+            <div className="flex flex-col items-center bg-muted/50 rounded-none py-1.5 px-1">
               <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
                 Latitude
               </span>
@@ -145,7 +145,7 @@ function SatelliteModuleNode({ data, id }: NodeProps<SatelliteData>) {
                 {latitude.toFixed(2)}°
               </Badge>
             </div>
-            <div className="flex flex-col items-center bg-muted/50 rounded-lg py-1.5 px-1">
+            <div className="flex flex-col items-center bg-muted/50 rounded-none py-1.5 px-1">
               <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
                 Longitude
               </span>

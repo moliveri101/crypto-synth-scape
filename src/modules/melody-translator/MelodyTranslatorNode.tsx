@@ -33,17 +33,6 @@ const WAVEFORMS: OscillatorType[] = ["sine", "square", "sawtooth", "triangle"];
 const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const OCTAVES = [1, 2, 3, 4, 5, 6, 7];
 
-// Must match MELODY_INPUTS in index.ts and INPUT_CONTROLS in MelodyTranslator.ts
-const INPUT_HANDLES = [
-  { id: "in-note",   label: "Note" },
-  { id: "in-volume", label: "Volume" },
-  { id: "in-glide",  label: "Glide" },
-  { id: "in-pitch",  label: "Pitch" },
-  { id: "in-octave", label: "Octave" },
-  { id: "in-scale",  label: "Scale" },
-  { id: "in-root",   label: "Root" },
-];
-
 function MelodyTranslatorNode({ data, id }: NodeProps<MelodyTranslatorData>) {
   const { onRemove, onToggleCollapse, onUpdateParameter, onStart, onStop } = useModuleActions();
   const {
@@ -52,7 +41,7 @@ function MelodyTranslatorNode({ data, id }: NodeProps<MelodyTranslatorData>) {
   } = data;
 
   const connected = new Set(connectedVoices ?? []);
-  // Map from input index (in INPUT_HANDLES) → whether a cable is plugged in
+  // Map from input index (in MELODY_INPUTS descriptor) → whether a cable is plugged in
   const isPatched = (ctlIdx: number) => connected.has(ctlIdx);
 
   // Subscribe to live modulation values so sliders animate when patched.
@@ -80,7 +69,7 @@ function MelodyTranslatorNode({ data, id }: NodeProps<MelodyTranslatorData>) {
 
   return (
     <Card
-      className="bg-background border border-fuchsia-500/40 shadow-lg rounded-xl overflow-hidden relative"
+      className="bg-background border border-fuchsia-500/40 shadow-lg rounded-none overflow-hidden relative"
       style={{ minWidth: 320 }}
     >
       {/* Stereo L/R outputs stay on the right edge */}
@@ -109,7 +98,7 @@ function MelodyTranslatorNode({ data, id }: NodeProps<MelodyTranslatorData>) {
         {!collapsed && (
           <>
             {/* Row 0: Note (drives the melody) */}
-            <ControlRow idx={0} label="Note" patched={isPatched(0)}>
+            <ControlRow handleId="in-note" label="Note" patched={isPatched(0)}>
               {isPatched(0) ? (
                 <div className="flex items-center gap-2">
                   <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
@@ -130,7 +119,7 @@ function MelodyTranslatorNode({ data, id }: NodeProps<MelodyTranslatorData>) {
             </ControlRow>
 
             {/* Row 1: Volume */}
-            <ControlRow idx={1} label="Volume" patched={isPatched(1)}>
+            <ControlRow handleId="in-volume" label="Volume" patched={isPatched(1)}>
               <div className="flex items-center gap-2">
                 <Slider
                   value={[effVolume]}
@@ -147,7 +136,7 @@ function MelodyTranslatorNode({ data, id }: NodeProps<MelodyTranslatorData>) {
             </ControlRow>
 
             {/* Row 2: Glide */}
-            <ControlRow idx={2} label="Glide" patched={isPatched(2)}>
+            <ControlRow handleId="in-glide" label="Glide" patched={isPatched(2)}>
               <div className="flex items-center gap-2">
                 <Slider
                   value={[effGlide]}
@@ -165,7 +154,7 @@ function MelodyTranslatorNode({ data, id }: NodeProps<MelodyTranslatorData>) {
             </ControlRow>
 
             {/* Row 3: Pitch */}
-            <ControlRow idx={3} label="Pitch" patched={isPatched(3)}>
+            <ControlRow handleId="in-pitch" label="Pitch" patched={isPatched(3)}>
               <div className="flex items-center gap-2">
                 <Slider
                   value={[effPitch]}
@@ -183,7 +172,7 @@ function MelodyTranslatorNode({ data, id }: NodeProps<MelodyTranslatorData>) {
             </ControlRow>
 
             {/* Row 4: Octave */}
-            <ControlRow idx={4} label="Octave" patched={isPatched(4)}>
+            <ControlRow handleId="in-octave" label="Octave" patched={isPatched(4)}>
               <Select
                 value={String(effOctave)}
                 onValueChange={(v) => !isPatched(4) && onUpdateParameter(id, "octave", parseInt(v, 10))}
@@ -201,7 +190,7 @@ function MelodyTranslatorNode({ data, id }: NodeProps<MelodyTranslatorData>) {
             </ControlRow>
 
             {/* Row 5: Scale */}
-            <ControlRow idx={5} label="Scale" patched={isPatched(5)}>
+            <ControlRow handleId="in-scale" label="Scale" patched={isPatched(5)}>
               <Select value={effScale} onValueChange={(v) => !isPatched(5) && onUpdateParameter(id, "scale", v)}>
                 <SelectTrigger
                   className={`h-7 text-[11px] ${isPatched(5) ? "pointer-events-none text-fuchsia-300 font-bold border-fuchsia-400/60" : ""}`}
@@ -218,7 +207,7 @@ function MelodyTranslatorNode({ data, id }: NodeProps<MelodyTranslatorData>) {
             </ControlRow>
 
             {/* Row 6: Root */}
-            <ControlRow idx={6} label="Root" patched={isPatched(6)}>
+            <ControlRow handleId="in-root" label="Root" patched={isPatched(6)}>
               <Select value={effRoot} onValueChange={(v) => !isPatched(6) && onUpdateParameter(id, "rootNote", v)}>
                 <SelectTrigger
                   className={`h-7 text-[11px] ${isPatched(6) ? "pointer-events-none text-fuchsia-300 font-bold border-fuchsia-400/60" : ""}`}
@@ -253,40 +242,38 @@ function MelodyTranslatorNode({ data, id }: NodeProps<MelodyTranslatorData>) {
         )}
       </div>
 
-      {/* Per-control input handles on the left, positioned inline with each row */}
-      {!collapsed &&
-        INPUT_HANDLES.map((h, i) => (
-          <Handle
-            key={h.id}
-            id={h.id}
-            type="target"
-            position={Position.Left}
-            className={`!border-2 !border-background ${
-              isPatched(i) ? "!bg-fuchsia-300" : "!bg-fuchsia-400"
-            } !w-3.5 !h-3.5`}
-            style={{
-              // Row positions — adjust if layout changes. Each row is ~44px
-              // starting from ~88px (below the header).
-              top: "auto",
-              bottom: "auto",
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              ...({
-                top: `${110 + i * 44}px`,
-              } as React.CSSProperties),
-            }}
-          />
-        ))}
     </Card>
   );
 }
 
-// Row wrapper: shows the label on the left, control on the right, with
-// padding that leaves space for the input handle that's rendered separately.
+/**
+ * Row wrapper: renders its own input Handle inside the row (with
+ * position:relative) so the handle auto-aligns with the row's vertical
+ * center regardless of how tall the row actually ends up. Replaces the
+ * brittle "top: 110 + i * 44" absolute-positioning hack.
+ */
 function ControlRow({
-  label, patched, children,
-}: { label: string; patched: boolean; idx: number; children: React.ReactNode }) {
+  label, patched, handleId, children,
+}: {
+  label: string;
+  patched: boolean;
+  handleId: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="flex items-center gap-2 nodrag nopan" style={{ minHeight: 36 }}>
+    <div
+      className="relative flex items-center gap-2 nodrag nopan"
+      style={{ minHeight: 36 }}
+    >
+      <Handle
+        id={handleId}
+        type="target"
+        position={Position.Left}
+        className={`!border-2 !border-background !w-3.5 !h-3.5 !top-1/2 !-translate-y-1/2 ${
+          patched ? "!bg-fuchsia-300" : "!bg-fuchsia-400"
+        }`}
+        style={{ left: -18 }}
+      />
       <div className="w-14 shrink-0 flex items-center gap-1">
         <span
           className={`text-[10px] font-semibold uppercase tracking-wide ${

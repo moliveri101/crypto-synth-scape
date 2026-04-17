@@ -47,7 +47,7 @@ function MixerModuleNode({ data, id }: NodeProps<MixerData>) {
   const trackCount = parseInt(type.split("-")[1], 10);
 
   return (
-    <Card className="bg-background border border-border shadow-lg rounded-xl overflow-hidden" style={{ minWidth: 340 }}>
+    <Card className="bg-background border border-border shadow-lg rounded-none overflow-hidden" style={{ minWidth: 340 }}>
       {/* Per-channel input handles on the left edge.
           Handle IDs MUST match the descriptor's inputHandles() entries
           (`in-0`, `in-1`, …) so the AudioRouter can resolve them. */}
@@ -83,7 +83,7 @@ function MixerModuleNode({ data, id }: NodeProps<MixerData>) {
               {channels.map((channel, i) => (
                 <div
                   key={i}
-                  className="flex flex-col items-center gap-1.5 bg-muted/40 rounded-lg p-2"
+                  className="flex flex-col items-center gap-1.5 bg-muted/40 rounded-none p-2"
                 >
                   {/* Channel label */}
                   <span className="text-[10px] font-medium text-muted-foreground">
@@ -164,7 +164,7 @@ function MixerModuleNode({ data, id }: NodeProps<MixerData>) {
 
             {/* Master section — also wider range. nodrag/nopan so the
                 master fader doesn't fight ReactFlow pan. */}
-            <div className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-2 nodrag nopan">
+            <div className="flex items-center gap-2 bg-muted/50 rounded-none px-3 py-2 nodrag nopan">
               <Volume2 className="w-4 h-4 text-muted-foreground shrink-0" />
               <span className="text-xs font-medium text-muted-foreground shrink-0">
                 Master

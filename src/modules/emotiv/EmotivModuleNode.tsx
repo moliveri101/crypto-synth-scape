@@ -77,7 +77,7 @@ function EmotivModuleNode({ data, id }: NodeProps<EmotivData>) {
 
   return (
     <Card
-      className="bg-background border border-cyan-500/40 shadow-lg rounded-xl overflow-hidden relative"
+      className="bg-background border border-cyan-500/40 shadow-lg rounded-none overflow-hidden relative"
       style={{ minWidth: 320 }}
     >
       <div className="p-3 space-y-2">
@@ -222,7 +222,7 @@ function EmotivModuleNode({ data, id }: NodeProps<EmotivData>) {
               position={Position.Right}
               className={`!border-2 !border-background ${
                 isBundle
-                  ? "!w-4 !h-4 !bg-cyan-300 !rounded-sm"
+                  ? "!w-4 !h-4 !bg-cyan-300 !rounded-none"
                   : row.kind === "band"
                   ? "!w-3 !h-3 !bg-cyan-300"
                   : row.kind === "quality"

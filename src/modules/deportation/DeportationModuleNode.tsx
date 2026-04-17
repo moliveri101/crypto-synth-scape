@@ -116,7 +116,7 @@ function DeportationModuleNode({ data, id }: NodeProps<DeportationData>) {
 
   return (
     <Card
-      className="bg-background border border-red-500/40 shadow-lg rounded-xl overflow-hidden relative"
+      className="bg-background border border-red-500/40 shadow-lg rounded-none overflow-hidden relative"
       style={{ minWidth: 320 }}
     >
       <style>{`
@@ -227,7 +227,7 @@ function DeportationModuleNode({ data, id }: NodeProps<DeportationData>) {
               type="source"
               position={Position.Right}
               className={`!border-2 !border-background ${color} ${
-                row.kind === "bundle" ? "!w-5 !h-5 !rounded-sm" : "!w-3.5 !h-3.5"
+                row.kind === "bundle" ? "!w-5 !h-5 !rounded-none" : "!w-3.5 !h-3.5"
               }`}
               style={{ top: "auto", bottom }}
             />

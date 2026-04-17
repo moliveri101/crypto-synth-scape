@@ -58,7 +58,7 @@ function EarthquakesModuleNode({ data, id }: NodeProps<EarthquakesData>) {
   }, [id]);
 
   return (
-    <Card className="bg-background border border-red-500/40 shadow-lg rounded-xl overflow-hidden" style={{ minWidth: 300 }}>
+    <Card className="bg-background border border-red-500/40 shadow-lg rounded-none overflow-hidden" style={{ minWidth: 300 }}>
       <StereoHandles type="source" position={Position.Right} className="!bg-red-400" />
 
       <div className="p-3 space-y-3">

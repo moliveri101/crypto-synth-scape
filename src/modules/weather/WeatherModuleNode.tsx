@@ -123,7 +123,7 @@ function WeatherModuleNode({ data, id }: NodeProps<WeatherData>) {
 
   return (
     <Card
-      className="bg-background border border-cyan-500/40 shadow-lg rounded-xl overflow-hidden relative"
+      className="bg-background border border-cyan-500/40 shadow-lg rounded-none overflow-hidden relative"
       style={{ minWidth: 260 }}
     >
       <div className="p-3 space-y-2">
@@ -249,7 +249,7 @@ function WeatherModuleNode({ data, id }: NodeProps<WeatherData>) {
               position={Position.Right}
               className={`!border-2 !border-background ${
                 h.isBundle
-                  ? "!w-5 !h-5 !bg-cyan-300 !rounded-sm"
+                  ? "!w-5 !h-5 !bg-cyan-300 !rounded-none"
                   : "!w-4 !h-4 !bg-cyan-400"
               }`}
               style={{ top: "auto", bottom }}

@@ -34,7 +34,7 @@ function SequencerModuleNode({ data, id }: NodeProps<SequencerData>) {
   };
 
   return (
-    <Card className="w-80 bg-background border border-border shadow-lg rounded-xl overflow-hidden">
+    <Card className="w-80 bg-background border border-border shadow-lg rounded-none overflow-hidden">
       <StereoHandles type="target" position={Position.Left} />
       <StereoHandles type="source" position={Position.Right} />
 

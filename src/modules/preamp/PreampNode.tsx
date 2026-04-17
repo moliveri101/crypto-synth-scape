@@ -72,7 +72,7 @@ function PreampNode({ data, id }: NodeProps<PreampData>) {
 
   return (
     <Card
-      className="bg-background border border-orange-500/40 shadow-lg rounded-xl overflow-hidden relative"
+      className="bg-background border border-orange-500/40 shadow-lg rounded-none overflow-hidden relative"
       style={{ minWidth: 320 }}
     >
       {/* Stereo audio output on the right. Audio INPUT is rendered inline as

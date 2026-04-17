@@ -78,7 +78,7 @@ function SamplerModuleNode({ data, id }: NodeProps<SamplerData>) {
   };
 
   return (
-    <Card className="min-w-[320px] bg-background border border-border shadow-lg rounded-xl overflow-hidden">
+    <Card className="min-w-[320px] bg-background border border-border shadow-lg rounded-none overflow-hidden">
       <StereoHandles type="target" position={Position.Left} />
 
       <CardHeader className="p-3 pb-0">
@@ -191,7 +191,7 @@ function SamplerModuleNode({ data, id }: NodeProps<SamplerData>) {
 
               {/* Duration display */}
               {currentPad.hasSample && (
-                <div className="flex items-center justify-between text-[10px] text-muted-foreground bg-muted/50 rounded-lg px-2.5 py-1.5">
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground bg-muted/50 rounded-none px-2.5 py-1.5">
                   <span>Duration</span>
                   <span className="font-medium">
                     {currentPad.duration.toFixed(2)}s

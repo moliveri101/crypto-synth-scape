@@ -50,7 +50,7 @@ function DrumsModuleNode({ data, id }: NodeProps<DrumsData>) {
   const { onRemove, onToggleCollapse, onUpdateParameter, onAction, onStart, onStop } = useModuleActions();
 
   return (
-    <Card className="w-[280px] bg-background border border-amber-500/50 shadow-lg rounded-xl overflow-hidden">
+    <Card className="w-[280px] bg-background border border-amber-500/50 shadow-lg rounded-none overflow-hidden">
       <StereoHandles type="target" position={Position.Left} className="!bg-amber-500" />
 
       <CardHeader className="p-3 pb-0">
