@@ -42,13 +42,41 @@ export class AudioRouter {
       return;
     }
 
-    // Disconnect removed edges
+    // Disconnect removed edges — targeted, so we only drop the specific
+    // source→target audio edge and leave the source's other outgoing
+    // connections intact. The previous code called `sourceModule.disconnect()`
+    // which disconnected EVERYTHING from that source, silently severing
+    // other modules' connections too. That caused "disconnect Speakers,
+    // reconnect Speakers → no sound" because any effect/mixer in between
+    // was also orphaned.
     for (const key of toRemove) {
       const [source, targetWithHandle] = key.split("->");
       const [target, handle] = targetWithHandle.split(":");
       const sourceModule = audioGraphManager.getModule(source);
-      if (sourceModule) {
-        sourceModule.disconnect();
+      const targetModule = audioGraphManager.getModule(target);
+      if (sourceModule && targetModule) {
+        // Figure out which specific AudioNode the source was connected to:
+        //   - named-input modules (mixer/translator/preamp): per-channel GainNode
+        //   - everything else: the target module's generic inputNode
+        let disconnectTarget: AudioNode = targetModule.inputNode;
+        const targetNode = nodes.find((n) => n.id === target);
+        const desc = targetNode ? getDescriptor(targetNode.data.type) : undefined;
+        if (
+          targetNode &&
+          desc?.inputHandles &&
+          typeof (targetModule as any).getChannelInput === "function"
+        ) {
+          const idx = this.resolveChannelIndex(targetNode, handle);
+          if (idx >= 0) {
+            const ci = (targetModule as any).getChannelInput(idx);
+            if (ci) disconnectTarget = ci;
+          }
+        }
+        try {
+          sourceModule.outputNode.disconnect(disconnectTarget);
+        } catch {
+          // already disconnected or never connected — safe to ignore
+        }
         audioGraphManager.removeConnection(source, target, handle);
       }
     }
