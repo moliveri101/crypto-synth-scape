@@ -214,6 +214,16 @@ export const useModuleManager = (
   }, [setNodes, setEdges]);
 
   /**
+   * Rip down every audio connection and rebuild from the current edges.
+   * Use this as an escape hatch when the audio routing gets into a bad
+   * state after many disconnect/reconnect cycles — it's heavier than the
+   * normal diff-based routing but guaranteed to resync with React state.
+   */
+  const refreshAudio = useCallback(() => {
+    audioRouter.rebuildAll(nodes, edges);
+  }, [nodes, edges]);
+
+  /**
    * Replace the canvas with a saved layout's nodes + edges. Audio modules
    * are not created here — zombie recovery will rebuild them from the
    * descriptors once React commits the new node state.
@@ -239,5 +249,6 @@ export const useModuleManager = (
     sendAction,
     clearAll,
     loadLayout,
+    refreshAudio,
   };
 };

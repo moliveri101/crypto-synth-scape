@@ -52,6 +52,7 @@ const Index = () => {
     sendAction,
     clearAll,
     loadLayout,
+    refreshAudio,
   } = useModuleManager(nodes, edges, setNodes, setEdges);
 
   // ── Live crypto price polling ──────────────────────────────────────────
@@ -362,6 +363,13 @@ const Index = () => {
               onClear={() => clearAll()}
             />
           }
+          onRefreshAudio={() => {
+            refreshAudio();
+            toast({
+              title: "Audio routing refreshed",
+              description: "Rebuilt every connection from the current edges.",
+            });
+          }}
         />
 
         <ModuleProvider value={moduleActions}>

@@ -24,6 +24,8 @@ interface ModuleToolbarProps {
   onToggleLivePrices: () => void;
   /** Optional slot for the Layouts menu (save/load canvas state). */
   layoutsMenu?: React.ReactNode;
+  /** Escape hatch — force-rebuild every audio connection from current edges. */
+  onRefreshAudio?: () => void;
 }
 
 // Verified active NORAD IDs (as of 2025). Some of Lovable's defaults pointed
@@ -49,13 +51,12 @@ const PLUGIN_CATEGORIES: Record<string, Array<{ type: string; label: string }>> 
   Visualizers: [
     { type: "visualizer", label: "Fractal (Julia)" },
     { type: "visualizer-mandelbulb", label: "Mandelbulb 3D" },
-    { type: "visualizer-particles", label: "Particles" },
     { type: "visualizer-lissajous", label: "Lissajous" },
-    { type: "visualizer-network", label: "Network Graph" },
-    { type: "visualizer-terrain", label: "Terrain" },
     { type: "visualizer-starfield", label: "Starfield" },
     { type: "visualizer-tunnel", label: "Tunnel" },
     { type: "visualizer-shadertoy", label: "Shader Toy" },
+    { type: "visualizer-splats", label: "Video Splats" },
+    { type: "visualizer-strobe", label: "Strobe" },
   ],
   Mixers: [
     { type: "mixer-4", label: "4-Track Mixer" },
@@ -122,7 +123,7 @@ const PLUGIN_CATEGORIES: Record<string, Array<{ type: string; label: string }>> 
 // ── Data input source categories shown inside the "Data Inputs" dropdown ────
 type InputView = "menu" | "crypto" | "satellite";
 
-const ModuleToolbar = ({ onAddModule, livePricesEnabled, onToggleLivePrices, layoutsMenu }: ModuleToolbarProps) => {
+const ModuleToolbar = ({ onAddModule, livePricesEnabled, onToggleLivePrices, layoutsMenu, onRefreshAudio }: ModuleToolbarProps) => {
   // Data inputs popover
   const [isInputOpen, setIsInputOpen] = useState(false);
   const [inputView, setInputView] = useState<InputView>("menu");
@@ -294,15 +295,21 @@ const ModuleToolbar = ({ onAddModule, livePricesEnabled, onToggleLivePrices, lay
                   Coming Soon
                 </h4>
 
-                {/* Stocks */}
-                <div className="flex items-center gap-3 px-3 py-3 opacity-50 cursor-default">
+                {/* Stocks — live via Yahoo chart endpoint with sim fallback */}
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-3 h-auto py-3 rounded-none hover:bg-neutral-700 hover:text-neutral-100"
+                  onClick={() => {
+                    onAddModule("stock", { symbol: "AAPL" });
+                    setIsInputOpen(false);
+                  }}
+                >
                   <TrendingUp className="w-5 h-5 text-green-400 shrink-0" />
-                  <div className="text-left flex-1">
+                  <div className="text-left">
                     <p className="font-medium">Stock Market</p>
-                    <p className="text-xs text-muted-foreground">Equities, indices, forex &rarr; sound</p>
+                    <p className="text-xs text-muted-foreground">Live equities, indices &rarr; tone + data outputs</p>
                   </div>
-                  <Badge variant="outline" className="text-[10px] shrink-0">Soon</Badge>
-                </div>
+                </Button>
 
                 {/* Vitals — Hume Health (mock) */}
                 <Button
@@ -372,15 +379,21 @@ const ModuleToolbar = ({ onAddModule, livePricesEnabled, onToggleLivePrices, lay
                   <Badge variant="outline" className="text-[10px] shrink-0">Soon</Badge>
                 </div>
 
-                {/* Radio signals */}
-                <div className="flex items-center gap-3 px-3 py-3 opacity-50 cursor-default">
+                {/* Radio signals — NOAA space weather feeds */}
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-3 h-auto py-3 rounded-none hover:bg-neutral-700 hover:text-neutral-100"
+                  onClick={() => {
+                    onAddModule("radio-signals");
+                    setIsInputOpen(false);
+                  }}
+                >
                   <Radio className="w-5 h-5 text-purple-400 shrink-0" />
-                  <div className="text-left flex-1">
+                  <div className="text-left">
                     <p className="font-medium">Radio Signals</p>
-                    <p className="text-xs text-muted-foreground">SDR / space radio &rarr; sound</p>
+                    <p className="text-xs text-muted-foreground">Space weather &amp; solar radio &rarr; sound</p>
                   </div>
-                  <Badge variant="outline" className="text-[10px] shrink-0">Soon</Badge>
-                </div>
+                </Button>
 
                 {/* Blockchain */}
                 <div className="flex items-center gap-3 px-3 py-3 opacity-50 cursor-default">
@@ -517,6 +530,21 @@ const ModuleToolbar = ({ onAddModule, livePricesEnabled, onToggleLivePrices, lay
       {layoutsMenu}
 
       <InfoDialog />
+
+      {/* Audio-routing escape hatch — nukes every connection and rebuilds
+          from the current edges. Use when older modules lose audio after
+          repeated disconnect/reconnect cycles. */}
+      {onRefreshAudio && (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onRefreshAudio}
+          className="gap-1.5 h-8 text-xs rounded-none hover:bg-neutral-700 hover:text-neutral-100"
+          title="Rebuild all audio connections from current edges"
+        >
+          ↻ Refresh Audio
+        </Button>
+      )}
 
       <Button
         size="sm"

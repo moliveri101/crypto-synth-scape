@@ -206,14 +206,45 @@ export class AudioRouter {
       if (channelIndex >= 0) {
         const channelInput = (targetModule as any).getChannelInput(channelIndex);
         if (channelInput) {
+          // Defensive: disconnect any stale connection from source to this same
+          // target node before reconnecting. This handles cases where our
+          // tracking claims the connection doesn't exist but Web Audio actually
+          // still has it — reconnecting without disconnecting first would
+          // silently double the signal level. Throws if not connected, which
+          // is fine and the common case.
+          try { sourceModule.outputNode.disconnect(channelInput); } catch { /* fine */ }
           sourceModule.connect(channelInput);
           audioGraphManager.addConnection(edge.source, edge.target, edge.targetHandle ?? undefined);
         }
       }
     } else {
+      // Same defensive disconnect for the plain module-to-module path
+      try { sourceModule.outputNode.disconnect(targetModule.inputNode); } catch { /* fine */ }
       sourceModule.connect(targetModule);
       audioGraphManager.addConnection(edge.source, edge.target);
     }
+  }
+
+  /**
+   * Nuclear option — rip down every tracked audio connection and rebuild
+   * from the current edges. Call this when the user reports that audio
+   * routing is in a weird state after many disconnect/reconnect cycles.
+   *
+   * Less surgical than the normal diff-based path, but guarantees a clean
+   * re-routing without relying on any cached state being accurate.
+   */
+  rebuildAll(nodes: Node[], edges: Edge[]): void {
+    // Force every source's outputNode to disconnect from everything
+    for (const node of nodes) {
+      const mod = audioGraphManager.getModule(node.id);
+      if (!mod) continue;
+      try { mod.outputNode.disconnect(); } catch { /* fine */ }
+    }
+    // Clear caches so we reconnect from scratch
+    audioGraphManager.clearConnections();
+    this.previousEdgeKeys.clear();
+    // Re-run the normal routing — everything will be treated as "new"
+    this.routeAudio(nodes, edges);
   }
 
   /**
